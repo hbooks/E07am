@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useKindeAuth } from '@/hooks/useKindeAuth';
+import { useKindeAuth } from "@kinde-oss/kinde-auth-react";
 
 const BASE_URL = import.meta.env.VITE_SUPABASE_FUNCTIONS_URL;
 const ONBOARDING_CHECK_URL = `${BASE_URL}/OnUse_exs`;
@@ -48,7 +48,7 @@ function OnboardingPage() {
             <h2 className="text-2xl font-bold mb-4" > Welcome to CTR </h2>
                 < p className = "text-gray-400 mb-8" > Sign in to start matchmaking.</p>
                     < button
-        onClick = { login }
+                    onClick={() => login()} 
         className = "bg-[#1E90FF] hover:bg-blue-600 text-white px-8 py-3 rounded-xl font-semibold transition"
             >
             Sign in with Kinde
