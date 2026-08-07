@@ -9,7 +9,7 @@ import NavRail from "@/components/NavRail";
 import FeedPage from "@/pages/IndexPage";
 import CreateRoomPage from "@/pages/CreateRoomPage";
 import NewsPage from "@/pages/NewsPage";
-import SearchPage from "@/pages/search";
+import SearchPage from "@/pages/SearchPage";
 import ProfilePage from "@/pages/ProfilePage";
 import NotificationsPage from "@/pages/NotificationsPage";
 import OnboardingPage from "@/pages/onboarding";
