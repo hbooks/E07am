@@ -13,6 +13,8 @@ import SearchPage from "@/pages/SearchPage";
 import ProfilePage from "@/pages/ProfilePage";
 import NotificationsPage from "@/pages/NotificationsPage";
 import OnboardingPage from "@/pages/OnboardingPage";   
+import CallbackPage from "@/pages/Callback";
+
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -38,6 +40,7 @@ const App = () => (
                 <Route path="/profile" element={<ProfilePage />} />
                 <Route path="/notifications" element={<NotificationsPage />} />
                 <Route path="/onboarding" element={<OnboardingPage />} />
+                <Route path="/callback" element={<CallbackPage />} />
               </Routes>
             </main>
           </div>
