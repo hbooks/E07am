@@ -12,7 +12,7 @@ import NewsPage from "@/pages/NewsPage";
 import SearchPage from "@/pages/SearchPage";
 import ProfilePage from "@/pages/ProfilePage";
 import NotificationsPage from "@/pages/NotificationsPage";
-import OnboardingPage from "@/pages/onboarding";
+import OnboardingPage from "@/pages/OnboardingPage";
 
 const queryClient = new QueryClient();
 
