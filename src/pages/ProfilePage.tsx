@@ -81,12 +81,24 @@ export default function ProfilePage() {
       .catch(() => toast.error('Network error'));
   };
 
-  const handleLogout = () => {
-    // Start the Kinde logout flow (redirects to Kinde, then back to logoutUri)
+const handleLogout = () => {
+  setTimeout(() => {
+    // Delete all cookies
+    document.cookie.split(';').forEach((c) => {
+      document.cookie = c
+        .replace(/^ +/, '')
+        .replace(/=.*/, '=;expires=' + new Date().toUTCString() + ';path=/');
+    });
+
+    // Clear local and session storage
     localStorage.clear();
     sessionStorage.clear();
-    logout();
-  };
+
+    // Hard reload to the home page (bypasses cache)
+    window.location.replace('/');
+  }, 400);
+  logout();
+};
 
   if (!isAuthenticated) {
     return (
