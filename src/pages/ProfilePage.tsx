@@ -38,6 +38,8 @@ export default function ProfilePage() {
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [avatarModalOpen, setAvatarModalOpen] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [logoutStatus, setLogoutStatus] = useState<string | null>(null);
   const navigate = useNavigate();
 
   // If somehow not authenticated, redirect to login
@@ -80,10 +82,26 @@ export default function ProfilePage() {
   };
 
   const handleLogout = async () => {
+    const logoutRedirect =
+      import.meta.env.VITE_KINDE_LOGOUT_REDIRECT_URI ||
+      import.meta.env.VITE_KINDE_REDIRECT_URI;
+
+    setIsLoggingOut(true);
+    setLogoutStatus('Logging out...');
+
     try {
-      await logout({ redirectUrl: `${window.location.origin}/?logout=${Date.now()}` });
+      if (logoutRedirect) {
+        await logout({ redirectUrl: logoutRedirect });
+      } else {
+        await logout();
+      }
+      setLogoutStatus('Logout successful. Redirecting...');
+      toast.success('Logged out successfully.');
     } catch (error) {
+      setLogoutStatus('Logout failed. Please try again.');
       toast.error('Logout failed. Please try again.');
+    } finally {
+      setIsLoggingOut(false);
     }
   };
 
@@ -213,11 +231,15 @@ export default function ProfilePage() {
       {/* Logout */}
       <button
         onClick={handleLogout}
-        className="w-full bg-red-600/20 border border-red-500/50 rounded-xl p-4 flex items-center justify-between hover:bg-red-600/30 transition text-red-400"
+        disabled={isLoggingOut}
+        className={`w-full rounded-xl p-4 flex items-center justify-between transition text-red-400 ${isLoggingOut ? 'bg-red-500/20 border border-red-500/30 cursor-not-allowed' : 'bg-red-600/20 border border-red-500/50 hover:bg-red-600/30'}`}
       >
-        <span className="font-medium">Log Out</span>
+        <span className="font-medium">{isLoggingOut ? 'Logging out...' : 'Log Out'}</span>
         <LogOut className="h-5 w-5" />
       </button>
+      {logoutStatus && (
+        <p className="mt-3 text-sm text-gray-300">{logoutStatus}</p>
+      )}
 
       {/* Avatar Selection Modal */}
       {avatarModalOpen && (
