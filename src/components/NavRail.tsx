@@ -1,26 +1,27 @@
 import { Link, useLocation } from 'react-router-dom';
 import { Newspaper, Plus, Search, User, Volleyball } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useKindeAuth } from "@kinde-oss/kinde-auth-react";
 
-const NAV_ITEMS = [
+const BASE_ITEMS = [
   { to: "/", label: "Feed", icon: Volleyball, special: false },
   { to: "/news", label: "News", icon: Newspaper, special: false },
   { to: "/create", label: "Create Room", icon: Plus, special: true },
   { to: "/search", label: "Search", icon: Search, special: false },
-  { to: "/profile", label: "Profile", icon: User, special: false },
 ] as const;
 
 export function NavRail() {
   const { pathname } = useLocation();
+  const { isAuthenticated, isLoading, login } = useKindeAuth();
 
   return (
     <>
-      {/* Desktop: fixed left icon rail */}
+      {/* Desktop */}
       <nav
         aria-label="Main navigation"
         className="fixed inset-y-0 left-0 z-40 hidden w-20 flex-col items-center justify-center gap-7 border-r border-border bg-background/95 md:flex"
       >
-        {NAV_ITEMS.map((item) => {
+        {BASE_ITEMS.map((item) => {
           const active = item.to === "/" ? pathname === "/" : pathname.startsWith(item.to);
           const Icon = item.icon;
 
@@ -55,14 +56,46 @@ export function NavRail() {
             </Link>
           );
         })}
+
+        {/* Profile / Login button – the watchdog */}
+        {isLoading ? (
+          <div className="rounded-xl p-2.5 text-muted-foreground opacity-50">
+            <User className="h-6 w-6" />
+          </div>
+        ) : isAuthenticated ? (
+          <Link
+            to="/onboarding"
+            aria-label="Profile"
+            className={cn(
+              "group relative rounded-xl p-2.5 transition-colors",
+              pathname.startsWith("/onboarding") || pathname.startsWith("/profile")
+                ? "bg-accent text-primary"
+                : "text-muted-foreground hover:bg-secondary hover:text-foreground",
+            )}
+          >
+            <User className="h-6 w-6" />
+            <Tooltip label="Profile" />
+          </Link>
+        ) : (
+          <button
+            onClick={() => login()} 
+            aria-label="Sign in"
+            className={cn(
+              "group relative rounded-xl p-2.5 transition-colors text-muted-foreground hover:bg-secondary hover:text-foreground",
+            )}
+          >
+            <User className="h-6 w-6" />
+            <Tooltip label="Sign in" />
+          </button>
+        )}
       </nav>
 
-      {/* Mobile: fixed bottom bar */}
+      {/* Mobile */}
       <nav
         aria-label="Main navigation"
         className="fixed inset-x-0 bottom-0 z-40 grid h-16 grid-cols-5 items-center border-t border-border bg-background/95 backdrop-blur md:hidden"
       >
-        {NAV_ITEMS.map((item) => {
+        {BASE_ITEMS.map((item) => {
           const active = item.to === "/" ? pathname === "/" : pathname.startsWith(item.to);
           const Icon = item.icon;
 
@@ -93,6 +126,33 @@ export function NavRail() {
             </Link>
           );
         })}
+
+        {/* Profile / Login for mobile */}
+        {isLoading ? (
+          <div className="mx-auto grid h-full w-full place-items-center text-muted-foreground opacity-50">
+            <User className="h-6 w-6" />
+          </div>
+        ) : isAuthenticated ? (
+          <Link
+            to="/onboarding"
+            aria-label="Profile"
+            className={cn(
+              "mx-auto grid h-full w-full place-items-center transition-colors",
+              pathname.startsWith("/onboarding") || pathname.startsWith("/profile")
+                ? "text-primary"
+                : "text-muted-foreground",
+            )}
+          >
+            <User className="h-6 w-6" />
+          </Link>
+        ) : (
+          <button
+            onClick={() => login()}
+            className="mx-auto grid h-full w-full place-items-center text-muted-foreground"
+          >
+            <User className="h-6 w-6" />
+          </button>
+        )}
       </nav>
     </>
   );

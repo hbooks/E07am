@@ -1,70 +1,90 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useKindeAuth } from '@kinde-oss/kinde-auth-react';
+import { Pencil, Lock, Info, Shield, ChevronRight, LogOut, Camera } from 'lucide-react';
+import { toast } from 'sonner';
+
 
 const BASE_URL = import.meta.env.VITE_SUPABASE_FUNCTIONS_URL;
-const ONBOARDING_CHECK_URL = `${BASE_URL}/OnUse_exs`;
-const CREATE_PROFILE_URL = `${BASE_URL}/Cuse`;
+const UPDATE_AVATAR_URL = `${BASE_URL}/Update_Avatar`;
+
+const AVATAR_CATEGORIES = [
+  {
+    name: 'Critters',
+    base: 'https://api.dicebear.com/10.x/critters/svg?seed=',
+    seeds: Array.from({ length: 10 }, (_, i) => String(i).padStart(2, '0')).concat(
+      Array.from({ length: 6 }, (_, i) => String(95 + i))
+    ),
+  },
+  {
+    name: 'Croodles',
+    base: 'https://api.dicebear.com/10.x/croodles/svg?seed=',
+    seeds: Array.from({ length: 16 }, (_, i) => String(85 + i)),
+  },
+  {
+    name: 'Dylan',
+    base: 'https://api.dicebear.com/10.x/dylan/svg?seed=',
+    seeds: Array.from({ length: 11 }, (_, i) => String(60 + i)),
+  },
+  {
+    name: 'Clay',
+    base: 'https://api.dicebear.com/10.x/clay/svg?seed=',
+    seeds: Array.from({ length: 16 }, (_, i) => String(i).padStart(2, '0')),
+  },
+];
 
 export default function ProfilePage() {
-  const { user, isLoading: authLoading, isAuthenticated, login } = useKindeAuth();
+  const { user, isAuthenticated, login, logout } = useKindeAuth();
   const [profile, setProfile] = useState<any>(null);
-  const [profileExists, setProfileExists] = useState<boolean | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [avatarModalOpen, setAvatarModalOpen] = useState(false);
   const navigate = useNavigate();
 
-  // If not authenticated, redirect to Kinde login
+  // If somehow not authenticated, redirect to login
   useEffect(() => {
-    if (!authLoading && !isAuthenticated) {
+    if (!isAuthenticated) {
       login();
     }
-  }, [authLoading, isAuthenticated, login]);
+  }, [isAuthenticated, login]);
 
-  // Fetch profile from Supabase once we have a user
+  // Fetch profile data
   useEffect(() => {
     if (!user) return;
-    setProfileExists(null); // reset loading state
+    setLoading(true);
+    fetch(`${BASE_URL}/Get_Up?userId=${user.id}`)
+      .then(res => res.json())
+      .then(data => {
+        setProfile(data);
+      })
+      .catch(() => toast.error('Failed to load profile'))
+      .finally(() => setLoading(false));
+  }, [user]);
 
-    fetch(ONBOARDING_CHECK_URL, {
+  const handleAvatarUpdate = (newUrl: string) => {
+    fetch(UPDATE_AVATAR_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId: user.id }),
+      body: JSON.stringify({ userId: user.id, avatarUrl: newUrl }),
     })
       .then(res => res.json())
       .then(data => {
-        if (data.exists) {
-          // Profile exists – fetch full data (we can reuse the same endpoint or a new one)
-          // For now we set profileExists = true, but we still need full data.
-          // We'll fetch the profile details from a dedicated GET endpoint or reuse the same POST that returns data.
-          // The current OnUse_exs only returns { exists: true/false }. We need the full record.
-          // We'll assume we have a /api/profile?userId=... endpoint or modify Cuse to also fetch.
-          // But we can simply call OnUse_exs and then if exists, fetch from a new endpoint /api/profile?id=...
-          // Let's create a simple GET endpoint in Supabase edge functions: GetProfile
-          // For now, we'll simulate with a separate fetch.
-          fetch(`${BASE_URL}/Get_Up?userId=${user.id}`)
-            .then(res => res.json())
-            .then(profileData => {
-              setProfile(profileData);
-              setProfileExists(true);
-            })
-            .catch(() => setProfileExists(false));
+        if (data.success) {
+          setProfile({ ...profile, p_url: newUrl });
+          toast.success('Profile picture updated!');
+          setAvatarModalOpen(false);
         } else {
-          setProfileExists(false);
+          toast.error('Failed to update avatar');
         }
       })
-      .catch(() => setProfileExists(false));
-  }, [user]);
+      .catch(() => toast.error('Network error'));
+  };
 
-  // Loading states
-  if (authLoading || profileExists === null) {
-    return (
-      <div className="min-h-screen bg-[#0A0A0A] flex flex-col items-center justify-center px-4">
-        <div className="w-20 h-20 bg-[#1A1A1A] rounded-full animate-pulse mb-6" />
-        <div className="w-48 h-4 bg-[#1A1A1A] rounded animate-pulse mb-4" />
-        <div className="w-32 h-3 bg-[#1A1A1A] rounded animate-pulse" />
-        <p className="mt-4 text-sm text-gray-500">Loading profile...</p>
-      </div>
-    );
-  }
+  const handleLogout = () => {
+    logout();
+    setTimeout(() => {
+      window.location.replace('/?logout=' + Date.now());
+    }, 500);
+  };
 
   if (!isAuthenticated) {
     return (
@@ -74,214 +94,223 @@ export default function ProfilePage() {
     );
   }
 
-  // If profile doesn't exist yet, show the onboarding form
-  if (!profileExists) {
-    return <OnboardingForm user={user} />;
+  if (loading) return <ProfileSkeleton />;
+
+  // If profile data is null, maybe user hasn't onboarded? We shouldn't normally reach here because onboarding would have redirected.
+  if (!profile) {
+    return (
+      <div className="min-h-screen bg-[#0A0A0A] flex flex-col items-center justify-center text-white">
+        <p className="mb-4">You haven't set up your profile yet.</p>
+        <Link to="/onboarding" className="bg-[#1E90FF] px-6 py-2 rounded-xl">
+          Complete Setup
+        </Link>
+      </div>
+    );
   }
 
-  // Profile exists – show full profile page (editable)
-  return <ProfileView user={user} profile={profile} />;
-}
-
-// ====================== ONBOARDING FORM ======================
-function OnboardingForm({ user }: { user: any }) {
-  const [username, setUsername] = useState('');
-  const [isSaving, setIsSaving] = useState(false);
-  const [message, setMessage] = useState('');
-  const navigate = useNavigate();
-
-  const handleSave = async () => {
-    const sanitizedUsername = username.replace(/[^a-zA-Z0-9_\-.]/g, '').slice(0, 30);
-    if (!sanitizedUsername) {
-      setMessage('Invalid username. Only letters, numbers, hyphens, underscores, and dots allowed.');
-      return;
-    }
-
-    setIsSaving(true);
-    setMessage('');
-
-    try {
-      const res = await fetch(CREATE_PROFILE_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId: user.id,
-          username: sanitizedUsername,
-        }),
-      });
-
-      const result = await res.json();
-      if (res.ok) {
-        setMessage('Profile created! Reloading...');
-        // Refresh the page to fetch the new profile
-        setTimeout(() => window.location.reload(), 1000);
-      } else {
-        setMessage(result.error || 'Failed to save profile');
-      }
-    } catch {
-      setMessage('Network error – please try again.');
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
   return (
-    <div className="min-h-screen bg-[#0A0A0A] text-white p-6">
-      <h1 className="text-2xl font-bold mb-6">Complete Your Profile</h1>
+    <div className="min-h-screen bg-[#0A0A0A] text-white p-6 max-w-2xl mx-auto animate-in fade-in slide-in-from-bottom-2 duration-300">
+      {/* Profile Card */}
+      <div className="bg-[#1A1A1A] rounded-3xl p-6 mb-8 shadow-xl">
+        <div className="flex items-start gap-6">
+          {/* Avatar with edit pen */}
+          <div className="relative flex-shrink-0">
+            <div className="w-24 h-24 md:w-32 md:h-32 rounded-full overflow-hidden bg-[#0A0A0A] border-2 border-[#1E90FF]">
+              <img src={profile.p_url} alt="Profile" className="w-full h-full object-cover" />
+            </div>
+            <button
+              onClick={() => setAvatarModalOpen(true)}
+              className="absolute bottom-0 right-0 bg-[#1E90FF] p-2 rounded-full shadow-md hover:bg-blue-600 transition"
+            >
+              <Pencil className="h-4 w-4 text-white" />
+            </button>
+          </div>
 
-      <div className="bg-[#1A1A1A] p-4 rounded-xl mb-6">
-        <label className="text-sm text-gray-400">Email</label>
-        <div className="flex items-center justify-between">
-          <span className="text-white">{user.email}</span>
-          <span className="text-xs text-gray-500" title="Managed by Kinde">🔒</span>
+          {/* Username and email */}
+          <div className="flex-1 min-w-0">
+            <h1 className="text-2xl md:text-3xl font-bold truncate">{profile.username}</h1>
+            <div className="flex items-center gap-2 mt-1 text-sm text-gray-400">
+              <Lock className="h-4 w-4" />
+              <span className="truncate">{user.email}</span>
+              <div className="relative group">
+                <Info className="h-4 w-4 text-gray-500 cursor-help" />
+                <div className="absolute bottom-full left-0 mb-2 w-48 bg-[#2A2A2A] text-xs p-2 rounded-lg opacity-0 group-hover:opacity-100 transition pointer-events-none z-10">
+                  Your sign‑in credentials are securely managed and cannot be changed here.
+                </div>
+              </div>
+            </div>
+
+            {/* Badges rectangle */}
+            <div className="mt-4 flex items-center gap-2">
+              <div
+                className="bg-[#2A2A2A] rounded-xl px-4 py-2 flex items-center gap-2 cursor-pointer hover:bg-[#333] transition"
+                onClick={() => toast.info('Badges will be displayed here soon')}
+              >
+                <Shield className="h-4 w-4 text-[#1E90FF]" />
+                <span className="text-sm font-medium">Badges</span>
+                <ChevronRight className="h-4 w-4 text-gray-500" />
+              </div>
+            </div>
+          </div>
         </div>
-        <p className="text-xs text-gray-500 mt-2">
-          Your login email is managed by Kinde and cannot be changed here.
-        </p>
+
+        {/* Stats cubes */}
+        <div className="grid grid-cols-3 gap-4 mt-8">
+          <div className="bg-[#0A0A0A] rounded-2xl p-4 text-center">
+            <p className="text-xs text-gray-400 mb-1">Squad Strength</p>
+            <p className="text-lg font-bold">{profile.squad_strength || 'N/A'}</p>
+          </div>
+          <div className="bg-[#0A0A0A] rounded-2xl p-4 text-center">
+            <p className="text-xs text-gray-400 mb-1">Squad Rank</p>
+            <p className="text-lg font-bold">{profile.squad_rank || 'N/A'}</p>
+          </div>
+          <div className="bg-[#0A0A0A] rounded-2xl p-4 text-center">
+            <p className="text-xs text-gray-400 mb-1">Player Rank</p>
+            <p className="text-lg font-bold">{profile.player_rank || 'N/A'}</p>
+          </div>
+        </div>
       </div>
 
-      <div className="space-y-4">
-        <div>
-          <label className="block text-sm text-gray-400 mb-1">eFootball Username</label>
-          <input
-            type="text"
-            value={username}
-            onChange={e => setUsername(e.target.value)}
-            placeholder="Your exact in‑game username (not ID)"
-            className="w-full bg-[#121212] border border-gray-700 rounded-lg p-3 focus:border-[#1E90FF] outline-none"
-          />
-          <p className="text-xs text-gray-500 mt-1">
-            Only letters, numbers, hyphens, underscores and dots. Impersonation may lead to account restriction.
-          </p>
-        </div>
-
-        <div className="bg-[#121212] p-4 rounded-xl">
-          <label className="block text-sm text-gray-400 mb-1">Squad Strength</label>
-          <p className="text-gray-500 italic">N/A – evaluated automatically</p>
-        </div>
-
-        <div className="bg-[#121212] p-4 rounded-xl">
-          <label className="block text-sm text-gray-400 mb-1">Squad Rank</label>
-          <p className="text-gray-500 italic">N/A – evaluated automatically</p>
-        </div>
-
-        <div className="bg-[#121212] p-4 rounded-xl">
-          <label className="block text-sm text-gray-400 mb-1">Player Rank</label>
-          <p className="text-gray-500 italic">N/A – evaluated automatically</p>
-        </div>
-
+      {/* Menu items */}
+      <div className="space-y-2 mb-8">
         <button
-          onClick={handleSave}
-          disabled={isSaving}
-          className="w-full bg-[#1E90FF] hover:bg-blue-600 text-white py-3 rounded-xl font-semibold transition"
+          onClick={() => navigate('/request-changes')}
+          className="w-full bg-[#1A1A1A] rounded-xl p-4 flex items-center justify-between hover:bg-[#222] transition"
         >
-          {isSaving ? 'Saving...' : 'Save Profile'}
+          <span className="font-medium">Request Changes</span>
+          <ChevronRight className="h-5 w-5 text-gray-500" />
         </button>
-
-        {message && (
-          <p className={`text-sm mt-2 ${message.includes('success') || message.includes('Profile created') ? 'text-green-400' : 'text-red-400'}`}>
-            {message}
-          </p>
-        )}
+        <button
+          onClick={() => navigate('/settings')}
+          className="w-full bg-[#1A1A1A] rounded-xl p-4 flex items-center justify-between hover:bg-[#222] transition"
+        >
+          <span className="font-medium">Settings</span>
+          <ChevronRight className="h-5 w-5 text-gray-500" />
+        </button>
       </div>
+
+      {/* Conditional Update Squad button */}
+      {(!profile.squad_strength || profile.squad_strength === 'N/A') && (
+        <div className="mb-8">
+          <div className="bg-[#1A1A1A] rounded-2xl p-5 border border-yellow-500/30">
+            <div className="flex items-start gap-3 mb-4">
+              <Info className="h-5 w-5 text-yellow-500 flex-shrink-0 mt-0.5" />
+              <p className="text-sm text-gray-300">
+                Your squad strength is currently <strong>NOT VERIFIED</strong>. To get evaluated, upload a <strong>screenshot of your best squad lineup</strong>. We manually verify these to ensure fair play. Tampered or doctored screenshots will result in account restriction.
+              </p>
+            </div>
+            <button
+              onClick={() => navigate('/update-squad')}
+              className="w-full bg-yellow-600 hover:bg-yellow-700 text-white py-3 rounded-xl font-semibold transition"
+            >
+              Update Squad For Evaluation
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Logout */}
+      <button
+        onClick={handleLogout}
+        className="w-full bg-red-600/20 border border-red-500/50 rounded-xl p-4 flex items-center justify-between hover:bg-red-600/30 transition text-red-400"
+      >
+        <span className="font-medium">Log Out</span>
+        <LogOut className="h-5 w-5" />
+      </button>
+
+      {/* Avatar Selection Modal */}
+      {avatarModalOpen && (
+        <AvatarModal onSelect={handleAvatarUpdate} onClose={() => setAvatarModalOpen(false)} />
+      )}
     </div>
   );
 }
 
-// ====================== FULL PROFILE VIEW ======================
-function ProfileView({ user, profile }: { user: any; profile: any }) {
-  const [username, setUsername] = useState(profile.username || '');
-  const [isSaving, setIsSaving] = useState(false);
-  const [message, setMessage] = useState('');
+// ---------- Skeleton Loader ----------
+function ProfileSkeleton() {
+  return (
+    <div className="min-h-screen bg-[#0A0A0A] p-6 max-w-2xl mx-auto">
+      <div className="bg-[#1A1A1A] rounded-3xl p-6 mb-8">
+        <div className="flex items-start gap-6">
+          <div className="w-24 h-24 md:w-32 md:h-32 rounded-full bg-[#2A2A2A] animate-pulse" />
+          <div className="flex-1 space-y-3">
+            <div className="w-1/2 h-6 bg-[#2A2A2A] rounded animate-pulse" />
+            <div className="w-3/4 h-4 bg-[#2A2A2A] rounded animate-pulse" />
+          </div>
+        </div>
+        <div className="grid grid-cols-3 gap-4 mt-8">
+          {[1, 2, 3].map(i => (
+            <div key={i} className="bg-[#0A0A0A] rounded-2xl p-4 space-y-2">
+              <div className="w-1/2 h-3 bg-[#2A2A2A] rounded animate-pulse mx-auto" />
+              <div className="w-1/3 h-5 bg-[#2A2A2A] rounded animate-pulse mx-auto" />
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="space-y-2 mb-8">
+        {[1, 2].map(i => (
+          <div key={i} className="w-full h-14 bg-[#1A1A1A] rounded-xl animate-pulse" />
+        ))}
+      </div>
+      <div className="w-full h-14 bg-[#1A1A1A] rounded-xl animate-pulse" />
+    </div>
+  );
+}
 
-  const handleUpdate = async () => {
-    const sanitizedUsername = username.replace(/[^a-zA-Z0-9_\-.]/g, '').slice(0, 30);
-    if (!sanitizedUsername) {
-      setMessage('Invalid username.');
-      return;
-    }
-
-    setIsSaving(true);
-    setMessage('');
-    try {
-      const res = await fetch(CREATE_PROFILE_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId: user.id,
-          username: sanitizedUsername,
-        }),
-      });
-
-      const result = await res.json();
-      if (res.ok) {
-        setMessage('Profile updated!');
-      } else {
-        setMessage(result.error || 'Failed to update');
-      }
-    } catch {
-      setMessage('Network error');
-    } finally {
-      setIsSaving(false);
-    }
-  };
+// ---------- Avatar Modal (unchanged from before, just included for completeness) ----------
+function AvatarModal({ onSelect, onClose }: { onSelect: (url: string) => void; onClose: () => void }) {
+  const [activeTab, setActiveTab] = useState(0);
+  const [selectedSeed, setSelectedSeed] = useState<string | null>(null);
+  const category = AVATAR_CATEGORIES[activeTab];
 
   return (
-    <div className="min-h-screen bg-[#0A0A0A] text-white p-6">
-      <h1 className="text-2xl font-bold mb-6">Your Profile</h1>
-
-      {/* Locked Kinde info */}
-      <div className="bg-[#1A1A1A] p-4 rounded-xl mb-6">
-        <label className="text-sm text-gray-400">Email</label>
-        <div className="flex items-center justify-between">
-          <span className="text-white">{user.email}</span>
-          <span className="text-xs text-gray-500" title="Managed by Kinde">🔒</span>
-        </div>
-        <p className="text-xs text-gray-500 mt-2">
-          Your login email is managed by Kinde and cannot be changed here.
-        </p>
-      </div>
-
-      {/* Editable username */}
-      <div className="space-y-4">
-        <div>
-          <label className="block text-sm text-gray-400 mb-1">eFootball Username</label>
-          <input
-            type="text"
-            value={username}
-            onChange={e => setUsername(e.target.value)}
-            className="w-full bg-[#121212] border border-gray-700 rounded-lg p-3 focus:border-[#1E90FF] outline-none"
-          />
+    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+      <div className="bg-[#1A1A1A] rounded-3xl w-full max-w-lg max-h-[90vh] flex flex-col shadow-2xl">
+        <div className="p-6 pb-4">
+          <h2 className="text-xl font-bold">Choose Your Avatar</h2>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="bg-[#121212] p-4 rounded-xl">
-            <label className="block text-sm text-gray-400 mb-1">Squad Strength</label>
-            <p className="text-white font-semibold">{profile.squad_strength || 'N/A'}</p>
-          </div>
-          <div className="bg-[#121212] p-4 rounded-xl">
-            <label className="block text-sm text-gray-400 mb-1">Squad Rank</label>
-            <p className="text-white font-semibold">{profile.squad_rank || 'N/A'}</p>
-          </div>
-          <div className="bg-[#121212] p-4 rounded-xl">
-            <label className="block text-sm text-gray-400 mb-1">Player Rank</label>
-            <p className="text-white font-semibold">{profile.player_rank || 'N/A'}</p>
-          </div>
+        {/* Tabs */}
+        <div className="flex border-b border-gray-700 px-2">
+          {AVATAR_CATEGORIES.map((cat, idx) => (
+            <button
+              key={cat.name}
+              onClick={() => { setActiveTab(idx); setSelectedSeed(null); }}
+              className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${idx === activeTab ? 'border-[#1E90FF] text-[#1E90FF]' : 'border-transparent text-gray-400 hover:text-white'
+                }`}
+            >
+              {cat.name}
+            </button>
+          ))}
         </div>
 
-        <button
-          onClick={handleUpdate}
-          disabled={isSaving}
-          className="w-full bg-[#1E90FF] hover:bg-blue-600 text-white py-3 rounded-xl font-semibold transition"
-        >
-          {isSaving ? 'Saving...' : 'Update Profile'}
-        </button>
+        <div className="p-4 overflow-y-auto flex-1 grid grid-cols-4 gap-3">
+          {category.seeds.map(seed => {
+            const url = `${category.base}${seed}`;
+            return (
+              <button
+                key={seed}
+                onClick={() => setSelectedSeed(url)}
+                className={`aspect-square rounded-2xl overflow-hidden border-2 transition-all ${selectedSeed === url ? 'border-[#1E90FF] scale-105' : 'border-transparent hover:border-gray-500'
+                  }`}
+              >
+                <img src={url} alt={`Avatar ${seed}`} className="w-full h-full object-cover" />
+              </button>
+            );
+          })}
+        </div>
 
-        {message && (
-          <p className={`text-sm mt-2 ${message.includes('success') || message.includes('updated') ? 'text-green-400' : 'text-red-400'}`}>
-            {message}
-          </p>
-        )}
+        <div className="p-4 border-t border-gray-700">
+          <button
+            onClick={() => { if (selectedSeed) onSelect(selectedSeed); else toast.error('Please select an avatar'); }}
+            className="w-full bg-[#1E90FF] hover:bg-blue-600 text-white py-3 rounded-xl font-semibold transition"
+          >
+            Save Avatar
+          </button>
+          <button onClick={onClose} className="w-full mt-2 bg-transparent border border-gray-600 text-gray-300 py-2 rounded-xl hover:bg-gray-700 transition">
+            Cancel
+          </button>
+        </div>
       </div>
     </div>
   );
