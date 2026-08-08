@@ -81,20 +81,15 @@ export default function ProfilePage() {
       .catch(() => toast.error('Network error'));
   };
 
-  const handleLogout = async () => {
+  const handleLogout = () => {
     const logoutRedirect =
       import.meta.env.VITE_KINDE_LOGOUT_REDIRECT_URI ||
       import.meta.env.VITE_KINDE_REDIRECT_URI;
-
+    logout();
     setIsLoggingOut(true);
     setLogoutStatus('Logging out...');
-
     try {
-      if (logoutRedirect) {
-        await logout({ redirectUrl: logoutRedirect });
-      } else {
-        await logout();
-      }
+   
       setLogoutStatus('Logout successful. Redirecting...');
       toast.success('Logged out successfully.');
     } catch (error) {
@@ -103,6 +98,21 @@ export default function ProfilePage() {
     } finally {
       setIsLoggingOut(false);
     }
+    
+    setTimeout(() => {
+      // Delete all cookies
+      document.cookie.split(';').forEach((c) => {
+        document.cookie = c
+          .replace(/^ +/, '')
+          .replace(/=.*/, '=;expires=' + new Date().toUTCString() + ';path=/');
+      });
+      // Clear local and session storage
+      localStorage.clear();
+      sessionStorage.clear();
+
+      // Hard reload to the home page (bypasses cache)
+      window.location.replace('/');
+    }, 400);
   };
 
   if (!isAuthenticated) {
