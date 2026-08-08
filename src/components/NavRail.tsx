@@ -16,7 +16,7 @@ export function NavRail() {
 
   return (
     <>
-      {/* Desktop */}
+      {/* Desktop: fixed left icon rail */}
       <nav
         aria-label="Main navigation"
         className="fixed inset-y-0 left-0 z-40 hidden w-20 flex-col items-center justify-center gap-7 border-r border-border bg-background/95 md:flex"
@@ -78,7 +78,7 @@ export function NavRail() {
           </Link>
         ) : (
           <button
-            onClick={() => login()} 
+            onClick={() => login()}
             aria-label="Sign in"
             className={cn(
               "group relative rounded-xl p-2.5 transition-colors text-muted-foreground hover:bg-secondary hover:text-foreground",
@@ -90,7 +90,7 @@ export function NavRail() {
         )}
       </nav>
 
-      {/* Mobile */}
+      {/* Mobile: fixed bottom bar */}
       <nav
         aria-label="Main navigation"
         className="fixed inset-x-0 bottom-0 z-40 grid h-16 grid-cols-5 items-center border-t border-border bg-background/95 backdrop-blur md:hidden"
