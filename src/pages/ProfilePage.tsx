@@ -82,25 +82,10 @@ export default function ProfilePage() {
   };
 
   const handleLogout = () => {
-    const logoutRedirect =
-      import.meta.env.VITE_KINDE_LOGOUT_REDIRECT_URI ||
-      import.meta.env.VITE_KINDE_REDIRECT_URI;
+    // Start the Kinde logout flow (redirects to Kinde, then back to logoutUri)
+    localStorage.clear();
+    sessionStorage.clear();
     logout();
-;
-    setTimeout(() => {
-      // Delete all cookies
-      document.cookie.split(';').forEach((c) => {
-        document.cookie = c
-          .replace(/^ +/, '')
-          .replace(/=.*/, '=;expires=' + new Date().toUTCString() + ';path=/');
-      });
-      // Clear local and session storage
-      localStorage.clear();
-      sessionStorage.clear();
-
-      // Hard reload to the home page (bypasses cache)
-      window.location.replace('/');
-    }, 400);
   };
 
   if (!isAuthenticated) {
