@@ -86,19 +86,7 @@ export default function ProfilePage() {
       import.meta.env.VITE_KINDE_LOGOUT_REDIRECT_URI ||
       import.meta.env.VITE_KINDE_REDIRECT_URI;
     logout();
-    setIsLoggingOut(true);
-    setLogoutStatus('Logging out...');
-    try {
-   
-      setLogoutStatus('Logout successful. Redirecting...');
-      toast.success('Logged out successfully.');
-    } catch (error) {
-      setLogoutStatus('Logout failed. Please try again.');
-      toast.error('Logout failed. Please try again.');
-    } finally {
-      setIsLoggingOut(false);
-    }
-    
+;
     setTimeout(() => {
       // Delete all cookies
       document.cookie.split(';').forEach((c) => {
