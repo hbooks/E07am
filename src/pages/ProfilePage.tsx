@@ -79,17 +79,18 @@ export default function ProfilePage() {
       .catch(() => toast.error('Network error'));
   };
 
-  const handleLogout = () => {
-    logout();
-    setTimeout(() => {
-      window.location.replace('/?logout=' + Date.now());
-    }, 500);
+  const handleLogout = async () => {
+    try {
+      await logout({ redirectUrl: `${window.location.origin}/?logout=${Date.now()}` });
+    } catch (error) {
+      toast.error('Logout failed. Please try again.');
+    }
   };
 
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-[#0A0A0A] flex items-center justify-center text-white">
-        <p>Redirecting to login...</p>
+        <p>You're not logged in. Calling Auth....</p>
       </div>
     );
   }
