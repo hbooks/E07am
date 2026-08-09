@@ -2,7 +2,10 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useKindeAuth } from '@kinde-oss/kinde-auth-react';
 import { PromptTypes } from '@kinde/js-utils';
-import { User, Mail, Lock } from 'lucide-react';
+import { toast } from 'sonner';
+import { Mail, Lock, CheckCircle, AlertTriangle, ArrowRightCircle } from 'lucide-react';
+import { validateUsername } from '@/lib/usernameFilter';
+import TermsModal from '@/components/TermsModal';
 
 const BASE_URL = import.meta.env.VITE_SUPABASE_FUNCTIONS_URL;
 const ONBOARDING_CHECK_URL = `${BASE_URL}/OnUse_exs`;
@@ -13,25 +16,22 @@ export default function OnboardingPage() {
     const [profileExists, setProfileExists] = useState<boolean | null>(null);
     const navigate = useNavigate();
 
-    // If not authenticated, show login prompt
     if (!authLoading && !isAuthenticated) {
         return (
             <div className="min-h-screen bg-[#0A0A0A] flex flex-col items-center justify-center text-white px-4">
                 <h2 className="text-2xl font-bold mb-4">Sign in to continue</h2>
-                <button onClick={() => login({ prompt: PromptTypes.login })} className="bg-[#1E90FF] hover:bg-blue-600 text-white px-8 py-3 rounded-xl font-semibold transition">
+                <button
+                    onClick={() => login({ prompt: PromptTypes.login })}
+                    className="bg-[#1E90FF] hover:bg-blue-600 text-white px-8 py-3 rounded-xl font-semibold transition"
+                >
                     Sign in with Kinde
                 </button>
             </div>
         );
     }
 
-    // While auth is loading, show skeleton
-    if (authLoading) {
-        return <OnboardingSkeleton />;
-    }
+    if (authLoading) return <OnboardingSkeleton />;
 
-    // Once authenticated, check if profile exists
-    // (We'll use an effect to avoid calling during render)
     return (
         <OnboardingContent
             user={user}
@@ -68,12 +68,10 @@ function OnboardingContent({ user, profileExists, setProfileExists }: any) {
     if (checking) return <OnboardingSkeleton />;
 
     if (profileExists) {
-        // Already onboarded – should already have been redirected, but just in case
         navigate('/profile', { replace: true });
         return null;
     }
 
-    // Show onboarding form
     return <OnboardingForm user={user} />;
 }
 
@@ -83,15 +81,51 @@ function OnboardingForm({ user }: { user: any }) {
     const [message, setMessage] = useState('');
     const navigate = useNavigate();
 
+    // Manual validation state (triggered by button)
+    const [checked, setChecked] = useState(false);
+    const [validation, setValidation] = useState<{ valid: boolean; error?: string }>({ valid: true });
+    const [shake, setShake] = useState(false);
+    const [termsAccepted, setTermsAccepted] = useState(false);
+    const [termsModalOpen, setTermsModalOpen] = useState(false);
+
+    const handleCheck = () => {
+        const trimmed = username.trim();
+        if (!trimmed) {
+            setValidation({ valid: false, error: 'Username cannot be empty' });
+            setChecked(true);
+            setShake(true);
+            setTimeout(() => setShake(false), 600);
+            return;
+        }
+        const result = validateUsername(trimmed);
+        setValidation(result);
+        setChecked(true);
+        if (!result.valid) {
+            setShake(true);
+            setTimeout(() => setShake(false), 600);
+        }
+    };
+
+    // Re‑validate automatically if user changes username after a successful check
+    useEffect(() => {
+        if (checked) {
+            // if they modify after a successful check, reset the check
+            setChecked(false);
+            setValidation({ valid: true });
+        }
+    }, [username]);
+
+    const canSave = checked && validation.valid && termsAccepted;
+
     const handleSave = async () => {
+        if (!canSave) return;
         const sanitizedUsername = username.replace(/[^a-zA-Z0-9_\-.]/g, '').slice(0, 30);
         if (!sanitizedUsername) {
-            setMessage('Invalid username. Only letters, numbers, hyphens, underscores, and dots allowed.');
+            toast.error('Invalid username.');
             return;
         }
 
         setIsSaving(true);
-        setMessage('');
 
         try {
             const res = await fetch(CREATE_PROFILE_URL, {
@@ -101,62 +135,156 @@ function OnboardingForm({ user }: { user: any }) {
             });
             const result = await res.json();
             if (res.ok) {
-                setMessage('Profile created! Redirecting...');
+                toast.success('Profile created! Redirecting...');
                 setTimeout(() => navigate('/profile', { replace: true }), 1000);
             } else {
-                setMessage(result.error || 'Failed to save profile');
+                // Server returned an error (e.g., username taken)
+                toast.error(result.error || 'Failed to save profile');
             }
         } catch {
-            setMessage('Network error');
+            toast.error('Network error – please try again.');
         } finally {
             setIsSaving(false);
         }
     };
-
     return (
         <div className="min-h-screen bg-[#0A0A0A] text-white p-6 max-w-xl mx-auto animate-in fade-in slide-in-from-bottom-2 duration-300">
-            <h1 className="text-2xl font-bold mb-6">Complete Your Profile</h1>
+            <style>{`
+                @keyframes onboarding-shake {
+                    10%, 90% { transform: translateX(-1px); }
+                    20%, 80% { transform: translateX(2px); }
+                    30%, 50%, 70% { transform: translateX(-4px); }
+                    40%, 60% { transform: translateX(4px); }
+                }
+            `}</style>
+            <h1 className="text-2xl font-bold mb-2">Complete Your Profile</h1>
+            <p className="text-sm text-gray-400 mb-6">
+                Set your eFootball username wisely, it can’t be easily changed, you'll have to request a change if you make a mistake. 
+                Make sure to follow the guidelines and be truthful.
+            </p>
 
-            {/* Locked email */}
-            <div className="bg-[#1A1A1A] p-4 rounded-xl mb-6 flex items-center gap-3">
-                <Mail className="h-5 w-5 text-gray-400" />
-                <div className="flex-1 min-w-0">
-                    <p className="text-sm text-gray-400 truncate">{user.email}</p>
-                    <p className="text-xs text-gray-600 mt-0.5">Managed by your authentication provider</p>
+            {/* Email card – redesigned */}
+            <div className="bg-[#1A1A1A] rounded-2xl p-5 mb-6 border border-gray-800">
+                <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-[#121212] flex items-center justify-center">
+                        <Mail className="h-5 w-5 text-[#1E90FF]" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                        <p className="text-sm text-gray-300 truncate">{user.email}</p>
+                        <p className="text-xs text-gray-500 mt-0.5">Managed by your authentication provider</p>
+                    </div>
+                    <div className="text-gray-500" title="Your sign‑in email is linked to your Kinde account and cannot be modified here.">
+                        <Lock className="h-4 w-4" />
+                    </div>
                 </div>
-                <Lock className="h-4 w-4 text-gray-500" />
+                <p className="text-xs text-gray-600 mt-3 leading-relaxed">
+                    This email is tied to your sign‑in method and <strong>cannot be changed</strong>. It is never displayed publicly.
+                </p>
             </div>
 
-            {/* Username input */}
+            {/* Username input with manual check */}
             <div className="space-y-4">
                 <div>
-                    <label className="block text-sm text-gray-400 mb-1">eFootball Username</label>
-                    <input
-                        type="text"
-                        value={username}
-                        onChange={e => setUsername(e.target.value)}
-                        placeholder="Your exact in‑game username (not ID)"
-                        className="w-full bg-[#121212] border border-gray-700 rounded-lg p-3 focus:border-[#1E90FF] outline-none"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">
-                        Only letters, numbers, hyphens, underscores and dots. Impersonation may lead to account restriction.
+                    <label htmlFor="efootball-username" className="block text-sm text-gray-400 mb-1">eFootball Username</label>
+                    <div className="relative">
+                        <input
+                            id="efootball-username"
+                            type="text"
+                            value={username}
+                            onChange={e => setUsername(e.target.value)}
+                            onKeyDown={e => {
+                                if (e.key === 'Enter') {
+                                    e.preventDefault();
+                                    handleCheck();
+                                }
+                            }}
+                            placeholder="Your exact in‑game username (not ID)"
+                            className={`w-full bg-[#121212] border rounded-lg p-3 pr-12 outline-none transition-all duration-200 ${checked
+                                ? validation.valid
+                                    ? 'border-green-500 focus:border-green-500 focus:ring-2 focus:ring-green-500/30'
+                                    : 'border-red-500 focus:border-red-500 focus:ring-2 focus:ring-red-500/30'
+                                : 'border-gray-700 focus:border-[#1E90FF] focus:ring-2 focus:ring-[#1E90FF]/30'
+                                }`}
+                            style={{
+                                animation: shake ? 'onboarding-shake 0.5s ease-in-out' : 'none',
+                            }}
+                        />
+                        {/* Check button */}
+                        <button
+                            onClick={handleCheck}
+                            disabled={!username.trim()}
+                            aria-label="Check username availability"
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#1E90FF] disabled:opacity-30 disabled:hover:text-gray-400 transition"
+                            title="Check username"
+                        >
+                            <ArrowRightCircle className="h-5 w-5" />
+                        </button>
+                    </div>
+
+                    {/* Validation result */}
+                    {checked && (
+                        <div className="mt-2">
+                            {validation.valid ? (
+                                <div className="flex items-center gap-2 text-green-400 text-sm">
+                                    <CheckCircle className="h-4 w-4" />
+                                    <span>Valid username</span>
+                                </div>
+                            ) : (
+                                <div className="flex items-start gap-2 text-red-400 text-sm">
+                                    <AlertTriangle className="h-4 w-4 mt-0.5" />
+                                    <span>{validation.error}</span>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    <p className="text-xs text-gray-500 mt-2">
+                        We never ask for your eFootball ID or password. 
+                        Your username must match your in‑game username exactly, including capitalization and special characters.
                     </p>
                 </div>
 
+                {/* Terms checkbox */}
+                <div className="flex items-start gap-3">
+                    <input
+                        type="checkbox"
+                        id="terms"
+                        checked={termsAccepted}
+                        onChange={e => setTermsAccepted(e.target.checked)}
+                        className="mt-1 h-4 w-4 rounded border-gray-600 bg-[#121212] text-[#1E90FF] focus:ring-[#1E90FF]"
+                    />
+                    <label htmlFor="terms" className="text-sm text-gray-300 leading-relaxed">
+                        I agree to the{' '}
+                        <button
+                            onClick={() => setTermsModalOpen(true)}
+                            className="text-[#1E90FF] underline underline-offset-2 hover:text-blue-400 transition"
+                        >
+                            Terms of Service
+                        </button>
+                    </label>
+                </div>
+
+                {/* Continue button */}
                 <button
                     onClick={handleSave}
-                    disabled={isSaving}
-                    className="w-full bg-[#1E90FF] hover:bg-blue-600 text-white py-3 rounded-xl font-semibold transition"
+                    disabled={!canSave || isSaving}
+                    className={`w-full py-3 rounded-xl font-semibold transition ${canSave
+                        ? 'bg-[#1E90FF] hover:bg-blue-600 text-white'
+                        : 'bg-[#1A1A1A] text-gray-500 cursor-not-allowed'
+                        }`}
                 >
-                    {isSaving ? 'Saving...' : 'Save Profile'}
+                    {isSaving ? 'Saving...' : 'Continue'}
                 </button>
 
                 {message && (
-                    <p className={`text-sm mt-2 ${message.includes('success') || message.includes('Profile created') ? 'text-green-400' : 'text-red-400'}`}>
+                    <p className={`text-sm mt-2 ${message.includes('success') || message.includes('created') ? 'text-green-400' : 'text-red-400'}`}>
                         {message}
                     </p>
                 )}
             </div>
+
+            {/* Terms Modal */}
+            <TermsModal open={termsModalOpen} onClose={() => setTermsModalOpen(false)} />
         </div>
     );
 }

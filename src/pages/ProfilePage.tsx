@@ -14,23 +14,23 @@ const AVATAR_CATEGORIES = [
     name: 'Critters',
     base: 'https://api.dicebear.com/10.x/critters/svg?seed=',
     seeds: Array.from({ length: 10 }, (_, i) => String(i).padStart(2, '0')).concat(
-      Array.from({ length: 6 }, (_, i) => String(95 + i))
+      Array.from({ length: 10 }, (_, i) => String(95 + i))
     ),
   },
   {
     name: 'Croodles',
     base: 'https://api.dicebear.com/10.x/croodles/svg?seed=',
-    seeds: Array.from({ length: 16 }, (_, i) => String(85 + i)),
+    seeds: Array.from({ length: 20 }, (_, i) => String(85 + i)),
   },
   {
     name: 'Dylan',
     base: 'https://api.dicebear.com/10.x/dylan/svg?seed=',
-    seeds: Array.from({ length: 11 }, (_, i) => String(60 + i)),
+    seeds: Array.from({ length: 20 }, (_, i) => String(60 + i)),
   },
   {
     name: 'Clay',
     base: 'https://api.dicebear.com/10.x/clay/svg?seed=',
-    seeds: Array.from({ length: 16 }, (_, i) => String(i).padStart(2, '0')),
+    seeds: Array.from({ length: 20 }, (_, i) => String(i).padStart(2, '0')),
   },
 ];
 

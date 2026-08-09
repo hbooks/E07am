@@ -14,7 +14,8 @@ import SearchPage from "@/pages/SearchPage";
 import ProfilePage from "@/pages/ProfilePage";
 import NotificationsPage from "@/pages/NotificationsPage";
 import OnboardingPage from "@/pages/OnboardingPage";
-import CallbackPage from "@/pages/Callback";
+import TermsPage from "@/pages/TermsPage";
+import PrivacyPage from "@/pages/PrivacyPage";
 
 const queryClient = new QueryClient();
 
@@ -55,7 +56,9 @@ const App = () => (
                     </ProtectedRoute>
                   }
                 />
-                <Route path="/callback" element={<CallbackPage />} />
+  
+                <Route path="/terms" element={<TermsPage />} />
+                <Route path="/privacy" element={<PrivacyPage />} />
               </Routes>
             </main>
           </div>
