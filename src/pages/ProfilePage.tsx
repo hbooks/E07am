@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useKindeAuth } from '@kinde-oss/kinde-auth-react';
+import { PromptTypes } from '@kinde/js-utils';
 import { Pencil, Lock, Info, Shield, ChevronRight, LogOut, Camera } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -42,12 +43,12 @@ export default function ProfilePage() {
   const [logoutStatus, setLogoutStatus] = useState<string | null>(null);
   const navigate = useNavigate();
 
-  // If somehow not authenticated, redirect to login
-  useEffect(() => {
-    if (!isAuthenticated) {
-      login();
-    }
-  }, [isAuthenticated, login]);
+  // Auth is now guarded centrally by <ProtectedRoute> in App.tsx, which forces
+  // `login({ prompt: PromptTypes.login })` whenever the user isn't authenticated. This
+  // page no longer calls login() itself - a bare login() call here used the
+  // SDK's default prompt behavior, which meant that if the user still had an
+  // active Kinde SSO session, they'd be silently signed back in with no
+  // credential prompt (the root cause of the logout bug).
 
   // Fetch profile data
   useEffect(() => {
@@ -82,31 +83,41 @@ export default function ProfilePage() {
   };
 
   const handleLogout = () => {
-    // Start the Kinde logout flow (redirects to Kinde, then back to logoutUri)
-    logout();
+    setIsLoggingOut(true);
+    setLogoutStatus('Signing you out…');
 
-    // After a short delay, aggressively clear all session data and force reload
-    setTimeout(() => {
-      // Delete all cookies
-      document.cookie.split(';').forEach((c) => {
-        document.cookie = c
-          .replace(/^ +/, '')
-          .replace(/=.*/, '=;expires=' + new Date().toUTCString() + ';path=/');
-      });
-
-      // Clear local and session storage
+    // Clear whatever app-level storage we control *before* navigating away.
+    // Note: this can't touch Kinde's own session cookie (it's httpOnly and
+    // lives on Kinde's domain, so JS never had access to it in the first
+    // place) - that part of the fix lives in logout() below plus the
+    // `prompt: PromptTypes.login` we now pass to every login() call.
+    try {
       localStorage.clear();
       sessionStorage.clear();
+    } catch {
+      // ignore storage access issues (e.g. private browsing)
+    }
 
-      // Hard reload to the home page (bypasses cache)
-      window.location.replace('/');
-    }, 400);
+    // logout() does a full browser redirect to Kinde's hosted logout
+    // endpoint, which ends the session there, then redirects back to
+    // VITE_KINDE_LOGOUT_REDIRECT_URI. Because this is a real navigation,
+    // any code after this call may never run - don't rely on a setTimeout
+    // here to "finish the job".
+    logout();
   };
 
   if (!isAuthenticated) {
+    // Normally unreachable, since <ProtectedRoute> in App.tsx already keeps
+    // unauthenticated users off this page. Kept as a defensive fallback.
     return (
-      <div className="min-h-screen bg-[#0A0A0A] flex items-center justify-center text-white">
-        <p>You're not logged in. Calling Auth....</p>
+      <div className="min-h-screen bg-[#0A0A0A] flex flex-col items-center justify-center text-white gap-4">
+        <p>You're not logged in.</p>
+        <button
+          onClick={() => login({ prompt: PromptTypes.login })}
+          className="bg-[#1E90FF] hover:bg-blue-600 text-white px-8 py-3 rounded-xl font-semibold transition"
+        >
+          Sign in with Kinde
+        </button>
       </div>
     );
   }

@@ -2,6 +2,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { Newspaper, Plus, Search, User, Volleyball } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useKindeAuth } from "@kinde-oss/kinde-auth-react";
+import { PromptTypes } from "@kinde/js-utils";
 
 const BASE_ITEMS = [
   { to: "/", label: "Feed", icon: Volleyball, special: false },
@@ -78,7 +79,7 @@ export function NavRail() {
           </Link>
         ) : (
           <button
-            onClick={() => login()}
+            onClick={() => login({ prompt: PromptTypes.login })}
             aria-label="Sign in"
             className={cn(
               "group relative rounded-xl p-2.5 transition-colors text-muted-foreground hover:bg-secondary hover:text-foreground",
@@ -147,7 +148,7 @@ export function NavRail() {
           </Link>
         ) : (
           <button
-            onClick={() => login()}
+            onClick={() => login({ prompt: PromptTypes.login })}
             className="mx-auto grid h-full w-full place-items-center text-muted-foreground"
           >
             <User className="h-6 w-6" />

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useKindeAuth } from '@kinde-oss/kinde-auth-react';
+import { PromptTypes } from '@kinde/js-utils';
 import { User, Mail, Lock } from 'lucide-react';
 
 const BASE_URL = import.meta.env.VITE_SUPABASE_FUNCTIONS_URL;
@@ -17,7 +18,7 @@ export default function OnboardingPage() {
         return (
             <div className="min-h-screen bg-[#0A0A0A] flex flex-col items-center justify-center text-white px-4">
                 <h2 className="text-2xl font-bold mb-4">Sign in to continue</h2>
-                <button onClick={() => login()} className="bg-[#1E90FF] hover:bg-blue-600 text-white px-8 py-3 rounded-xl font-semibold transition">
+                <button onClick={() => login({ prompt: PromptTypes.login })} className="bg-[#1E90FF] hover:bg-blue-600 text-white px-8 py-3 rounded-xl font-semibold transition">
                     Sign in with Kinde
                 </button>
             </div>

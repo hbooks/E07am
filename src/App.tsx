@@ -5,6 +5,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NavRail from "@/components/NavRail";
+import ProtectedRoute from "@/components/ProtectedRoute";
 
 import IndexPage from "@/pages/IndexPage";
 import CreateRoomPage from "@/pages/CreateRoomPage";
@@ -12,7 +13,7 @@ import NewsPage from "@/pages/NewsPage";
 import SearchPage from "@/pages/SearchPage";
 import ProfilePage from "@/pages/ProfilePage";
 import NotificationsPage from "@/pages/NotificationsPage";
-import OnboardingPage from "@/pages/OnboardingPage";   
+import OnboardingPage from "@/pages/OnboardingPage";
 import CallbackPage from "@/pages/Callback";
 
 const queryClient = new QueryClient();
@@ -37,9 +38,23 @@ const App = () => (
                 <Route path="/create" element={<CreateRoomPage />} />
                 <Route path="/news" element={<NewsPage />} />
                 <Route path="/search" element={<SearchPage />} />
-                <Route path="/profile" element={<ProfilePage />} />
+                <Route
+                  path="/profile"
+                  element={
+                    <ProtectedRoute>
+                      <ProfilePage />
+                    </ProtectedRoute>
+                  }
+                />
                 <Route path="/notifications" element={<NotificationsPage />} />
-                <Route path="/onboarding" element={<OnboardingPage />} />
+                <Route
+                  path="/onboarding"
+                  element={
+                    <ProtectedRoute>
+                      <OnboardingPage />
+                    </ProtectedRoute>
+                  }
+                />
                 <Route path="/callback" element={<CallbackPage />} />
               </Routes>
             </main>
