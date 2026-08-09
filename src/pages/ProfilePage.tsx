@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useKindeAuth } from '@kinde-oss/kinde-auth-react';
 import { PromptTypes } from '@kinde/js-utils';
-import { Pencil, Lock, Info, Shield, ChevronRight, LogOut, Camera } from 'lucide-react';
+import { Pencil, Lock, Info, Shield, ChevronRight, LogOut, Camera, Clock, FileWarning } from 'lucide-react';
 import { toast } from 'sonner';
 
 
@@ -217,10 +217,25 @@ export default function ProfilePage() {
         </button>
       </div>
 
+      {/* Show if pending */}
+{profile.squad_strength === 'Pending' && (
+  <div className="mb-8 bg-yellow-500/10 border border-yellow-500/30 rounded-2xl p-5 flex items-center gap-3">
+    <Clock className="h-5 w-5 text-yellow-500" />
+    <p className="text-sm text-yellow-300">Your squad evaluation is in progress. You'll be notified when it's complete.</p>
+  </div>
+)}
+      {/* Show if pending */}
+      {profile.squad_strength === 'Rejected' && (
+        <div className="mb-8 bg-red-500/30 border border-black/30 rounded-2xl p-5 flex items-center gap-3">
+          <FileWarning className="h-5 w-5 text-red-500" />
+          <p className="text-sm text-white">The screenshot you submitted was rejected. Please update your squad and resubmit for evaluation.</p>
+        </div>
+      )}
+
       {/* Conditional Update Squad button */}
-      {(!profile.squad_strength || profile.squad_strength === 'N/A') && (
+      {(!profile.squad_strength || profile.squad_strength === 'N/A' || profile.squad_strength === 'Rejected' ) && (
         <div className="mb-8">
-          <div className="bg-[#1A1A1A] rounded-2xl p-5 border border-yellow-500/30">
+          <div className="bg-[#1A1A1A] rounded-2xl p-5 border border-black/30">
             <div className="flex items-start gap-3 mb-4">
               <Info className="h-5 w-5 text-yellow-500 flex-shrink-0 mt-0.5" />
               <p className="text-sm text-gray-300">

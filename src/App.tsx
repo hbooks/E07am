@@ -16,6 +16,7 @@ import NotificationsPage from "@/pages/NotificationsPage";
 import OnboardingPage from "@/pages/OnboardingPage";
 import TermsPage from "@/pages/TermsPage";
 import PrivacyPage from "@/pages/PrivacyPage";
+import UpdateSquadPage from "@/pages/UpdateSquadPage";
 
 const queryClient = new QueryClient();
 
@@ -59,6 +60,7 @@ const App = () => (
   
                 <Route path="/terms" element={<TermsPage />} />
                 <Route path="/privacy" element={<PrivacyPage />} />
+                <Route path="/update-squad" element={<UpdateSquadPage />} />
               </Routes>
             </main>
           </div>

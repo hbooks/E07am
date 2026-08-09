@@ -3,7 +3,16 @@ import { useNavigate } from 'react-router-dom';
 import { useKindeAuth } from '@kinde-oss/kinde-auth-react';
 import { PromptTypes } from '@kinde/js-utils';
 import { toast } from 'sonner';
-import { Mail, Lock, CheckCircle, AlertTriangle, ArrowRightCircle } from 'lucide-react';
+import {
+    Mail,
+    Lock,
+    CheckCircle,
+    AlertTriangle,
+    ArrowRightCircle,
+    ArrowLeft,
+    ChevronDown,
+    ChevronUp,
+} from 'lucide-react';
 import { validateUsername } from '@/lib/usernameFilter';
 import TermsModal from '@/components/TermsModal';
 
@@ -78,7 +87,6 @@ function OnboardingContent({ user, profileExists, setProfileExists }: any) {
 function OnboardingForm({ user }: { user: any }) {
     const [username, setUsername] = useState('');
     const [isSaving, setIsSaving] = useState(false);
-    const [message, setMessage] = useState('');
     const navigate = useNavigate();
 
     // Manual validation state (triggered by button)
@@ -87,6 +95,9 @@ function OnboardingForm({ user }: { user: any }) {
     const [shake, setShake] = useState(false);
     const [termsAccepted, setTermsAccepted] = useState(false);
     const [termsModalOpen, setTermsModalOpen] = useState(false);
+
+    // Collapsible email card state
+    const [emailOpen, setEmailOpen] = useState(false);
 
     const handleCheck = () => {
         const trimmed = username.trim();
@@ -109,7 +120,6 @@ function OnboardingForm({ user }: { user: any }) {
     // Re‑validate automatically if user changes username after a successful check
     useEffect(() => {
         if (checked) {
-            // if they modify after a successful check, reset the check
             setChecked(false);
             setValidation({ valid: true });
         }
@@ -138,7 +148,6 @@ function OnboardingForm({ user }: { user: any }) {
                 toast.success('Profile created! Redirecting...');
                 setTimeout(() => navigate('/profile', { replace: true }), 1000);
             } else {
-                // Server returned an error (e.g., username taken)
                 toast.error(result.error || 'Failed to save profile');
             }
         } catch {
@@ -147,39 +156,66 @@ function OnboardingForm({ user }: { user: any }) {
             setIsSaving(false);
         }
     };
+
     return (
         <div className="min-h-screen bg-[#0A0A0A] text-white p-6 max-w-xl mx-auto animate-in fade-in slide-in-from-bottom-2 duration-300">
             <style>{`
-                @keyframes onboarding-shake {
-                    10%, 90% { transform: translateX(-1px); }
-                    20%, 80% { transform: translateX(2px); }
-                    30%, 50%, 70% { transform: translateX(-4px); }
-                    40%, 60% { transform: translateX(4px); }
-                }
-            `}</style>
+        @keyframes onboarding-shake {
+          10%, 90% { transform: translateX(-1px); }
+          20%, 80% { transform: translateX(2px); }
+          30%, 50%, 70% { transform: translateX(-4px); }
+          40%, 60% { transform: translateX(4px); }
+        }
+        
+      `}</style>      
+                  <button
+                      onClick={() => navigate('/')}
+                      className="mb-6 flex items-center gap-2 text-sm text-gray-400 hover:text-white transition"
+                  >
+                      <ArrowLeft className="h-5 w-5" />
+                      <span>Back</span>
+                  </button>
             <h1 className="text-2xl font-bold mb-2">Complete Your Profile</h1>
             <p className="text-sm text-gray-400 mb-6">
-                Set your eFootball username wisely, it can’t be easily changed, you'll have to request a change if you make a mistake. 
+                Set your eFootball username wisely, it can’t be easily changed. You'll have to request a change if you make a mistake.
                 Make sure to follow the guidelines and be truthful.
             </p>
 
-            {/* Email card – redesigned */}
-            <div className="bg-[#1A1A1A] rounded-2xl p-5 mb-6 border border-gray-800">
-                <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-[#121212] flex items-center justify-center">
-                        <Mail className="h-5 w-5 text-[#1E90FF]" />
+            {/* Collapsible email card */}
+            <div className="bg-[#1A1A1A] rounded-2xl border border-gray-800 mb-6 overflow-hidden">
+                <button
+                    onClick={() => setEmailOpen(!emailOpen)}
+                    className="w-full flex items-center justify-between p-4 text-left hover:bg-[#222] transition"
+                >
+                    <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-10 h-10 rounded-full bg-[#121212] flex items-center justify-center flex-shrink-0">
+                            <Mail className="h-5 w-5 text-[#1E90FF]" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <p className="text-sm text-gray-300 truncate">{user.email}</p>
+                            <p className="text-xs text-gray-500 mt-0.5">Managed by your authentication provider</p>
+                        </div>
                     </div>
-                    <div className="flex-1 min-w-0">
-                        <p className="text-sm text-gray-300 truncate">{user.email}</p>
-                        <p className="text-xs text-gray-500 mt-0.5">Managed by your authentication provider</p>
-                    </div>
-                    <div className="text-gray-500" title="Your sign‑in email is linked to your Kinde account and cannot be modified here.">
-                        <Lock className="h-4 w-4" />
+                    {emailOpen ? (
+                        <ChevronUp className="h-5 w-5 text-gray-400 flex-shrink-0" />
+                    ) : (
+                        <ChevronDown className="h-5 w-5 text-gray-400 flex-shrink-0" />
+                    )}
+                </button>
+                <div
+                    className={`transition-all duration-300 ${emailOpen ? 'max-h-40 opacity-100 pb-4' : 'max-h-0 opacity-0 overflow-hidden'
+                        }`}
+                >
+                    <div className="px-4 flex items-start gap-3">
+                        <div className="text-gray-500 flex-shrink-0 mt-0.5">
+                            <Lock className="h-4 w-4" />
+                        </div>
+                        <p className="text-xs text-gray-400 leading-relaxed">
+                            This email is tied to your sign‑in method and <strong className="text-gray-300">cannot be changed</strong>.
+                            It is never displayed publicly and is only used to secure your account.
+                        </p>
                     </div>
                 </div>
-                <p className="text-xs text-gray-600 mt-3 leading-relaxed">
-                    This email is tied to your sign‑in method and <strong>cannot be changed</strong>. It is never displayed publicly.
-                </p>
             </div>
 
             {/* Username input with manual check */}
@@ -200,10 +236,10 @@ function OnboardingForm({ user }: { user: any }) {
                             }}
                             placeholder="Your exact in‑game username (not ID)"
                             className={`w-full bg-[#121212] border rounded-lg p-3 pr-12 outline-none transition-all duration-200 ${checked
-                                ? validation.valid
-                                    ? 'border-green-500 focus:border-green-500 focus:ring-2 focus:ring-green-500/30'
-                                    : 'border-red-500 focus:border-red-500 focus:ring-2 focus:ring-red-500/30'
-                                : 'border-gray-700 focus:border-[#1E90FF] focus:ring-2 focus:ring-[#1E90FF]/30'
+                                    ? validation.valid
+                                        ? 'border-green-500 focus:border-green-500 focus:ring-2 focus:ring-green-500/30'
+                                        : 'border-red-500 focus:border-red-500 focus:ring-2 focus:ring-red-500/30'
+                                    : 'border-gray-700 focus:border-[#1E90FF] focus:ring-2 focus:ring-[#1E90FF]/30'
                                 }`}
                             style={{
                                 animation: shake ? 'onboarding-shake 0.5s ease-in-out' : 'none',
@@ -239,8 +275,8 @@ function OnboardingForm({ user }: { user: any }) {
                     )}
 
                     <p className="text-xs text-gray-500 mt-2">
-                        We never ask for your eFootball ID or password. 
-                        Your username must match your in‑game username exactly, including capitalization and special characters.
+                        We never ask for your eFootball ID or password.
+                        Your username must match your in‑game username exactly, including capitalization <strong>no</strong> special characters.
                     </p>
                 </div>
 
@@ -269,18 +305,12 @@ function OnboardingForm({ user }: { user: any }) {
                     onClick={handleSave}
                     disabled={!canSave || isSaving}
                     className={`w-full py-3 rounded-xl font-semibold transition ${canSave
-                        ? 'bg-[#1E90FF] hover:bg-blue-600 text-white'
-                        : 'bg-[#1A1A1A] text-gray-500 cursor-not-allowed'
+                            ? 'bg-[#1E90FF] hover:bg-blue-600 text-white'
+                            : 'bg-[#1A1A1A] text-gray-500 cursor-not-allowed'
                         }`}
                 >
                     {isSaving ? 'Saving...' : 'Continue'}
                 </button>
-
-                {message && (
-                    <p className={`text-sm mt-2 ${message.includes('success') || message.includes('created') ? 'text-green-400' : 'text-red-400'}`}>
-                        {message}
-                    </p>
-                )}
             </div>
 
             {/* Terms Modal */}
