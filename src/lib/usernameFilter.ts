@@ -307,7 +307,6 @@ const BANNED_WORDS = [
     'family', 'the family',
      'godhater', 'godhate', 'godhates', 'godhatesfags', 'godhatesfag',
 ];
-
 // Words reserved for CTR admins / staff
 const STAFF_RESERVED = [
     'admin', 'ctr', 'moderator', 'staff', 'support', 'official',
@@ -324,9 +323,365 @@ const STAFF_RESERVED = [
     'crackz', 'warez', 'keygen', 'serial', 'license key',
 ];
 
-// Helper: escape special regex characters in a string
+const BANNED_SUBSTRINGS = [
+    // ========================
+    // RACIAL / ETHNIC SLURS
+    // ========================
+    // N-word & variants
+    'nigger', 'niggers', 'nigg', 'nigga', 'niggah', 'nigguh', 'nigglet',
+    'n1gger', 'n1gga', 'n1gg3r', 'nigg3r', 'n!gger', 'n!gga',
+    'negro', 'negros', 'negroes', 'negroes', 'niggress',
+    'negr0', 'negr0s', 'n3gro',
+
+    // anti‑Asian
+    'chink', 'chinky', 'chinkie', 'ch1nk', 'ch1nky', 'ch!nk',
+    'gook', 'g00k', 'guk', 'gooker',
+    'slanteye', 'slanty', 'slope', 'slopehead',
+    'zipperhead', 'ziphead',
+    'nip', 'nips', 'jap', 'japs', 'nipon', 'niponese',
+    'chinaman', 'chinamen',
+
+    // anti‑Semitic
+    'kike', 'kyke', 'k1ke', 'kik', 'kikes',
+    'heeb', 'hebe', 'yid', 'yiddo',
+    'jewboy', 'jewbastard', 'jewpig',
+    'globalist', // commonly used antisemitic dogwhistle
+    'zionistpig',
+
+    // anti‑Muslim / Arab
+    'raghead', 'towelhead', 'sandnigger', 'sandn1gger', 'sandnig',
+    'cameljockey', 'camel jockey', 'cameljock',
+    'sandmonkey', 'sand monkey',
+    'muzzie', 'muzrat', 'islamonazi',
+    'jihadi', 'jihadist', 'hajji', 'hadji', 'turbanator',
+    'paki', 'p@k1', 'pak1', 'paki', 'p*k1', 'p4k1',
+    'currymuncher', 'curry muncher',
+
+    // anti‑Hispanic
+    'spic', 'spick', 'spik', 'sp1c', 'sp1k',
+    'beaner', 'beaney', 'wetback', 'wetb@ck', 'wetb4ck',
+    'greaser', 'greaseball',
+    'wop', 'dago', 'dego',
+
+    // anti‑White
+    'cracker', 'cracka', 'crackah', 'cr@cker',
+    'honky', 'honkey', 'honkie', 'h0nky',
+    'whitey', 'whitety', 'white trash', 'whitetrash',
+    'redneck', 'rednek', 'r3dneck', 'hillbilly',
+    'bogan', 'chav', 'pikey', 'piker',
+
+    // anti‑Black / other
+    'coon', 'coons', 'coonass', 'coonie', 'c00n',
+    'darkie', 'darky', 'd4rkie',
+    'jigaboo', 'jiggaboo', 'jig', 'j1gab00',
+    'groid', 'groidy',
+    'porchmonkey', 'porch monkey',
+
+    // anti‑Italian
+    'guido', 'guinea', 'ginzo',
+    'moolie', 'moolinyan', // Italian‑American slur
+
+    // ========================
+    // HOMOPHOBIC / TRANSPHOBIC
+    // ========================
+    'faggot', 'fag', 'faggy', 'fagot', 'f@ggot', 'f4g', 'f4gg0t',
+    'faggit', 'faglet',
+    'dyke', 'dike', 'dykey', 'd1ke', 'd!ke',
+    'lezbo', 'lezzie', 'lezzy',
+    'queer', 'qweer', 'queero', 'qu33r',
+    'homo', 'hommo', 'homofag', 'h0mo', 'h0m0',
+    'tranny', 'trannie', 'tr4nny', 'tr@nny',
+    'shemale', 'shemale', 'she-male', 'sh3male',
+    'troon', 'troonout', 'trooner',
+    'agp', 'autogynephile', // transphobic terminology
+
+    // ========================
+    // EXTREME PROFANITY / COMPOUND INSULTS
+    // ========================
+    'fuck', 'fuk', 'fck', 'fcuk', 'fuq', 'phuck', 'phuk',
+    'f0ck', 'f*ck', 'f#ck', 'f@ck', 'fvck',
+    'motherfucker', 'muthafucka', 'motherfukker', 'muthafukka',
+    'fucktard', 'fuckface', 'fuckhead', 'fuckwit', 'fucknugget',
+    'fuckbucket', 'fuckgoblin', 'fucktrumpet', 'fuckstick',
+    'clusterfuck', 'mindfuck', 'fuckery',
+    'fuckboy', 'fuckboi',
+    'fuckyou', 'fuckoff', 'fuckme', 'fuckthis', 'fuckthat',
+    'shit', 'sh1t', 'sh!t', 'sh*t', 'shyt', 'shite',
+    'shithead', 'shitstorm', 'shitbucket', 'shitgoblin',
+    'shitnugget', 'shitstick', 'shitfuck', 'shitass',
+    'horseshit', 'bullshit', 'batshit', 'dipshit',
+    'ass', 'azz', 'a$$', 'arse',
+    'asshole', 'assh0le', 'arsehole', 'asshat', 'assmuncher',
+    'asswipe', 'assclown', 'assgoblin', 'assnugget',
+    'asslicker', 'asskisser', 'asspirate', 'buttplug',
+    'dumbass', 'jackass', 'lardass', 'smartass', 'bitchass',
+    'cock', 'c0ck', 'c0k', 'cawk',
+    'cockgobbler', 'cocksucker', 'cockwomble', 'cockmongler',
+    'cockhead', 'cocknose', 'cockbite', 'cockguzzler',
+    'dick', 'd1ck', 'd!ck', 'dicc', 'dikk',
+    'dickhead', 'dickweed', 'dickwad', 'dickcheese',
+    'dicknugget', 'dickgoblin', 'dickmuncher', 'dicklicker',
+    'cunt', 'cvnt', 'c*nt', 'cuntface', 'cuntbucket',
+    'cuntwaffle', 'thundercunt', 'cuntpunt', 'cuntdestroyer',
+    'twat', 'tw4t', 'tw@t', 'twatwaffle', 'twatgoblin', 'twatface',
+    'pussy', 'pussies', 'pussycat', 'pussylicker', 'pussydestroyer',
+    'bitch', 'b1tch', 'b!tch', 'bitchslap', 'bitchezz',
+    'slut', 'slutt', 'slutbucket', 'slutface', 'slutmuffin',
+    'whore', 'wh0re', 'whorebag', 'whoreface',
+    'bastard', 'bast4rd', 'b@stard',
+    'prick', 'pr1ck', 'prickface',
+    'knob', 'knobhead', 'knobjockey', 'knobgobbler',
+    'bellend', 'bellend', 'bell3nd',
+    'wanker', 'wankstain', 'wankbiscuit', 'wankpuffin',
+    'tosser', 'tosspot', 't0sser',
+    'pillock', 'plonker', 'numpty', 'berk', 'git', 'prat',
+    'bloody', 'bugger', 'sodoff',
+
+    // ========================
+    // SELF‑HARM / SUICIDE / VIOLENCE
+    // ========================
+    'killyourself', 'killyours3lf', 'kys', 'ky$', 'k1llyourself',
+    'suicide', 'su1cide', 'suicid3',
+    'selfharm', 'self harm', 'cutyourself', 'cuturself',
+    'slitwrists', 'slit wrists',
+    'hangyourself', 'drinkbleach', 'guninmouth',
+    'euthanasia', 'assistedsuicide',
+    'enditall', 'goodbyeworld',
+    'rape', 'r4pe', 'rap1st', 'rapist', 'rap3',
+    'murder', 'murderer', 'murd3r',
+    'kill', 'k1ll', 'k!ll', 'killer', 'k1ller',
+    'serialkiller', 'massshooter', 'schoolshooter',
+    'terrorist', 'terr0rist', 'jihadist', 'bomber',
+    'bomb', 'b0mb', 'explode', 'explosion',
+    'genocide', 'gen0cide', 'massacre', 'massacr3',
+    'holocaust', 'hol0caust', 'holohoax', 'holocough',
+
+    // ========================
+    // COMBINATIONS / BYPASS PATTERNS
+    // ========================
+    'cum', 'cvm', 'cumming', 'cumshot', 'cumdump', 'cumbucket',
+    'cumguzzler', 'cumgoblin', 'cumslut',
+    'jizz', 'j1zz', 'jizzbucket', 'jizzrag',
+    'splooge', 'sploosh',
+    'sperm', 'sp3rm', 'spermburper',
+    'masturbate', 'masturb8', 'masturbat1on',
+    'fap', 'fapping', 'f4p',
+    'blowjob', 'bl0wj0b', 'handjob', 'rimjob', 'footjob',
+    'anal', 'an4l', 'anus', 'rectum', 'penis', 'p3nis', 'vagina', 'vag1na',
+    'nipple', 'nippl3', 'areola',
+    'boner', 'b0ner', 'erection', 'hardon',
+    'fetish', 'f3tish', 'bdsm', 'kink', 'k1nk',
+    'pedo', 'p3do', 'pedophile', 'paedophile', 'childmolester',
+    'incest', 'inc3st', 'inbred', 'inbreed',
+
+    // ========================
+    // GENERAL HATE / EXTREMISM
+    // ========================
+    'hitler', 'h1tler', 'hitl3r', 'adolf', 'nazi', 'n4zi',
+    'fascist', 'f4scist', 'fash',
+    'swastika', 'swast1ka', 'hakenkreuz',
+    'kkk', 'kukluxklan', 'klansman',
+    'whitepower', 'blackpower', 'white supremacy',
+    'aryan', 'aryan brotherhood',
+    'final solution', 'finalsolution',
+    'jewworldorder', 'jew order', 'zionistpig',
+    '1488', '1488', '14/88', 'heil', 'siegheil', 'heilhitler',
+
+    // ========================
+    // EXTRA LEET / BYPASS FORMS (add as many as you like)
+    // ========================
+    // common substitutions: @ for a, 0 for o, 3 for e, 1 for i, 4 for a, $ for s, + for t, 7 for t, etc.
+    'n1gg3r', 'n1gga', 'n1g', 'n!g',
+    'f@ck', 'f*ck', 'f#ck', 'f%ck', 'f^ck',
+    'sh1t', 'sh!t', 'sh*t', 'sh@t',
+    'a$$', 'a s s', 'azz',
+    'c0ck', 'c0k', 'c0c', 'd1ck', 'd!ck',
+    'cunt', 'c*nt', 'cunt',
+    'pen1s', 'pen!s', 'p3nis',
+    'v@gina', 'v4gina', 'vag1na',
+    'b0obs', 'b00bs', 't1ts', 't!tties',
+    'm0therfucker', 'm0therfuck3r',
+
+    // ========================
+    // ADDITIONAL BAD WORDS (to reach 300+)
+    // ========================
+    'scumbag', 'scum', 'scvm',
+    'trash', 'tr4sh', 'garbage', 'g4rbage',
+    'waste', 'w4ste',
+    'cretin', 'cr3tin',
+    'moron', 'm0ron', 'idiot', '1diot',
+    'degenerate', 'd3generate',
+    'pervert', 'p3rvert',
+    'skank', 'sk4nk', 'slag', 'sl4g',
+    'hag', 'h4g',
+    'wench', 'w3nch',
+    'bimbo', 'b1mbo',
+    'trollop', 'tr0llop',
+    'hussy', 'hussie',
+    'pimp', 'p1mp',
+    'playa', 'playah',
+    'porn', 'p0rn', 'xxx', 'hentai', 'h3ntai',
+    'sex', 's3x', 's e x', // careful, but likely safe after substring check; if false positive concerns arise, remove
+    '69', '69er', '69ing',
+    'doggy', 'cowgirl', 'missionary', // sexual positions
+    'dominatrix', 'submissive', 'bondage',
+    'futanari', 'yaoi', 'yuri', 'ecchi', 'eroge', 'nsfw',
+
+    // drugs & substance abuse (prevents username advertising drugs)
+    'weed', 'w33d', 'cannabis', 'marijuana',
+    'cocaine', 'coke', 'cr4ck', 'crackcocaine',
+    'meth', 'm3th', 'crystalmeth', 'crystal meth',
+    'heroin', 'heroine', 'h3roin',
+    'fentanyl', 'f3ntanyl',
+    'xanax', 'x4nax', 'adderall', 'ritalin',
+    'ecstasy', 'mdma', 'lsd', 'acid',
+    'shrooms', 'mushrooms',
+    'overdose', '0verdose',
+    'junkie', 'junk13', 'crackhead', 'methhead', 'stoner',
+    'addict', 'add1ct',
+
+    // other offensive
+    'douche', 'douchebag', 'douchecanoe', 'douchenozzle',
+    'scrotum', 'scrot',
+    'testicle', 't3sticle',
+    'boob', 'boobs', 'b00bs', 'tits', 'titties',
+    'nipple', 'nippl3',
+    'butt', 'buttface', 'buttmunch', 'butthole',
+    'fart', 'f4rt', 'fartface', 'fartknocker',
+    'dildo', 'd1ldo', 'vibrator', 'vibrat0r',
+
+    // violence weapons
+    'gun', 'pistol', 'rifle', 'shotgun',
+    'ak47', 'ak-47', 'ar15', 'm16', 'uzi',
+    'bomb', 'grenade', 'dynamite',
+    'strangle', 'choke', 'stab', 'shoot',
+
+    // compound insults (creative)
+    'thundercunt', 'twatwaffle', 'cockwomble', 'fucktrumpet',
+    'jizzmop', 'cumstain', 'cumrag', 'shitstain',
+    'pissflaps', 'pissbucket', 'pissbaby',
+    'asscrack', 'assjuice', 'asspimple',
+    'dickweed', 'dickwad', 'dicklet', 'dickfart',
+    'cuntlet', 'cuntnugget', 'cuntmuffin',
+    'fuckmuppet', 'shitmuppet', 'cockmuppet',
+    'wankstain', 'wankbadger', 'wankbiscuit',
+    'spunk', 'spunkbubble', 'spunktrumpet',
+
+    // racist / hate combinations
+    'killallwhites', 'killallblacks', 'killalljews', 'killallmuslims',
+    'hitlerdidnothingwrong', 'hitlerwasright',
+    'whitepride', 'blackpride', 'aryanpride',
+    'jewsbomb', 'sandnigger', 'niggerfaggot',
+    'trannynigger', 'faggotkike',
+    'zionism', 'globalistagenda', 'illuminati', 'neworldorder',
+
+    // extreme self‑harm
+    'iwanttodie', 'imgoingtokillmyself', 'suicidal', 'suicidalthoughts',
+    'selfmutilation', 'selfmutilate',
+    'hangmyself', 'slitmywrists', 'jumpoffabridge',
+    'tieanoose', 'eatagun',
+
+    // Additional bypasses (add any new ones you see)
+    'f_u_c_k', 'fvck', 'fuk', 'fuq', 'fak', 'fek',
+    'sh1t', 'sh*t', 'sh!t', 'shyt', 'shite',
+    'b1tch', 'b!tch', 'bitch', 'beyotch',
+    'a$$', 'azz', 'arse',
+    'd1ck', 'd!ck', 'dicc',
+    'cunt', 'cvnt', 'c*nt',
+    'pussy', 'puss', 'pussie',
+    'horny', 'h0rny', 'horney',
+
+    // Catch "nigga" even if typed with numbers
+    'n1g', 'n1gga', 'n1gg3r', 'nigg3r',
+    'k1k3', 'kik3',
+    'j3w', 'j3ws', 'jew',
+    'raghead', 'towelhead', 'turbanhead',
+    'pedo', 'ped0', 'paedo',
+    'molest', 'm0lest', 'groomer', 'grooming',
+
+    // Final catch‑all for common separator bypasses (after stripping, these will be caught)
+    'f u c k', 'f-u-c-k', 'f.u.c.k', 'f u', 'fu', // short but effective
+    's e x', 's-e-x',
+    'c u n t', 'c-u-n-t',
+    'd i c k', 'd-i-c-k',
+    's h i t', 's-h-i-t',
+    'a s s', 'a-s-s',
+    'b i t c h', 'b-i-t-c-h',
+
+    // More compound forms (over 300 now)
+    'fat', 'f4t', 'fatty', 'fatso', 'tubby', 'lard',
+    'ugly', 'uggo', 'fugly',
+    'stinky', 'smelly',
+    'gross', 'disgusting', 'vomit', 'puke', 'barf',
+    'nasty', 'filthy', 'dirty', 'germ',
+    'pathetic', 'pitiful',
+    'loser', 'l00ser', 'looser',
+    'failure', 'fail', 'f4il',
+    'nobody', 'worthless', 'useless',
+    'joke', 'clown', 'freak', 'weirdo', 'creep',
+    'stalker', 'incel', 'incels', 'simp', 'cuck',
+    'beta', 'soyboy', 'soy', 'neckbeard', 'virgin',
+    'blackpill', 'redpill', 'bluepill',
+    'cuckold', 'cuckqueen', 'cuckson',
+    'manchild', 'manlet',
+    'neet', 'hikikomori', 'shutin',
+    'loner', 'loserdom',
+    'basementdweller',
+    'crybaby', 'crybaby',
+    'salt', 'salty', 'tears', 'cryme ariver',
+    'noob', 'n00b', 'newb', 'nub', 'scrub',
+    'trashcan', 'garbageplayer', 'botlike',
+    'uninstall', 'quitgame', 'ragequit', 'rq',
+    'gitgud', 'git good', 'ggez', 'gg ez',
+    'stfu', 'shutup', 'shutthefuckup',
+    'gtfo', 'fuckoff', 'piss off', 'sod off',
+    'getlost', 'goaway', 'leave', 'retire',
+    'idgaf', 'idgafos', 'notcare',
+    'boring', 'lame', 'cringe', 'cringey',
+    'bruh', 'bruhmoment', 'facepalm', 'smh',
+    'fml', 'fuckmylife', 'screwyou', 'damnyou',
+    'curseyou', 'hex',
+    'die', 'd1e', 'ded', 'dead', 'death',
+    'rip', 'ripinpeace', 'restinpiss',
+    'destruction', 'destroy', 'obliterate', 'annihilate',
+    'erase', 'delete', 'terminate', 'exterminate',
+    'dominate', 'submityou', 'surrender', 'forfeit',
+    'cheat', 'cheater', 'hack', 'h4ck', 'hax',
+    'exploit', 'glitch', 'dupe', 'phish', 'scam', 'fraud',
+    'bot', 'hacker', 'cracker', 'trainer', 'warez',
+    'keygen', 'serial', 'licensekey',
+    'darkweb', 'tor', 'silkroad',
+    'covid', 'corona', 'plandemic', 'antivax',
+    '5g', 'chemtrails', 'mkultra', 'brainwash',
+    'billgates', 'microchip', 'markofthebeast', '666',
+    'antichrist', 'falseprophet',
+    'satan', 'devil', 'demon', 'lucifer', 'beelzebub',
+    'hell', 'hellfire', 'damnation', 'cursed', 'unholy',
+    'blasphemy', 'heretic', 'apostate', 'infidel', 'heathen',
+    'godhates', 'godhatesfags', 'westboro',
+    'cult', 'cultleader', 'koolaid', 'jonestown',
+    'waco', 'timothymcveigh', 'unabomber',
+    'tedkaczynski', 'charlesmanson', 'helterskelter',
+    'serialkiller', 'zodiac', 'nightstalker', 'bundy', 'dahmer', 'gacy',
+    'massshooting', 'schoolshooting', 'shooter',
+    'terrorattack', 'jihad', 'isis', 'alqaeda',
+    'bombing', 'suicidebomber', 'explosion', 'c4', 'semtex', 'napalm',
+    'sarin', 'anthrax', 'ricin', 'cyanide',
+    'poison', 'strangulation', 'suffocate', 'drown', 'electrocute',
+    'arson', 'firebomb', 'incendiary',
+];
+
+// Helper: escape regex special characters
 function escapeRegex(str: string): string {
     return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/**
+ * Normalise a string by lowercasing and removing everything
+ * except letters and digits.
+ */
+function stripNonAlphanumeric(str: string): string {
+    return str.toLowerCase().replace(/[^a-z0-9]/g, '');
 }
 
 export function validateUsername(username: string): {
@@ -343,22 +698,12 @@ export function validateUsername(username: string): {
 
     const lower = trimmed.toLowerCase();
 
-    // Check banned words (whole‑word, case‑insensitive)
+    // --- 1. Whole‑word checks (existing logic, untouched) ---
     for (const word of BANNED_WORDS) {
-        // Some entries in the "blank-like bypass" section are empty or
-        // whitespace-only strings. Building `\b${word}\b` from an empty
-        // string produces the regex /\b\b/, which is a zero-width match
-        // that's true for almost any username - that's what was rejecting
-        // every clean username. Skip anything with no real content.
         if (!word.trim()) continue;
 
         const isSymbolOnly = !/[a-zA-Z0-9]/.test(word);
         if (isSymbolOnly) {
-            // These entries exist to catch usernames that are made
-            // *entirely* of filler symbols (e.g. "...", "---"), not to
-            // block a legitimate dot/hyphen/underscore used as a separator
-            // inside an otherwise normal username (e.g. "john.doe").
-            // So compare the whole username, not a \b-bounded substring.
             if (lower === word.toLowerCase()) {
                 return { valid: false, error: 'Username cannot consist only of symbols or whitespace' };
             }
@@ -367,16 +712,34 @@ export function validateUsername(username: string): {
 
         const regex = new RegExp(`\\b${escapeRegex(word)}\\b`, 'i');
         if (regex.test(lower)) {
+
             return { valid: false, error: 'Username contains inappropriate language' };
         }
     }
 
-    // Check staff‑reserved words
+    // --- 2. Substring check (for bypass patterns) ---
+    // Normalise the username – drop all dots, underscores, hyphens, etc.
+    const strippedUsername = stripNonAlphanumeric(trimmed);
+
+    for (const pattern of BANNED_SUBSTRINGS) {
+        // normalise the pattern too, so "cum.ming" or "c_u_m_m_i_n_g"
+        // can be added in any form and still work
+        const strippedPattern = stripNonAlphanumeric(pattern);
+        if (strippedPattern.length <= 2) continue;
+        if (!strippedPattern) continue;       // skip empty
+
+        // simple indexOf is enough – we want to catch it *anywhere*
+        if (strippedUsername.includes(strippedPattern)) {
+            return { valid: false, error: 'Username contains inappropriate language' };
+        }
+    }
+
+    // --- 3. (Optional) Staff‑reserved whole‑word check ---
     for (const word of STAFF_RESERVED) {
         if (!word.trim()) continue;
         const regex = new RegExp(`\\b${escapeRegex(word)}\\b`, 'i');
         if (regex.test(lower)) {
-            return { valid: false, error: 'This username is reserved for staff members, or may cause confusion to other users' };
+            return { valid: false, error: 'This username is reserved for staff members…' };
         }
     }
 

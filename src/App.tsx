@@ -16,7 +16,8 @@ import NotificationsPage from "@/pages/NotificationsPage";
 import OnboardingPage from "@/pages/OnboardingPage";
 import TermsPage from "@/pages/TermsPage";
 import PrivacyPage from "@/pages/PrivacyPage";
-import UpdateSquadPage from "@/pages/UpdateSquadPage";
+import NotFoundPage from "@/pages/NotFoundPage";
+import UpdateSquadPage from "./pages/UpdateSquadPage";
 
 const queryClient = new QueryClient();
 
@@ -40,6 +41,7 @@ const App = () => (
                 <Route path="/create" element={<CreateRoomPage />} />
                 <Route path="/news" element={<NewsPage />} />
                 <Route path="/search" element={<SearchPage />} />
+                <Route path="/update-squad" element={<UpdateSquadPage />} />
                 <Route
                   path="/profile"
                   element={
@@ -57,10 +59,10 @@ const App = () => (
                     </ProtectedRoute>
                   }
                 />
-  
+
                 <Route path="/terms" element={<TermsPage />} />
                 <Route path="/privacy" element={<PrivacyPage />} />
-                <Route path="/update-squad" element={<UpdateSquadPage />} />
+                <Route path="*" element={<NotFoundPage />} />
               </Routes>
             </main>
           </div>
