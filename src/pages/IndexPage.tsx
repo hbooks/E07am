@@ -1,117 +1,222 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { Plus, RefreshCw } from "lucide-react";
-import { MATCH_REQUESTS, type MatchRequest } from "@/lib/mock-data";
-import { FeedCard, FeedCardSkeleton } from "@/components/FeedCard";
-import { ClaimModal } from "@/components/ClaimModal";
+import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
+import { RefreshCw, Plus } from 'lucide-react';
+import { toast } from 'sonner';
+import { useKindeAuth } from '@kinde-oss/kinde-auth-react';
+import { FeedCard, FeedCardSkeleton } from '@/components/FeedCard';
+import { useIsMobile } from '@/hooks/use-mobile';
+import type { MatchWithHost } from '@/types';
 
-function FeedPage() {
+const PULL_THRESHOLD = 64;
+const PULL_RESISTANCE = 0.45;
+const PULL_MAX = 80;
+
+type FilterType = '1v1' | 'tc';
+
+// Fisher‑Yates shuffle – creates a new array, doesn't mutate the original
+function shuffleArray<T>(array: T[]): T[] {
+  const shuffled = [...array];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+}
+
+export default function FeedPage() {
+  const { user } = useKindeAuth();
+  const isMobile = useIsMobile();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [requests, setRequests] = useState<MatchRequest[]>([]);
-  const [claimed, setClaimed] = useState<MatchRequest | null>(null);
+  const [matches, setMatches] = useState<MatchWithHost[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [filter, setFilter] = useState<FilterType>('1v1');
 
-  // Pull-to-refresh tracking (mobile)
   const touchStartY = useRef<number | null>(null);
   const [pullDistance, setPullDistance] = useState(0);
 
-  const load = useCallback((delay = 1100) => {
-    setLoading(true);
-    const t = setTimeout(() => {
-      setRequests(MATCH_REQUESTS);
+  const fetchMatches = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`${import.meta.env.VITE_SUPABASE_FUNCTIONS_URL}/Fema`);
+      if (!res.ok) throw new Error('Failed to fetch matches');
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        setMatches(shuffleArray(data));
+      } else {
+        setMatches([]);
+      }
+    } catch (err: any) {
+      setError(err.message || 'Network error');
+      if (!silent) toast.error('Failed to load matches');
+    } finally {
       setLoading(false);
       setRefreshing(false);
-    }, delay);
-    return () => clearTimeout(t);
+    }
   }, []);
 
-  useEffect(() => load(), [load]);
+  useEffect(() => { fetchMatches(); }, [fetchMatches]);
 
-  const refresh = useCallback(() => {
+  const handleRefresh = () => {
     if (loading || refreshing) return;
     setRefreshing(true);
-    load(900);
-  }, [loading, refreshing, load]);
+    fetchMatches(true);
+  };
 
+  const filteredMatches = useMemo(() => {
+    if (filter === '1v1') {
+      return matches.filter((m) => m.match_type === '1v1');
+    } else {
+      return matches.filter(
+        (m) => m.match_type === 'Tournament' || m.match_type === 'Co-op'
+      );
+    }
+  }, [matches, filter]);
+
+  // Pull‑to‑refresh handlers
   const onTouchStart = (e: React.TouchEvent) => {
-    if (window.scrollY === 0) touchStartY.current = e.touches[0]?.clientY ?? null;
+    touchStartY.current = window.scrollY <= 0 && !refreshing ? e.touches[0]?.clientY : null;
   };
   const onTouchMove = (e: React.TouchEvent) => {
-    if (touchStartY.current == null) return;
-    const dy = (e.touches[0]?.clientY ?? 0) - touchStartY.current;
-    setPullDistance(dy > 0 ? Math.min(dy, 120) : 0);
+    if (touchStartY.current === null) return;
+    const delta = e.touches[0]?.clientY - touchStartY.current;
+    if (delta > 0 && window.scrollY <= 0) {
+      setPullDistance(Math.min(delta * PULL_RESISTANCE, PULL_MAX));
+    }
   };
   const onTouchEnd = () => {
-    if (pullDistance > 80) refresh();
-    touchStartY.current = null;
+    if (touchStartY.current === null) return;
+    if (pullDistance > PULL_THRESHOLD) handleRefresh();
     setPullDistance(0);
+    touchStartY.current = null;
   };
 
   return (
     <div
-      className="mx-auto w-full max-w-xl px-4 pt-16 pb-6 animate-in fade-in slide-in-from-bottom-3 duration-300"
+      className="min-h-screen bg-[#0A0A0A] text-white cr-body"
       onTouchStart={onTouchStart}
       onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}
     >
-      {/* Pull-to-refresh indicator */}
+      {/* Pull indicator */}
       <div
-        className="pointer-events-none fixed left-1/2 top-14 z-30 -translate-x-1/2 transition-opacity md:hidden"
-        style={{ opacity: pullDistance > 8 || refreshing ? 1 : 0 }}
+        className="flex items-center justify-center overflow-hidden transition-[height] duration-200 ease-out"
+        style={{ height: refreshing ? 48 : pullDistance }}
       >
-        <div className="grid h-9 w-9 place-items-center rounded-full border border-border bg-card">
-          <RefreshCw
-            className={`h-4 w-4 text-primary ${refreshing ? "animate-spin" : ""}`}
-            style={{ transform: `rotate(${pullDistance * 2}deg)` }}
-          />
-        </div>
+        <RefreshCw
+          className={`h-5 w-5 text-[#1E90FF] ${refreshing ? 'animate-spin' : ''}`}
+          style={refreshing ? undefined : { transform: `rotate(${Math.min(pullDistance * 3, 360)}deg)` }}
+        />
       </div>
 
-      <header className="mb-5 flex items-end justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-black tracking-tight">Match Requests</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Open eFootball rooms near you. Claim fast — rooms expire.
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={refresh}
-          aria-label="Refresh feed"
-          className="hidden shrink-0 rounded-full border border-border p-2.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground md:block"
-        >
-          <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin text-primary" : ""}`} />
-        </button>
-      </header>
-
-      <div className="space-y-4">
-        {loading ? (
-          <>
-            <FeedCardSkeleton />
-            <FeedCardSkeleton />
-            <FeedCardSkeleton />
-          </>
-        ) : requests.length === 0 ? (
-          <div className="grid place-items-center rounded-2xl border border-dashed border-border px-6 py-16 text-center">
-            <p className="text-lg font-semibold">No match requests yet.</p>
-            <p className="mt-1 text-sm text-muted-foreground">Be the first to create one!</p>
+      <div className="mx-auto w-full max-w-xl px-4 pt-4 pb-6">
+        {/* Header – filters centered, refresh on right (mobile) */}
+        <div className="relative flex items-center justify-center mb-6">
+          <div className="flex items-center gap-1.5 bg-[#141414] rounded-full p-1 border border-white/5">
             <button
-              type="button"
-              onClick={() => window.location.href = "/create"}
-              aria-label="Create a match request"
-              className="mt-5 inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground glow-blue-soft"
+              onClick={() => setFilter('1v1')}
+              className={`px-5 py-2 rounded-full text-sm font-semibold transition ${filter === '1v1'
+                  ? 'bg-[#1E90FF] text-white shadow-lg shadow-[#1E90FF]/20'
+                  : 'text-gray-400 hover:text-white hover:bg-white/5'
+                }`}
             >
-              <Plus className="h-4 w-4" strokeWidth={2.5} />
-              Create Room
+              1v1
+            </button>
+            <button
+              onClick={() => setFilter('tc')}
+              className={`px-5 py-2 rounded-full text-sm font-semibold transition ${filter === 'tc'
+                  ? 'bg-[#1E90FF] text-white shadow-lg shadow-[#1E90FF]/20'
+                  : 'text-gray-400 hover:text-white hover:bg-white/5'
+                }`}
+            >
+              T&amp;C
             </button>
           </div>
-        ) : (
-          requests.map((m) => <FeedCard key={m.id} match={m} onClaim={setClaimed} />)
+          {/* Refresh button – only on mobile, absolute right */}
+          {isMobile && (
+            <button
+              onClick={handleRefresh}
+              className="absolute right-0 rounded-full p-2.5 text-gray-400 hover:text-white hover:bg-[#141414] transition flex-shrink-0"
+              title="Refresh"
+              disabled={loading || refreshing}
+            >
+              <RefreshCw className={`h-5 w-5 ${refreshing ? 'animate-spin' : ''}`} />
+            </button>
+          )}
+        </div>
+
+        {/* Loading state */}
+        {loading && (
+          <div className="space-y-4">
+            <FeedCardSkeleton />
+            <FeedCardSkeleton />
+            <FeedCardSkeleton />
+          </div>
+        )}
+
+        {/* Error state */}
+        {!loading && error && (
+          <div className="rounded-2xl border border-red-500/20 bg-[#141414] p-8 text-center">
+            <p className="text-red-400 mb-4">Something went wrong while loading matches.</p>
+            <button
+              onClick={() => fetchMatches()}
+              className="inline-flex items-center gap-2 bg-red-600/20 text-red-400 px-5 py-2.5 rounded-full hover:bg-red-600/30 transition"
+            >
+              <RefreshCw className="h-4 w-4" /> Retry
+            </button>
+          </div>
+        )}
+
+        {/* Empty states */}
+        {!loading && !error && matches.length === 0 && (
+          <div className="rounded-2xl border border-dashed border-white/10 bg-[#141414] p-10 text-center">
+            <p className="text-lg font-semibold mb-1">No match requests yet.</p>
+            <p className="text-sm text-gray-400 mb-6">Be the first to create one!</p>
+            <a
+              href="/create"
+              className="inline-flex items-center gap-2 bg-emerald-600 text-white px-6 py-3 rounded-full font-semibold hover:brightness-110 transition"
+            >
+              <Plus className="h-5 w-5" /> Create Room
+            </a>
+          </div>
+        )}
+
+        {!loading && !error && matches.length > 0 && filteredMatches.length === 0 && (
+          <div className="rounded-2xl border border-dashed border-white/10 bg-[#141414] p-10 text-center">
+            <p className="text-lg font-semibold mb-1">
+              No {filter === '1v1' ? '1v1' : 'Tournament & Co-op'} matches
+            </p>
+            <p className="text-sm text-gray-400">
+              Try switching to the other tab or check back later.
+            </p>
+          </div>
+        )}
+
+        {/* Match cards */}
+        {!loading && !error && filteredMatches.length > 0 && (
+          <div className="space-y-4">
+            {filteredMatches.map((match) => (
+              <FeedCard
+                key={match.id}
+                match={match}
+                currentUserId={user?.id}
+              />
+            ))}
+          </div>
         )}
       </div>
 
-      {claimed && <ClaimModal match={claimed} onExpire={() => setClaimed(null)} />}
+      {/* Desktop fixed refresh button – sits beside the notification bell */}
+      {!isMobile && (
+        <button
+          onClick={handleRefresh}
+          className="fixed top-4 right-16 z-50 rounded-full p-2.5 text-gray-400 hover:text-white hover:bg-[#141414] transition border border-white/5 bg-[#0A0A0A]"
+          title="Refresh"
+          disabled={loading || refreshing}
+        >
+          <RefreshCw className={`h-5 w-5 ${refreshing ? 'animate-spin' : ''}`} />
+        </button>
+      )}
     </div>
   );
 }
-
-export default FeedPage;

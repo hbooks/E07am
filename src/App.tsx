@@ -6,6 +6,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NavRail from "@/components/NavRail";
 import ProtectedRoute from "@/components/ProtectedRoute";
+import {NotificationBell} from "@/components/NotificationBell";
 
 import IndexPage from "@/pages/IndexPage";
 import CreateRoomPage from "@/pages/CreateRoomPage";
@@ -59,12 +60,13 @@ const App = () => (
                     </ProtectedRoute>
                   }
                 />
-
                 <Route path="/terms" element={<TermsPage />} />
                 <Route path="/privacy" element={<PrivacyPage />} />
                 <Route path="*" element={<NotFoundPage />} />
               </Routes>
             </main>
+            {/* Global notification bell – fixed top‑right */}
+            <NotificationBell />
           </div>
         </BrowserRouter>
       </TooltipProvider>

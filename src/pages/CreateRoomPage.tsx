@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useKindeAuth } from '@kinde-oss/kinde-auth-react';
+const { user, login } = useKindeAuth();
 import { cn } from '@/lib/utils';
 
 // ---------- sanitizers ----------
@@ -86,7 +87,11 @@ export default function CreateRoomPage() {
   };
 
   const createMatch = async () => {
-    if (!user) return;
+      if (!user) {
+        toast.error('Please sign in to create a match');
+        login();
+        return;
+      }
     setSubmitting(true);
     try {
       const payload = {
