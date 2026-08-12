@@ -56,6 +56,11 @@ export default function ProfilePage() {
   const [pullDistance, setPullDistance] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
   const touchStartY = useRef<number | null>(null);
+  const pageRef = useRef<HTMLDivElement | null>(null);
+  // Refs mirror the pull state for use inside the native (non-React) touch
+  // listeners below, which close over values once and don't re-read state.
+  const pullDistanceRef = useRef(0);
+  const refreshingRef = useRef(false);
 
   // Auth is guarded centrally by <ProtectedRoute> in App.tsx, which forces
   // `login({ prompt: PromptTypes.login })` whenever the user isn't
@@ -75,6 +80,7 @@ export default function ProfilePage() {
       .catch(() => toast.error('Failed to load profile'))
       .finally(() => {
         if (!silent) setLoading(false);
+        refreshingRef.current = false;
         setRefreshing(false);
       });
   };
@@ -140,31 +146,62 @@ export default function ProfilePage() {
   };
 
   // --- Pull-to-refresh handlers ---
-  // Deliberately lightweight (no external library): only arms when the
-  // page is already scrolled to the very top, mirroring native
-  // pull-to-refresh so it never fights normal scrolling further down
-  // the page.
-  const handleTouchStart = (e: React.TouchEvent) => {
-    touchStartY.current = window.scrollY <= 0 && !refreshing ? e.touches[0].clientY : null;
-  };
+  // Attached as native listeners (not React's onTouchStart/onTouchMove
+  // props) because React registers touch listeners as passive by default,
+  // which silently ignores preventDefault(). Without a real preventDefault
+  // here, the browser's own pull-to-refresh/rubber-band scroll fires at
+  // the same time as this custom one, which is what made it feel broken.
+  // { passive: false } is what lets us actually own the gesture.
+  useEffect(() => {
+    const el = pageRef.current;
+    if (!el) return;
 
-  const handleTouchMove = (e: React.TouchEvent) => {
-    if (touchStartY.current === null) return;
-    const delta = e.touches[0].clientY - touchStartY.current;
-    if (delta > 0 && window.scrollY <= 0) {
-      setPullDistance(Math.min(delta * PULL_RESISTANCE, PULL_MAX));
-    }
-  };
+    const atTop = () => (window.scrollY || document.documentElement.scrollTop || 0) <= 0;
 
-  const handleTouchEnd = () => {
-    if (touchStartY.current === null) return;
-    if (pullDistance > PULL_THRESHOLD) {
-      setRefreshing(true);
-      fetchProfile(true);
-    }
-    setPullDistance(0);
-    touchStartY.current = null;
-  };
+    const onTouchStart = (e: TouchEvent) => {
+      touchStartY.current = atTop() && !refreshingRef.current ? e.touches[0].clientY : null;
+    };
+
+    const onTouchMove = (e: TouchEvent) => {
+      if (touchStartY.current === null) return;
+      const delta = e.touches[0].clientY - touchStartY.current;
+      if (delta > 0 && atTop()) {
+        // Stop the native browser pull-to-refresh/bounce from also
+        // triggering while our own indicator is being dragged out.
+        e.preventDefault();
+        const next = Math.min(delta * PULL_RESISTANCE, PULL_MAX);
+        pullDistanceRef.current = next;
+        setPullDistance(next);
+      } else {
+        touchStartY.current = null;
+      }
+    };
+
+    const onTouchEnd = () => {
+      if (touchStartY.current === null) return;
+      if (pullDistanceRef.current > PULL_THRESHOLD) {
+        refreshingRef.current = true;
+        setRefreshing(true);
+        fetchProfile(true);
+      }
+      pullDistanceRef.current = 0;
+      setPullDistance(0);
+      touchStartY.current = null;
+    };
+
+    el.addEventListener('touchstart', onTouchStart, { passive: true });
+    el.addEventListener('touchmove', onTouchMove, { passive: false });
+    el.addEventListener('touchend', onTouchEnd, { passive: true });
+    el.addEventListener('touchcancel', onTouchEnd, { passive: true });
+
+    return () => {
+      el.removeEventListener('touchstart', onTouchStart);
+      el.removeEventListener('touchmove', onTouchMove);
+      el.removeEventListener('touchend', onTouchEnd);
+      el.removeEventListener('touchcancel', onTouchEnd);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   if (loading) return <ProfileSkeleton />;
 
@@ -186,10 +223,9 @@ export default function ProfilePage() {
 
   return (
     <div
-      className="min-h-screen bg-[#0A0A0A] text-white cr-body"
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
+      ref={pageRef}
+      className="min-h-screen w-full max-w-[100vw] overflow-x-hidden bg-[#0A0A0A] text-white cr-body"
+      style={{ overscrollBehaviorY: 'contain' }}
     >
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Inter:wght@400;500;600&display=swap');
@@ -317,8 +353,8 @@ export default function ProfilePage() {
                 key={tab}
                 onClick={() => setActiveTab(tab)}
                 className={`flex-1 py-3 text-sm font-medium capitalize transition ${activeTab === tab
-                    ? 'text-[#1E90FF] border-b-2 border-[#1E90FF] bg-[#1E90FF]/5'
-                    : 'text-gray-500 hover:text-gray-300'
+                  ? 'text-[#1E90FF] border-b-2 border-[#1E90FF] bg-[#1E90FF]/5'
+                  : 'text-gray-500 hover:text-gray-300'
                   }`}
               >
                 {tab}
@@ -527,8 +563,8 @@ function AvatarModal({ onSelect, onClose }: { onSelect: (url: string) => void; o
               key={cat.name}
               onClick={() => { setActiveTab(idx); setSelectedSeed(null); }}
               className={`px-3 py-1.5 text-xs font-semibold rounded-full transition whitespace-nowrap ${idx === activeTab
-                  ? 'bg-[#1E90FF] text-white'
-                  : 'text-gray-400 hover:text-white hover:bg-white/5'
+                ? 'bg-[#1E90FF] text-white'
+                : 'text-gray-400 hover:text-white hover:bg-white/5'
                 }`}
             >
               {cat.name}
@@ -547,8 +583,8 @@ function AvatarModal({ onSelect, onClose }: { onSelect: (url: string) => void; o
                   key={seed}
                   onClick={() => setSelectedSeed(url)}
                   className={`aspect-square rounded-xl overflow-hidden border-2 transition-all bg-[#0A0A0A] ${isSelected
-                      ? 'border-[#1E90FF] ring-2 ring-[#1E90FF]/40'
-                      : 'border-white/10 hover:border-gray-400'
+                    ? 'border-[#1E90FF] ring-2 ring-[#1E90FF]/40'
+                    : 'border-white/10 hover:border-gray-400'
                     }`}
                 >
                   <img
@@ -636,7 +672,6 @@ function BadgeInfoModal({ onClose }: { onClose: () => void }) {
       desc: 'The ultimate eleven. Legends forged in glory, unstoppable.'
     },
   ];
-
   const specialBadges = [
     { name: 'Verified', url: VERIFIED_BADGE_URL, desc: 'Identity confirmed.' },
     { name: 'Staff', url: STAFF_BADGE_URL, desc: 'Keeps the community running.' },
