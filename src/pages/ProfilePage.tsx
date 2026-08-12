@@ -148,15 +148,34 @@ export default function ProfilePage() {
   // --- Pull-to-refresh handlers ---
   // Attached as native listeners (not React's onTouchStart/onTouchMove
   // props) because React registers touch listeners as passive by default,
-  // which silently ignores preventDefault(). Without a real preventDefault
-  // here, the browser's own pull-to-refresh/rubber-band scroll fires at
-  // the same time as this custom one, which is what made it feel broken.
-  // { passive: false } is what lets us actually own the gesture.
+  // which silently ignores preventDefault(). { passive: false } here is
+  // what lets us actually own the gesture instead of fighting the
+  // browser's own pull-to-refresh/bounce.
   useEffect(() => {
     const el = pageRef.current;
     if (!el) return;
 
-    const atTop = () => (window.scrollY || document.documentElement.scrollTop || 0) <= 0;
+    // Don't assume the page itself scrolls the window - if a parent layout
+    // (fixed header/bottom nav shell, etc.) owns the actual scrolling,
+    // window.scrollY sits at 0 forever and "at top" is always true, which
+    // blocks upward scrolling everywhere, not just at the real top. Walk up
+    // to find whichever element actually has scroll room.
+    const getScrollParent = (node: HTMLElement): HTMLElement | null => {
+      let current: HTMLElement | null = node.parentElement;
+      while (current) {
+        const style = getComputedStyle(current);
+        if (/(auto|scroll)/.test(style.overflowY) && current.scrollHeight > current.clientHeight) {
+          return current;
+        }
+        current = current.parentElement;
+      }
+      return null; // falls back to window/document below
+    };
+    const scrollParent = getScrollParent(el);
+
+    const scrollTop = () =>
+      scrollParent ? scrollParent.scrollTop : window.scrollY || document.documentElement.scrollTop || 0;
+    const atTop = () => scrollTop() <= 0;
 
     const onTouchStart = (e: TouchEvent) => {
       touchStartY.current = atTop() && !refreshingRef.current ? e.touches[0].clientY : null;
@@ -165,15 +184,21 @@ export default function ProfilePage() {
     const onTouchMove = (e: TouchEvent) => {
       if (touchStartY.current === null) return;
       const delta = e.touches[0].clientY - touchStartY.current;
+      // Re-check atTop() on every move, not just at touchstart - if the
+      // user is mid-scroll and only reaches the top partway through the
+      // gesture, we shouldn't have armed early, and if they scroll away
+      // from the top we must stop intercepting immediately.
       if (delta > 0 && atTop()) {
-        // Stop the native browser pull-to-refresh/bounce from also
-        // triggering while our own indicator is being dragged out.
         e.preventDefault();
         const next = Math.min(delta * PULL_RESISTANCE, PULL_MAX);
         pullDistanceRef.current = next;
         setPullDistance(next);
       } else {
         touchStartY.current = null;
+        if (pullDistanceRef.current !== 0) {
+          pullDistanceRef.current = 0;
+          setPullDistance(0);
+        }
       }
     };
 
@@ -672,6 +697,7 @@ function BadgeInfoModal({ onClose }: { onClose: () => void }) {
       desc: 'The ultimate eleven. Legends forged in glory, unstoppable.'
     },
   ];
+
   const specialBadges = [
     { name: 'Verified', url: VERIFIED_BADGE_URL, desc: 'Identity confirmed.' },
     { name: 'Staff', url: STAFF_BADGE_URL, desc: 'Keeps the community running.' },
