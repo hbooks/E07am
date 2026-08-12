@@ -40,6 +40,7 @@ const AVATAR_CATEGORIES = [
 const PULL_THRESHOLD = 64; // px of pull before a release triggers a refresh
 const PULL_RESISTANCE = 0.45;
 const PULL_MAX = 80;
+const PULL_ARM_DISTANCE = 10; // px of initial downward drag before we commit to intercepting the gesture
 
 export default function ProfilePage() {
   const { user, isAuthenticated, login, logout } = useKindeAuth();
@@ -184,22 +185,40 @@ export default function ProfilePage() {
     const onTouchMove = (e: TouchEvent) => {
       if (touchStartY.current === null) return;
       const delta = e.touches[0].clientY - touchStartY.current;
+
       // Re-check atTop() on every move, not just at touchstart - if the
       // user is mid-scroll and only reaches the top partway through the
       // gesture, we shouldn't have armed early, and if they scroll away
       // from the top we must stop intercepting immediately.
-      if (delta > 0 && atTop()) {
-        e.preventDefault();
-        const next = Math.min(delta * PULL_RESISTANCE, PULL_MAX);
-        pullDistanceRef.current = next;
-        setPullDistance(next);
-      } else {
+      if (delta <= 0 || !atTop()) {
+        // Not a pull. Crucially, we have NOT called preventDefault yet at
+        // this point, so the browser is still free to treat this drag as
+        // a normal scroll for the rest of the gesture. Once a browser
+        // sees a prevented touchmove, it locks that entire gesture out of
+        // native scrolling - even for later, un-prevented events in the
+        // same drag. So bailing here without ever calling preventDefault
+        // is what keeps ordinary scrolling working.
         touchStartY.current = null;
         if (pullDistanceRef.current !== 0) {
           pullDistanceRef.current = 0;
           setPullDistance(0);
         }
+        return;
       }
+
+      if (delta < PULL_ARM_DISTANCE) {
+        // Still inside the dead-zone: could be scroll jitter rather than a
+        // deliberate pull. Don't preventDefault yet - wait for a clearer
+        // signal so a stray first pixel can't lock out scrolling.
+        return;
+      }
+
+      // Past the dead-zone and still pulling down from the top: this is a
+      // real pull gesture, so take over from here.
+      e.preventDefault();
+      const next = Math.min((delta - PULL_ARM_DISTANCE) * PULL_RESISTANCE, PULL_MAX);
+      pullDistanceRef.current = next;
+      setPullDistance(next);
     };
 
     const onTouchEnd = () => {
