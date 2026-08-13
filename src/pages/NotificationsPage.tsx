@@ -46,8 +46,27 @@ function NotificationsPage() {
   const unreadCount = notifs.filter((n) => !n.read).length;
 
   const handleMarkAllRead = async () => {
-    // optional: call a MarkAllRead edge function later
-    toast.success('Marked all as read');
+    if (!user) return;
+
+    try {
+      const res = await fetch(`${import.meta.env.VITE_SUPABASE_FUNCTIONS_URL}/Mark_Read`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id }),
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        // Update local state to mark all as read
+        setNotifs((prev) => prev.map((n) => ({ ...n, read: true })));
+        toast.success('All notifications marked as read');
+      } else {
+        toast.error(data.error || 'Failed to mark as read');
+      }
+    } catch {
+      toast.error('Network error');
+    }
   };
 
   return (

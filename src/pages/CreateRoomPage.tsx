@@ -2,11 +2,10 @@ import { useNavigate } from 'react-router-dom';
 import { useState, useRef } from 'react';
 import {
   Eye, EyeOff, Swords, Users, X, Trophy, Bot, UserPlus, RefreshCw, ClipboardPaste,
-  ShieldAlert, ArrowRight,
+  ShieldAlert, ArrowRight, CheckCircle2, Zap, Ticket, Lock,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useKindeAuth } from '@kinde-oss/kinde-auth-react';
-const { user, login } = useKindeAuth();
 import { cn } from '@/lib/utils';
 
 // ---------- sanitizers ----------
@@ -28,7 +27,7 @@ const SEMAT_URL = `${import.meta.env.VITE_SUPABASE_FUNCTIONS_URL}/Semat`;
 
 export default function CreateRoomPage() {
   const navigate = useNavigate();
-  const { user } = useKindeAuth(); // <-- get authenticated user
+  const { user, login } = useKindeAuth(); // <-- get authenticated user
 
   const [matchType, setMatchType] = useState<MatchType>('1v1');
   const [coopSub, setCoopSub] = useState<CoopSubType>(null);
@@ -87,11 +86,11 @@ export default function CreateRoomPage() {
   };
 
   const createMatch = async () => {
-      if (!user) {
-        toast.error('Please sign in to create a match');
-        login();
-        return;
-      }
+    if (!user) {
+      toast.error('Please sign in to create a match');
+      login();
+      return;
+    }
     setSubmitting(true);
     try {
       const payload = {
@@ -128,7 +127,7 @@ export default function CreateRoomPage() {
             title: 'Report Previous Result',
             message: data.message || 'You must report the result of your last match before creating a new one.',
             actionLabel: 'Go to My Matches',
-            actionUrl: '/results', 
+            actionUrl: '/results',
           });
         } else if (data.error === 'SQUAD_NOT_VERIFIED') {
           setErrorModal({
@@ -137,14 +136,14 @@ export default function CreateRoomPage() {
             actionLabel: 'Update Squad',
             actionUrl: '/profile',
           });
-        }else if (data.error === 'PROFILE_NOT_FOUND') {
+        } else if (data.error === 'PROFILE_NOT_FOUND') {
           setErrorModal({
             title: 'Profile Not Found',
             message: data.message || 'You must complete your profile before creating a match.',
             actionLabel: 'Complete Profile',
             actionUrl: '/onboarding',
           });
-          } else {
+        } else {
           toast.error(data.message || 'Something went entirely wrong and the system does not know who to blame :| ');
         }
       }
@@ -232,7 +231,9 @@ export default function CreateRoomPage() {
       {errorModal && (
         <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-[#141414] rounded-3xl w-full max-w-sm p-6 border border-white/10 shadow-2xl text-center">
-            <ShieldAlert className="h-10 w-10 text-yellow-500 mx-auto mb-4" />
+            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-yellow-500/10 border border-yellow-500/20">
+              <ShieldAlert className="h-7 w-7 text-yellow-500" />
+            </div>
             <h2 className="text-lg text-red-500 font-bold mb-2">{errorModal.title}</h2>
             <p className="text-sm text-gray-300 mb-6">{errorModal.message}</p>
             <div className="flex gap-3">
@@ -247,7 +248,7 @@ export default function CreateRoomPage() {
                   setErrorModal(null);
                   navigate(errorModal.actionUrl);
                 }}
-                className="flex-1 bg-[#1E90FF] hover:bg-blue-600 text-white py-2.5 rounded-xl font-semibold flex items-center justify-center gap-1 transition"
+                className="flex-1 bg-emerald-600 hover:brightness-110 text-white py-2.5 rounded-xl font-semibold flex items-center justify-center gap-1 transition"
               >
                 {errorModal.actionLabel} <ArrowRight className="h-4 w-4" />
               </button>
@@ -258,39 +259,48 @@ export default function CreateRoomPage() {
 
       {/* Main content */}
       <div
-        className="min-h-screen bg-[#0A0A0A] text-white cr-body"
+        className="relative min-h-screen w-full max-w-[100vw] overflow-x-hidden bg-[#0A0A0A] text-white cr-body"
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
       >
-        {/* pull indicator */}
-        <div
-          className="flex items-center justify-center overflow-hidden transition-[height] duration-200 ease-out"
-          style={{ height: refreshing ? 48 : pullDistance }}
-        >
-          <RefreshCw
-            className={`h-5 w-5 text-[#1E90FF] ${refreshing ? 'animate-spin' : ''}`}
-            style={refreshing ? undefined : { transform: `rotate(${Math.min(pullDistance * 3, 360)}deg)` }}
-          />
-        </div>
+        {/* pull indicator - absolute overlay, never occupies layout space */}
+        {(pullDistance > 0 || refreshing) && (
+          <div
+            className="absolute top-3 left-1/2 -translate-x-1/2 z-10 bg-[#141414] border border-white/10 rounded-full p-2.5 shadow-lg transition-opacity duration-150"
+            style={{ opacity: refreshing ? 1 : Math.min(pullDistance / PULL_THRESHOLD, 1) }}
+          >
+            <RefreshCw
+              className={`h-5 w-5 text-emerald-500 ${refreshing ? 'animate-spin' : ''}`}
+              style={refreshing ? undefined : { transform: `rotate(${Math.min(pullDistance * 3, 360)}deg)` }}
+            />
+          </div>
+        )}
 
         <div className="mx-auto w-full max-w-xl px-4 pt-16 pb-6 animate-in fade-in slide-in-from-bottom-3 duration-300">
-          <header className="mb-6">
-            <h1 className="text-2xl font-bold">Create Room</h1>
-            <p className="mt-1 text-sm text-gray-400">
-              Post your eFootball room and let the lobby claim it.
-            </p>
+          <header className="mb-6 flex items-center gap-4">
+            <div className="relative flex-shrink-0">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-600/15 border border-emerald-500/30">
+                <Swords className="h-7 w-7 text-emerald-500" />
+              </div>
+              </div>
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight">Create Your Match Request</h1>
+            </div>
           </header>
 
           <div className="space-y-6 rounded-3xl border border-white/5 bg-[#141414] p-5 md:p-7">
             {/* Match type */}
             <div>
               <p className="mb-2 text-sm font-semibold">Match type</p>
-              <div className="grid grid-cols-3 gap-2 rounded-2xl bg-[#0A0A0A] p-1.5" role="radiogroup">
-                {(['1v1', 'Co-op', 'Tournament'] as const).map((t) => {
+              <div className="space-y-2" role="radiogroup">
+                {([
+                  { type: '1v1' as const, icon: Swords, desc: 'Head-to-head duel', accent: 'text-red-400' },
+                  { type: 'Co-op' as const, icon: Users, desc: 'Team up with the lobby', accent: 'text-sky-400' },
+                  { type: 'Tournament' as const, icon: Trophy, desc: 'Coming after the next update', accent: 'text-yellow-400' },
+                ]).map(({ type: t, icon: Icon, desc, accent }) => {
                   const isDisabled = t === 'Tournament';
                   const isActive = matchType === t;
-                  const Icon = t === '1v1' ? Swords : t === 'Co-op' ? Users : Trophy;
                   return (
                     <button
                       key={t}
@@ -304,32 +314,39 @@ export default function CreateRoomPage() {
                         if (t !== 'Co-op') setCoopSub(null);
                       }}
                       disabled={isDisabled}
+                      title={isDisabled ? 'Tournament mode coming soon' : undefined}
                       className={cn(
-                        'flex items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold transition-all',
+                        'flex w-full items-center gap-3 rounded-2xl border p-3.5 text-left transition-all',
                         isDisabled && 'opacity-40 cursor-not-allowed',
                         isActive && !isDisabled
-                          ? 'bg-emerald-600 text-white'
-                          : 'text-gray-400 hover:text-white',
+                          ? 'border-emerald-500/50 bg-emerald-600/10 ring-1 ring-emerald-500/30'
+                          : 'border-white/10 bg-[#0A0A0A] hover:border-white/20',
                       )}
-                      title={isDisabled ? 'Tournament mode coming soon' : undefined}
                     >
-                      <Icon className="h-4 w-4" />
-                      {t}
+                      <div className={cn(
+                        'flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-white/5',
+                        isActive && !isDisabled && 'bg-emerald-600/20',
+                      )}>
+                        <Icon className={cn('h-5 w-5', isActive && !isDisabled ? 'text-emerald-500' : accent)} />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-semibold">{t}</p>
+                        <p className="text-xs text-gray-500 truncate">{desc}</p>
+                      </div>
+                      {isActive && !isDisabled && (
+                        <CheckCircle2 className="h-5 w-5 flex-shrink-0 text-emerald-500" />
+                      )}
                     </button>
                   );
                 })}
               </div>
-              <p className="mt-2 text-xs text-gray-500 flex items-center gap-1.5">
-                <Trophy className="h-3.5 w-3.5" />
-                Tournament mode available after the next eFootball update.
-              </p>
             </div>
 
             {/* Co‑op sub‑type */}
             {matchType === 'Co-op' && (
-              <div>
+              <div className="animate-in fade-in slide-in-from-top-1 duration-200">
                 <p className="mb-2 text-sm font-semibold">Co‑op mode</p>
-                <div className="grid grid-cols-2 gap-2 rounded-2xl bg-[#0A0A0A] p-1.5" role="radiogroup">
+                <div className="grid grid-cols-2 gap-2" role="radiogroup">
                   {(['2 vs AI', '3 vs 3'] as CoopSubType[]).map((sub) => {
                     const isActive = coopSub === sub;
                     const Icon = sub === '2 vs AI' ? Bot : UserPlus;
@@ -341,13 +358,13 @@ export default function CreateRoomPage() {
                         aria-checked={isActive}
                         onClick={() => setCoopSub(sub)}
                         className={cn(
-                          'flex items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold transition-all',
+                          'flex flex-col items-center gap-1.5 rounded-xl border py-3 text-sm font-semibold transition-all',
                           isActive
-                            ? 'bg-emerald-600 text-white'
-                            : 'text-gray-400 hover:text-white',
+                            ? 'border-emerald-500/50 bg-emerald-600/10 text-white ring-1 ring-emerald-500/30'
+                            : 'border-white/10 bg-[#0A0A0A] text-gray-400 hover:border-white/20 hover:text-white',
                         )}
                       >
-                        <Icon className="h-4 w-4" />
+                        <Icon className={cn('h-4 w-4', isActive && 'text-emerald-500')} />
                         {sub}
                       </button>
                     );
@@ -361,8 +378,9 @@ export default function CreateRoomPage() {
 
             {/* Room number */}
             <div>
-              <label htmlFor="room-number" className="mb-2 block text-sm font-semibold">
-                Room Number
+              <label htmlFor="room-number" className="mb-2 flex items-center gap-1.5 text-sm font-semibold">
+                <Ticket className="h-3.5 w-3.5 text-emerald-500" />
+                Room Code
               </label>
               <div className="relative">
                 <input
@@ -397,7 +415,10 @@ export default function CreateRoomPage() {
             {/* Password toggle */}
             <div>
               <div className="flex items-center justify-between mb-2">
-                <label className="text-sm font-semibold">Password</label>
+                <label className="flex items-center gap-1.5 text-sm font-semibold">
+                  <Lock className="h-3.5 w-3.5 text-gray-500" />
+                  Password
+                </label>
                 <button
                   type="button"
                   role="switch"
@@ -467,9 +488,11 @@ export default function CreateRoomPage() {
             <button
               type="button"
               onClick={openReview}
-              className="w-full rounded-full bg-emerald-600 py-3.5 text-sm font-bold text-white transition-all hover:brightness-110 active:scale-[0.98]"
+              className="group relative flex w-full items-center justify-center gap-2 rounded-full bg-emerald-600 py-3.5 text-sm font-bold text-white shadow-lg shadow-emerald-600/20 transition-all hover:brightness-110 active:scale-[0.98]"
             >
-              Review
+              
+              Review Match
+              <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
             </button>
           </div>
 
@@ -483,56 +506,80 @@ export default function CreateRoomPage() {
               onClick={() => setReviewOpen(false)}
             >
               <div
-                className="w-full max-w-sm rounded-3xl border border-white/10 bg-[#141414] p-6 shadow-2xl animate-in zoom-in-95 duration-150"
+                className="w-full max-w-sm overflow-hidden rounded-3xl border border-white/10 bg-[#141414] shadow-2xl animate-in zoom-in-95 duration-150"
                 onClick={(e) => e.stopPropagation()}
               >
-                <div className="mb-4 flex items-center justify-between">
-                  <h2 className="text-lg font-bold">Review your match</h2>
-                  <button
-                    type="button"
-                    aria-label="Close review"
-                    onClick={() => setReviewOpen(false)}
-                    className="rounded-full p-1.5 text-gray-400 hover:bg-[#1E1E1E] hover:text-white"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
+                {/* Ticket header band */}
+                <div className="relative bg-emerald-600 px-6 py-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-white">
+                      <Ticket className="h-5 w-5" />
+                      <h2 className="text-base font-bold tracking-wide">Match Ready</h2>
+                    </div>
+                    <button
+                      type="button"
+                      aria-label="Close review"
+                      onClick={() => setReviewOpen(false)}
+                      className="rounded-full p-1.5 text-white/80 hover:bg-black/10 hover:text-white"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
                 </div>
 
-                <dl className="space-y-3 text-sm">
-                  <SummaryRow label="Match type" value={getMatchTypeLabel()} />
-                  <SummaryRow label="Players remaining" value={String(getNopr())} />
-                  <SummaryRow label="Room" value={roomNumber} mono />
-                  <div className="flex items-center justify-between rounded-xl bg-[#0A0A0A] px-4 py-3">
-                    <dt className="text-gray-400">Password</dt>
-                    <dd className="flex items-center gap-2 font-semibold">
-                      {passwordEnabled && password ? (
-                        <>
-                          <span className="font-mono">
-                            {reviewReveal ? password : '••••••••'}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => setReviewReveal((v) => !v)}
-                            className="text-xs font-medium text-emerald-500 hover:underline"
-                          >
-                            {reviewReveal ? 'hide' : 'reveal'}
-                          </button>
-                        </>
-                      ) : (
-                        'No'
-                      )}
-                    </dd>
-                  </div>
-                </dl>
+                {/* Perforated divider, ticket-style */}
+                <div className="relative h-0 border-t-2 border-dashed border-white/10">
+                  <div className="absolute -left-3 -top-3 h-6 w-6 rounded-full bg-[#0A0A0A]" />
+                  <div className="absolute -right-3 -top-3 h-6 w-6 rounded-full bg-[#0A0A0A]" />
+                </div>
 
-                <button
-                  type="button"
-                  onClick={createMatch}
-                  disabled={submitting}
-                  className="mt-6 w-full rounded-full bg-emerald-600 py-3.5 text-sm font-bold text-white transition-all hover:brightness-110 active:scale-[0.98] disabled:opacity-60"
-                >
-                  {submitting ? 'Creating…' : 'Create Match'}
-                </button>
+                <div className="p-6">
+                  <dl className="space-y-3 text-sm">
+                    <SummaryRow label="Match type" value={getMatchTypeLabel()} />
+                    <SummaryRow label="Players remaining" value={String(getNopr())} />
+                    <SummaryRow label="Room" value={roomNumber} mono />
+                    <div className="flex items-center justify-between rounded-xl bg-[#0A0A0A] px-4 py-3">
+                      <dt className="text-gray-400">Password</dt>
+                      <dd className="flex items-center gap-2 font-semibold">
+                        {passwordEnabled && password ? (
+                          <>
+                            <span className="font-mono">
+                              {reviewReveal ? password : '••••••••'}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => setReviewReveal((v) => !v)}
+                              className="text-xs font-medium text-emerald-500 hover:underline"
+                            >
+                              {reviewReveal ? 'hide' : 'reveal'}
+                            </button>
+                          </>
+                        ) : (
+                          'No'
+                        )}
+                      </dd>
+                    </div>
+                  </dl>
+
+                  <button
+                    type="button"
+                    onClick={createMatch}
+                    disabled={submitting}
+                    className="mt-6 flex w-full items-center justify-center gap-2 rounded-full bg-emerald-600 py-3.5 text-sm font-bold text-white shadow-lg shadow-emerald-600/20 transition-all hover:brightness-110 active:scale-[0.98] disabled:opacity-60"
+                  >
+                    {submitting ? (
+                      <>
+                        <RefreshCw className="h-4 w-4 animate-spin" />
+                        Creating…
+                      </>
+                    ) : (
+                      <>
+                        <Swords className="h-4 w-4" />
+                        Create Match
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
             </div>
           )}
