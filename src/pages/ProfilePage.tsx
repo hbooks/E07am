@@ -40,7 +40,6 @@ const AVATAR_CATEGORIES = [
 const PULL_THRESHOLD = 64; // px of pull before a release triggers a refresh
 const PULL_RESISTANCE = 0.45;
 const PULL_MAX = 80;
-const PULL_ARM_DISTANCE = 10; // px of initial downward drag before we commit to intercepting the gesture
 
 export default function ProfilePage() {
   const { user, isAuthenticated, login, logout } = useKindeAuth();
@@ -53,15 +52,10 @@ export default function ProfilePage() {
   const [badgeInfoOpen, setBadgeInfoOpen] = useState(false);
   const navigate = useNavigate();
 
-  // --- Pull-to-refresh state ---
+  // --- Pull-to-refresh state (visual only - never blocks native scrolling) ---
   const [pullDistance, setPullDistance] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
   const touchStartY = useRef<number | null>(null);
-  const pageRef = useRef<HTMLDivElement | null>(null);
-  // Refs mirror the pull state for use inside the native (non-React) touch
-  // listeners below, which close over values once and don't re-read state.
-  const pullDistanceRef = useRef(0);
-  const refreshingRef = useRef(false);
 
   // Auth is guarded centrally by <ProtectedRoute> in App.tsx, which forces
   // `login({ prompt: PromptTypes.login })` whenever the user isn't
@@ -81,7 +75,6 @@ export default function ProfilePage() {
       .catch(() => toast.error('Failed to load profile'))
       .finally(() => {
         if (!silent) setLoading(false);
-        refreshingRef.current = false;
         setRefreshing(false);
       });
   };
@@ -147,105 +140,41 @@ export default function ProfilePage() {
   };
 
   // --- Pull-to-refresh handlers ---
-  // Attached as native listeners (not React's onTouchStart/onTouchMove
-  // props) because React registers touch listeners as passive by default,
-  // which silently ignores preventDefault(). { passive: false } here is
-  // what lets us actually own the gesture instead of fighting the
-  // browser's own pull-to-refresh/bounce.
-  useEffect(() => {
-    const el = pageRef.current;
-    if (!el) return;
+  // Deliberately never calls preventDefault(), on purpose. Every previous
+  // version of this tried to intercept the touch gesture so the native
+  // browser pull-to-refresh/bounce wouldn't also fire, and every attempt
+  // ended up breaking normal scrolling for real users on real devices
+  // (browsers lock a whole touch gesture out of scrolling the instant
+  // preventDefault() is called on it, and there was no detection logic
+  // reliable enough across devices to avoid false positives). Scrolling
+  // working correctly matters far more than the indicator being pixel
+  // perfect, so this version is purely visual: it reads the drag distance
+  // to animate the indicator, and never fights the browser for control of
+  // the touch gesture. Native scrolling and native bounce behave exactly
+  // as they would with no code here at all.
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartY.current = window.scrollY <= 0 && !refreshing ? e.touches[0].clientY : null;
+  };
 
-    // Don't assume the page itself scrolls the window - if a parent layout
-    // (fixed header/bottom nav shell, etc.) owns the actual scrolling,
-    // window.scrollY sits at 0 forever and "at top" is always true, which
-    // blocks upward scrolling everywhere, not just at the real top. Walk up
-    // to find whichever element actually has scroll room.
-    const getScrollParent = (node: HTMLElement): HTMLElement | null => {
-      let current: HTMLElement | null = node.parentElement;
-      while (current) {
-        const style = getComputedStyle(current);
-        if (/(auto|scroll)/.test(style.overflowY) && current.scrollHeight > current.clientHeight) {
-          return current;
-        }
-        current = current.parentElement;
-      }
-      return null; // falls back to window/document below
-    };
-    const scrollParent = getScrollParent(el);
-
-    const scrollTop = () =>
-      scrollParent ? scrollParent.scrollTop : window.scrollY || document.documentElement.scrollTop || 0;
-    const atTop = () => scrollTop() <= 0;
-
-    const onTouchStart = (e: TouchEvent) => {
-      touchStartY.current = atTop() && !refreshingRef.current ? e.touches[0].clientY : null;
-    };
-
-    const onTouchMove = (e: TouchEvent) => {
-      if (touchStartY.current === null) return;
-      const delta = e.touches[0].clientY - touchStartY.current;
-
-      // Re-check atTop() on every move, not just at touchstart - if the
-      // user is mid-scroll and only reaches the top partway through the
-      // gesture, we shouldn't have armed early, and if they scroll away
-      // from the top we must stop intercepting immediately.
-      if (delta <= 0 || !atTop()) {
-        // Not a pull. Crucially, we have NOT called preventDefault yet at
-        // this point, so the browser is still free to treat this drag as
-        // a normal scroll for the rest of the gesture. Once a browser
-        // sees a prevented touchmove, it locks that entire gesture out of
-        // native scrolling - even for later, un-prevented events in the
-        // same drag. So bailing here without ever calling preventDefault
-        // is what keeps ordinary scrolling working.
-        touchStartY.current = null;
-        if (pullDistanceRef.current !== 0) {
-          pullDistanceRef.current = 0;
-          setPullDistance(0);
-        }
-        return;
-      }
-
-      if (delta < PULL_ARM_DISTANCE) {
-        // Still inside the dead-zone: could be scroll jitter rather than a
-        // deliberate pull. Don't preventDefault yet - wait for a clearer
-        // signal so a stray first pixel can't lock out scrolling.
-        return;
-      }
-
-      // Past the dead-zone and still pulling down from the top: this is a
-      // real pull gesture, so take over from here.
-      e.preventDefault();
-      const next = Math.min((delta - PULL_ARM_DISTANCE) * PULL_RESISTANCE, PULL_MAX);
-      pullDistanceRef.current = next;
-      setPullDistance(next);
-    };
-
-    const onTouchEnd = () => {
-      if (touchStartY.current === null) return;
-      if (pullDistanceRef.current > PULL_THRESHOLD) {
-        refreshingRef.current = true;
-        setRefreshing(true);
-        fetchProfile(true);
-      }
-      pullDistanceRef.current = 0;
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (touchStartY.current === null) return;
+    const delta = e.touches[0].clientY - touchStartY.current;
+    if (delta > 0 && window.scrollY <= 0) {
+      setPullDistance(Math.min(delta * PULL_RESISTANCE, PULL_MAX));
+    } else {
       setPullDistance(0);
-      touchStartY.current = null;
-    };
+    }
+  };
 
-    el.addEventListener('touchstart', onTouchStart, { passive: true });
-    el.addEventListener('touchmove', onTouchMove, { passive: false });
-    el.addEventListener('touchend', onTouchEnd, { passive: true });
-    el.addEventListener('touchcancel', onTouchEnd, { passive: true });
-
-    return () => {
-      el.removeEventListener('touchstart', onTouchStart);
-      el.removeEventListener('touchmove', onTouchMove);
-      el.removeEventListener('touchend', onTouchEnd);
-      el.removeEventListener('touchcancel', onTouchEnd);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  const handleTouchEnd = () => {
+    if (touchStartY.current === null) return;
+    if (pullDistance > PULL_THRESHOLD) {
+      setRefreshing(true);
+      fetchProfile(true);
+    }
+    setPullDistance(0);
+    touchStartY.current = null;
+  };
 
   if (loading) return <ProfileSkeleton />;
 
@@ -267,9 +196,10 @@ export default function ProfilePage() {
 
   return (
     <div
-      ref={pageRef}
-      className="min-h-screen w-full max-w-[100vw] overflow-x-hidden bg-[#0A0A0A] text-white cr-body"
-      style={{ overscrollBehaviorY: 'contain' }}
+      className="relative min-h-screen w-full max-w-[100vw] overflow-x-hidden bg-[#0A0A0A] text-white cr-body"
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
     >
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Inter:wght@400;500;600&display=swap');
@@ -277,16 +207,21 @@ export default function ProfilePage() {
         .cr-body { font-family: 'Inter', sans-serif; }
       `}</style>
 
-      {/* Pull-to-refresh indicator - zero height and invisible until pulled */}
-      <div
-        className="flex items-center justify-center overflow-hidden transition-[height] duration-200 ease-out"
-        style={{ height: refreshing ? 48 : pullDistance }}
-      >
-        <RefreshCw
-          className={`h-5 w-5 text-[#1E90FF] ${refreshing ? 'animate-spin' : ''}`}
-          style={refreshing ? undefined : { transform: `rotate(${Math.min(pullDistance * 3, 360)}deg)` }}
-        />
-      </div>
+      {/* Pull-to-refresh indicator - absolutely positioned overlay, so it
+          never occupies real layout space. It cannot push content down or
+          leave blank space behind: it just fades/scales in on top of the
+          page while pulling, and disappears again on release. */}
+      {(pullDistance > 0 || refreshing) && (
+        <div
+          className="absolute top-3 left-1/2 -translate-x-1/2 z-10 bg-[#141414] border border-white/10 rounded-full p-2.5 shadow-lg transition-opacity duration-150"
+          style={{ opacity: refreshing ? 1 : Math.min(pullDistance / PULL_THRESHOLD, 1) }}
+        >
+          <RefreshCw
+            className={`h-5 w-5 text-[#1E90FF] ${refreshing ? 'animate-spin' : ''}`}
+            style={refreshing ? undefined : { transform: `rotate(${Math.min(pullDistance * 3, 360)}deg)` }}
+          />
+        </div>
+      )}
 
       <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6 space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
         {/* Profile header card */}
@@ -397,8 +332,8 @@ export default function ProfilePage() {
                 key={tab}
                 onClick={() => setActiveTab(tab)}
                 className={`flex-1 py-3 text-sm font-medium capitalize transition ${activeTab === tab
-                  ? 'text-[#1E90FF] border-b-2 border-[#1E90FF] bg-[#1E90FF]/5'
-                  : 'text-gray-500 hover:text-gray-300'
+                    ? 'text-[#1E90FF] border-b-2 border-[#1E90FF] bg-[#1E90FF]/5'
+                    : 'text-gray-500 hover:text-gray-300'
                   }`}
               >
                 {tab}
@@ -607,8 +542,8 @@ function AvatarModal({ onSelect, onClose }: { onSelect: (url: string) => void; o
               key={cat.name}
               onClick={() => { setActiveTab(idx); setSelectedSeed(null); }}
               className={`px-3 py-1.5 text-xs font-semibold rounded-full transition whitespace-nowrap ${idx === activeTab
-                ? 'bg-[#1E90FF] text-white'
-                : 'text-gray-400 hover:text-white hover:bg-white/5'
+                  ? 'bg-[#1E90FF] text-white'
+                  : 'text-gray-400 hover:text-white hover:bg-white/5'
                 }`}
             >
               {cat.name}
@@ -627,8 +562,8 @@ function AvatarModal({ onSelect, onClose }: { onSelect: (url: string) => void; o
                   key={seed}
                   onClick={() => setSelectedSeed(url)}
                   className={`aspect-square rounded-xl overflow-hidden border-2 transition-all bg-[#0A0A0A] ${isSelected
-                    ? 'border-[#1E90FF] ring-2 ring-[#1E90FF]/40'
-                    : 'border-white/10 hover:border-gray-400'
+                      ? 'border-[#1E90FF] ring-2 ring-[#1E90FF]/40'
+                      : 'border-white/10 hover:border-gray-400'
                     }`}
                 >
                   <img
