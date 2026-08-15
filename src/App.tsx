@@ -19,6 +19,7 @@ import TermsPage from "@/pages/TermsPage";
 import PrivacyPage from "@/pages/PrivacyPage";
 import NotFoundPage from "@/pages/NotFoundPage";
 import UpdateSquadPage from "./pages/UpdateSquadPage";
+import AdminPage from "./pages/AdminPage";
 
 const queryClient = new QueryClient();
 
@@ -62,6 +63,14 @@ const App = () => (
                 />
                 <Route path="/terms" element={<TermsPage />} />
                 <Route path="/privacy" element={<PrivacyPage />} />
+                <Route
+                  path="/admin"
+                  element={
+                    <ProtectedRoute>
+                      <AdminPage />
+                    </ProtectedRoute>
+                  }
+                />
                 <Route path="*" element={<NotFoundPage />} />
               </Routes>
             </main>
