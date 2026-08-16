@@ -18,8 +18,10 @@ import OnboardingPage from "@/pages/OnboardingPage";
 import TermsPage from "@/pages/TermsPage";
 import PrivacyPage from "@/pages/PrivacyPage";
 import NotFoundPage from "@/pages/NotFoundPage";
-import UpdateSquadPage from "./pages/UpdateSquadPage";
+import ResultsPage from "./pages/ResultsPage";
+import UpdateSquadPage from "@/pages/UpdateSquadPage";
 import AdminPage from "./pages/AdminPage";
+import SettingsPage from "./pages/SettingsPage";
 
 const queryClient = new QueryClient();
 
@@ -43,6 +45,8 @@ const App = () => (
                 <Route path="/create" element={<CreateRoomPage />} />
                 <Route path="/news" element={<NewsPage />} />
                 <Route path="/search" element={<SearchPage />} />
+                <Route path="/settings" element={<SettingsPage />} />
+                <Route path="/results" element={<ResultsPage />} />
                 <Route path="/update-squad" element={<UpdateSquadPage />} />
                 <Route
                   path="/profile"

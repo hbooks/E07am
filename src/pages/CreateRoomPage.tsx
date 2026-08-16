@@ -1,16 +1,17 @@
 import { useNavigate } from 'react-router-dom';
-import { useState, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Eye, EyeOff, Swords, Users, X, Trophy, Bot, UserPlus, RefreshCw, ClipboardPaste,
-  ShieldAlert, ArrowRight, CheckCircle2, Zap, Ticket, Lock,
+  ShieldAlert, ArrowRight, CheckCircle2, Ticket, Lock, Clock,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useKindeAuth } from '@kinde-oss/kinde-auth-react';
+import { supabase } from '@/lib/supabaseClient';
 import { cn } from '@/lib/utils';
 
 // ---------- sanitizers ----------
 function sanitizeRoomNumber(value: string): string {
-  return value.replace(/\D/g, '').slice(0, 8);
+  return value.replace(/\D/g, '').slice(0, 12); // allow up to 12 digits (tournament)
 }
 function sanitizePassword(value: string): string {
   return value.replace(/[^a-zA-Z0-9!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~`]/g, '').slice(0, 32);
@@ -18,6 +19,7 @@ function sanitizePassword(value: string): string {
 
 type MatchType = '1v1' | 'Co-op' | 'Tournament';
 type CoopSubType = '2 vs AI' | '3 vs 3' | null;
+type TournamentSize = 4 | 8 | null;
 
 const PULL_THRESHOLD = 64;
 const PULL_RESISTANCE = 0.45;
@@ -27,20 +29,26 @@ const SEMAT_URL = `${import.meta.env.VITE_SUPABASE_FUNCTIONS_URL}/Semat`;
 
 export default function CreateRoomPage() {
   const navigate = useNavigate();
-  const { user, login } = useKindeAuth(); // <-- get authenticated user
+  const { user, login } = useKindeAuth();
 
   const [matchType, setMatchType] = useState<MatchType>('1v1');
   const [coopSub, setCoopSub] = useState<CoopSubType>(null);
+  const [tournamentSize, setTournamentSize] = useState<TournamentSize>(null);
   const [roomNumber, setRoomNumber] = useState('');
   const [password, setPassword] = useState('');
   const [passwordEnabled, setPasswordEnabled] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [errors, setErrors] = useState<{ room?: string; password?: string; coop?: string }>({});
+  const [errors, setErrors] = useState<{ room?: string; password?: string; coop?: string; tournament?: string }>({});
   const [reviewOpen, setReviewOpen] = useState(false);
   const [reviewReveal, setReviewReveal] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  // error modal
+  // Active match (from louse)
+  const [activeMatch, setActiveMatch] = useState<{ match_id: number; mrs: string } | null>(null);
+  const [loadingActive, setLoadingActive] = useState(false);
+  const [activeError, setActiveError] = useState<string | null>(null);
+
+  // Error modal
   const [errorModal, setErrorModal] = useState<{
     title: string;
     message: string;
@@ -55,14 +63,38 @@ export default function CreateRoomPage() {
   const [refreshing, setRefreshing] = useState(false);
   const touchStartY = useRef<number | null>(null);
 
+  // Fetch active match from louse
+  const fetchActiveMatch = async () => {
+    if (!user?.id) return;
+    setLoadingActive(true);
+    setActiveError(null);
+    try {
+      const res = await fetch(`${import.meta.env.VITE_SUPABASE_FUNCTIONS_URL}/Get_Active_Match?userId=${encodeURIComponent(user.id)}`);
+      if (!res.ok) throw new Error('Failed to load active match');
+      const data = await res.json();
+      setActiveMatch(data);
+    } catch (err: any) {
+      setActiveError(err.message || 'Failed to load active match');
+    } finally {
+      setLoadingActive(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchActiveMatch();
+  }, [user?.id]);
+
   // ---------- validation ----------
   const validate = () => {
     const next: typeof errors = {};
+
+    const expectedLength = matchType === 'Tournament' ? 12 : 8;
     if (!roomNumber.trim()) {
       next.room = 'Room number is required.';
-    } else if (roomNumber.length !== 8) {
-      next.room = 'Room number must be exactly 8 digits.';
+    } else if (roomNumber.length !== expectedLength) {
+      next.room = `Room number must be exactly ${expectedLength} digits.`;
     }
+
     if (passwordEnabled) {
       if (!password.trim()) {
         next.password = 'Password cannot be empty.';
@@ -70,9 +102,15 @@ export default function CreateRoomPage() {
         next.password = 'Password must be at least 4 characters.';
       }
     }
+
     if (matchType === 'Co-op' && !coopSub) {
       next.coop = 'Please select a Co‑op mode.';
     }
+
+    if (matchType === 'Tournament' && !tournamentSize) {
+      next.tournament = 'Please select a tournament size.';
+    }
+
     setErrors(next);
     setShakeRoom(!!next.room);
     setShakePwd(!!next.password);
@@ -96,7 +134,10 @@ export default function CreateRoomPage() {
       const payload = {
         userId: user.id,
         matchType,
-        coopSub,
+        coopSub:
+          matchType === 'Co-op' ? coopSub :
+            matchType === 'Tournament' ? (tournamentSize ? String(tournamentSize) : null) :
+              null,
         roomNumber,
         password: passwordEnabled ? password : null,
         nopr: getNopr(),
@@ -112,6 +153,7 @@ export default function CreateRoomPage() {
 
       if (res.ok) {
         toast.success('Match created successfully!');
+        fetchActiveMatch();
         navigate('/');
       } else {
         // structured backend errors
@@ -126,7 +168,7 @@ export default function CreateRoomPage() {
           setErrorModal({
             title: 'Report Previous Result',
             message: data.message || 'You must report the result of your last match before creating a new one.',
-            actionLabel: 'Go to My Matches',
+            actionLabel: 'Record Results',
             actionUrl: '/results',
           });
         } else if (data.error === 'SQUAD_NOT_VERIFIED') {
@@ -159,7 +201,7 @@ export default function CreateRoomPage() {
   const handlePaste = async () => {
     try {
       const text = await navigator.clipboard.readText();
-      const digits = text.replace(/\D/g, '').slice(0, 8);
+      const digits = text.replace(/\D/g, '').slice(0, 12);
       if (digits.length > 0) {
         setRoomNumber(digits);
         toast.success('Room number pasted');
@@ -172,11 +214,18 @@ export default function CreateRoomPage() {
   };
 
   // ---------- formatted display ----------
-  const formattedRoomNumber = roomNumber.length > 4
-    ? `${roomNumber.slice(0, 4)}-${roomNumber.slice(4)}`
-    : roomNumber;
+  const formattedRoomNumber = useMemo(() => {
+    if (matchType === 'Tournament') {
+      // Format 12 digits as 0000-0000-0000
+      if (roomNumber.length > 8) return `${roomNumber.slice(0, 4)}-${roomNumber.slice(4, 8)}-${roomNumber.slice(8)}`;
+      if (roomNumber.length > 4) return `${roomNumber.slice(0, 4)}-${roomNumber.slice(4)}`;
+      return roomNumber;
+    } else {
+      return roomNumber.length > 4 ? `${roomNumber.slice(0, 4)}-${roomNumber.slice(4)}` : roomNumber;
+    }
+  }, [roomNumber, matchType]);
 
-  // ---------- pull‑to‑refresh ----------
+  // ---------- pull-to-refresh ----------
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStartY.current = window.scrollY <= 0 && !refreshing ? e.touches[0].clientY : null;
   };
@@ -211,6 +260,10 @@ export default function CreateRoomPage() {
       if (coopSub === '2 vs AI') return 1;
       if (coopSub === '3 vs 3') return 5;
     }
+    if (matchType === 'Tournament') {
+      if (tournamentSize === 4) return 3;   // host included
+      if (tournamentSize === 8) return 7;
+    }
     return 0;
   };
 
@@ -221,7 +274,10 @@ export default function CreateRoomPage() {
       if (coopSub === '3 vs 3') return 'Co‑op — 3 vs 3';
       return 'Co‑op';
     }
-    return 'Tournament';
+    if (matchType === 'Tournament') {
+      return `Tournament — ${tournamentSize ?? '?'} players`;
+    }
+    return '';
   };
 
   // ---------- render ----------
@@ -264,7 +320,7 @@ export default function CreateRoomPage() {
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
       >
-        {/* pull indicator - absolute overlay, never occupies layout space */}
+        {/* pull indicator */}
         {(pullDistance > 0 || refreshing) && (
           <div
             className="absolute top-3 left-1/2 -translate-x-1/2 z-10 bg-[#141414] border border-white/10 rounded-full p-2.5 shadow-lg transition-opacity duration-150"
@@ -283,11 +339,48 @@ export default function CreateRoomPage() {
               <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-600/15 border border-emerald-500/30">
                 <Swords className="h-7 w-7 text-emerald-500" />
               </div>
-              </div>
+            </div>
             <div>
               <h1 className="text-2xl font-bold tracking-tight">Create Your Match Request</h1>
             </div>
           </header>
+
+          {/* Active match section with empty state */}
+          {activeMatch && activeMatch.mrs === 'NOR' ? (
+            <div className="mb-8 rounded-3xl border border-white/5 bg-[#141414] p-5 md:p-6">
+              <div className="flex items-center justify-between gap-4">
+                <div className="min-w-0">
+                  <p className="text-xs uppercase tracking-wider text-gray-500">Your active match</p>
+                  <p className="mt-1 text-lg font-mono font-semibold text-emerald-400">
+                    CTR_lm{activeMatch.match_id}
+                  </p>
+                  <p className="mt-1 text-sm text-gray-400 flex items-center gap-1">
+                    <Clock className="h-4 w-4" /> Result not reported yet
+                  </p>
+                </div>
+                <button
+                  onClick={() => navigate('/results')}
+                  className="flex-shrink-0 rounded-full bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-emerald-600/20 transition-all hover:brightness-110 active:scale-95"
+                >
+                  Record Results
+                </button>
+              </div>
+              {loadingActive && (
+                <div className="mt-3 flex items-center gap-2 text-xs text-gray-500">
+                  <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                  Refreshing...
+                </div>
+              )}
+              {activeError && (
+                <p className="mt-3 text-xs text-red-400">{activeError}</p>
+              )}
+            </div>
+          ) : (
+            <div className="mb-8 rounded-3xl border border-dashed border-white/10 bg-[#141414] p-5 md:p-6 text-center">
+              <p className="text-sm text-gray-400">No unrecorded matches</p>
+              <p className="mt-1 text-xs text-gray-500">Create a new match request below or claim one from the feed.</p>
+            </div>
+          )}
 
           <div className="space-y-6 rounded-3xl border border-white/5 bg-[#141414] p-5 md:p-7">
             {/* Match type */}
@@ -297,9 +390,8 @@ export default function CreateRoomPage() {
                 {([
                   { type: '1v1' as const, icon: Swords, desc: 'Head-to-head duel', accent: 'text-red-400' },
                   { type: 'Co-op' as const, icon: Users, desc: 'Team up with the lobby', accent: 'text-sky-400' },
-                  { type: 'Tournament' as const, icon: Trophy, desc: 'Coming after the next update', accent: 'text-yellow-400' },
+                  { type: 'Tournament' as const, icon: Trophy, desc: '4 or 8 player brackets', accent: 'text-yellow-400' },
                 ]).map(({ type: t, icon: Icon, desc, accent }) => {
-                  const isDisabled = t === 'Tournament';
                   const isActive = matchType === t;
                   return (
                     <button
@@ -307,33 +399,29 @@ export default function CreateRoomPage() {
                       type="button"
                       role="radio"
                       aria-checked={isActive}
-                      aria-disabled={isDisabled}
                       onClick={() => {
-                        if (isDisabled) return;
                         setMatchType(t);
                         if (t !== 'Co-op') setCoopSub(null);
+                        if (t !== 'Tournament') setTournamentSize(null);
                       }}
-                      disabled={isDisabled}
-                      title={isDisabled ? 'Tournament mode coming soon' : undefined}
                       className={cn(
                         'flex w-full items-center gap-3 rounded-2xl border p-3.5 text-left transition-all',
-                        isDisabled && 'opacity-40 cursor-not-allowed',
-                        isActive && !isDisabled
+                        isActive
                           ? 'border-emerald-500/50 bg-emerald-600/10 ring-1 ring-emerald-500/30'
                           : 'border-white/10 bg-[#0A0A0A] hover:border-white/20',
                       )}
                     >
                       <div className={cn(
                         'flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-white/5',
-                        isActive && !isDisabled && 'bg-emerald-600/20',
+                        isActive && 'bg-emerald-600/20',
                       )}>
-                        <Icon className={cn('h-5 w-5', isActive && !isDisabled ? 'text-emerald-500' : accent)} />
+                        <Icon className={cn('h-5 w-5', isActive ? 'text-emerald-500' : accent)} />
                       </div>
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-semibold">{t}</p>
                         <p className="text-xs text-gray-500 truncate">{desc}</p>
                       </div>
-                      {isActive && !isDisabled && (
+                      {isActive && (
                         <CheckCircle2 className="h-5 w-5 flex-shrink-0 text-emerald-500" />
                       )}
                     </button>
@@ -376,6 +464,39 @@ export default function CreateRoomPage() {
               </div>
             )}
 
+            {/* Tournament size */}
+            {matchType === 'Tournament' && (
+              <div className="animate-in fade-in slide-in-from-top-1 duration-200">
+                <p className="mb-2 text-sm font-semibold">Tournament size</p>
+                <div className="grid grid-cols-2 gap-2" role="radiogroup">
+                  {([4, 8] as const).map((size) => {
+                    const isActive = tournamentSize === size;
+                    return (
+                      <button
+                        key={size}
+                        type="button"
+                        role="radio"
+                        aria-checked={isActive}
+                        onClick={() => setTournamentSize(size)}
+                        className={cn(
+                          'flex flex-col items-center gap-1.5 rounded-xl border py-3 text-sm font-semibold transition-all',
+                          isActive
+                            ? 'border-emerald-500/50 bg-emerald-600/10 text-white ring-1 ring-emerald-500/30'
+                            : 'border-white/10 bg-[#0A0A0A] text-gray-400 hover:border-white/20 hover:text-white',
+                        )}
+                      >
+                        <Trophy className={cn('h-4 w-4', isActive && 'text-emerald-500')} />
+                        {size} players
+                      </button>
+                    );
+                  })}
+                </div>
+                {errors.tournament && (
+                  <p className="mt-1.5 text-xs text-destructive">{errors.tournament}</p>
+                )}
+              </div>
+            )}
+
             {/* Room number */}
             <div>
               <label htmlFor="room-number" className="mb-2 flex items-center gap-1.5 text-sm font-semibold">
@@ -387,11 +508,12 @@ export default function CreateRoomPage() {
                   id="room-number"
                   value={formattedRoomNumber}
                   onChange={(e) => {
-                    const raw = e.target.value.replace(/[^0-9]/g, '').slice(0, 8);
+                    const maxDigits = matchType === 'Tournament' ? 12 : 8;
+                    const raw = e.target.value.replace(/[^0-9]/g, '').slice(0, maxDigits);
                     setRoomNumber(raw);
                     if (errors.room) setErrors((prev) => ({ ...prev, room: undefined }));
                   }}
-                  placeholder="0000-0000"
+                  placeholder={matchType === 'Tournament' ? '0000-0000-0000' : '0000-0000'}
                   autoComplete="off"
                   inputMode="numeric"
                   className={cn(
@@ -490,7 +612,6 @@ export default function CreateRoomPage() {
               onClick={openReview}
               className="group relative flex w-full items-center justify-center gap-2 rounded-full bg-emerald-600 py-3.5 text-sm font-bold text-white shadow-lg shadow-emerald-600/20 transition-all hover:brightness-110 active:scale-[0.98]"
             >
-              
               Review Match
               <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
             </button>
@@ -509,7 +630,6 @@ export default function CreateRoomPage() {
                 className="w-full max-w-sm overflow-hidden rounded-3xl border border-white/10 bg-[#141414] shadow-2xl animate-in zoom-in-95 duration-150"
                 onClick={(e) => e.stopPropagation()}
               >
-                {/* Ticket header band */}
                 <div className="relative bg-emerald-600 px-6 py-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2 text-white">
@@ -527,7 +647,6 @@ export default function CreateRoomPage() {
                   </div>
                 </div>
 
-                {/* Perforated divider, ticket-style */}
                 <div className="relative h-0 border-t-2 border-dashed border-white/10">
                   <div className="absolute -left-3 -top-3 h-6 w-6 rounded-full bg-[#0A0A0A]" />
                   <div className="absolute -right-3 -top-3 h-6 w-6 rounded-full bg-[#0A0A0A]" />
