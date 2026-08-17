@@ -1,4 +1,4 @@
-////// <reference types="vite/client" />
+/// <reference types="vite/client" />
 
 interface ImportMetaEnv {
     readonly VITE_KINDE_CLIENT_ID: string;
@@ -8,6 +8,8 @@ interface ImportMetaEnv {
     readonly VITE_SUPABASE_FUNCTIONS_URL: string;
     readonly VITE_SUPABASE_URL: string;
     readonly VITE_SUPABASE_ANON_KEY: string;
+    readonly VITE_ADID: string;
+    readonly VITE_APP_VERSION: string;
     // add any other VITE_ variables you use here
 }
 

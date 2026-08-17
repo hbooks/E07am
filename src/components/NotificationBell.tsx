@@ -9,6 +9,7 @@ import { useKindeAuth } from '@kinde-oss/kinde-auth-react';
 import { cn } from '@/lib/utils';
 import { MESSAGE_MAP } from '@/lib/notificationMessages';
 import { toast } from 'sonner';
+import { supabase } from '@/lib/supabaseClient';
 
 // Each notification "kind" gets its own icon + accent, so the list stays scannable
 // without reading every line — colour tells you what you're looking at before the text does.
@@ -62,6 +63,42 @@ export function NotificationBell() {
     if (user) {
       fetchNotifications();
     }
+  }, [user, fetchNotifications]);
+
+  useEffect(() => {
+    if (!user) return;
+
+    const channel = supabase
+      .channel(`notif-bell-${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'notifications',
+          filter: `user_id=eq.${user.id}`,
+        },
+        () => {
+          fetchNotifications();
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'notifications',
+          filter: `user_id=eq.${user.id}`,
+        },
+        () => {
+          fetchNotifications();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [user, fetchNotifications]);
 
   const unread = notifs.filter((n) => !n.read).length;

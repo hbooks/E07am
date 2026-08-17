@@ -1,13 +1,15 @@
-import { useEffect, useRef, useState } from 'react';
-import { useNavigate, useParams, Link } from 'react-router-dom';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import { useKindeAuth } from '@kinde-oss/kinde-auth-react';
 import { PromptTypes } from '@kinde/js-utils';
+import { supabase } from '@/lib/supabaseClient';
 import {
   Pencil, Lock, Info, ChevronRight, LogOut, Clock, FileWarning,
   RefreshCw, SlidersHorizontal, Settings as SettingsIcon, X,
+  Trophy, Swords, Users, Zap, Gamepad2, Star,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import UserBadges, { STAFF_BADGE_URL, VERIFIED_BADGE_URL } from '@/components/UserBadges';
+import UserBadges from '@/components/UserBadges';
 
 const BASE_URL = import.meta.env.VITE_SUPABASE_FUNCTIONS_URL;
 const UPDATE_AVATAR_URL = `${BASE_URL}/Update_Avatar`;
@@ -37,9 +39,14 @@ const AVATAR_CATEGORIES = [
   },
 ];
 
-const PULL_THRESHOLD = 64; // px of pull before a release triggers a refresh
+const PULL_THRESHOLD = 64;
 const PULL_RESISTANCE = 0.45;
 const PULL_MAX = 80;
+
+// Shared focus + press affordance used on every interactive control.
+const FOCUS_RING =
+  'focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1E90FF] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0A0A0A]';
+const PRESS = 'active:scale-[0.97]';
 
 export default function ProfilePage() {
   const { user, isAuthenticated, login, logout } = useKindeAuth();
@@ -52,20 +59,12 @@ export default function ProfilePage() {
   const [badgeInfoOpen, setBadgeInfoOpen] = useState(false);
   const navigate = useNavigate();
 
-  // --- Pull-to-refresh state (visual only - never blocks native scrolling) ---
   const [pullDistance, setPullDistance] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
   const touchStartY = useRef<number | null>(null);
 
-  // Auth is guarded centrally by <ProtectedRoute> in App.tsx, which forces
-  // `login({ prompt: PromptTypes.login })` whenever the user isn't
-  // authenticated - this page doesn't call login() on mount itself.
-
-  // Fetch profile data. Pulled out into a named function (same fetch,
-  // same success/error handling as before) so pull-to-refresh can call it
-  // again without duplicating the request logic.
-  const fetchProfile = (silent = false) => {
-    if (!user) return;
+  const fetchProfile = useCallback((silent = false) => {
+    if (!user?.id) return;
     if (!silent) setLoading(true);
     fetch(`${BASE_URL}/Get_Up?userId=${user.id}`)
       .then(res => res.json())
@@ -77,22 +76,42 @@ export default function ProfilePage() {
         if (!silent) setLoading(false);
         setRefreshing(false);
       });
-  };
+  }, [user?.id]);
 
   useEffect(() => {
     fetchProfile();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
+  }, [fetchProfile]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    const channel = supabase
+      .channel(`profile-${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'profiles',
+          filter: `id=eq.${user.id}`,
+        },
+        () => {
+          fetchProfile(true);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id, fetchProfile]);
 
   if (!isAuthenticated) {
-    // Normally unreachable, since <ProtectedRoute> in App.tsx already keeps
-    // unauthenticated users off this page. Kept as a defensive fallback.
     return (
-      <div className="min-h-screen bg-[#0A0A0A] flex flex-col items-center justify-center text-white gap-4">
-        <p>You're not logged in.</p>
+      <div className="min-h-screen bg-[#0A0A0A] flex flex-col items-center justify-center text-white gap-4 px-6 text-center">
+        <p className="text-gray-400">You're not signed in.</p>
         <button
           onClick={() => login({ prompt: PromptTypes.login })}
-          className="bg-[#1E90FF] hover:bg-blue-600 text-white px-8 py-3 rounded-xl font-semibold transition"
+          className={`bg-[#1E90FF] hover:bg-blue-600 text-white px-8 py-3 rounded-xl font-semibold transition ${PRESS} ${FOCUS_RING}`}
         >
           Sign in with Kinde
         </button>
@@ -101,8 +120,6 @@ export default function ProfilePage() {
   }
 
   if (!user) {
-    // isAuthenticated is true but Kinde hasn't populated `user` yet -
-    // same skeleton used while profile data itself is loading.
     return <ProfileSkeleton />;
   }
 
@@ -128,30 +145,15 @@ export default function ProfilePage() {
   const handleLogout = () => {
     setIsLoggingOut(true);
     setLogoutStatus('Signing you out…');
-
     try {
       localStorage.clear();
       sessionStorage.clear();
     } catch {
-      // ignore storage access issues (e.g. private browsing)
+      // ignore
     }
-
     logout();
   };
 
-  // --- Pull-to-refresh handlers ---
-  // Deliberately never calls preventDefault(), on purpose. Every previous
-  // version of this tried to intercept the touch gesture so the native
-  // browser pull-to-refresh/bounce wouldn't also fire, and every attempt
-  // ended up breaking normal scrolling for real users on real devices
-  // (browsers lock a whole touch gesture out of scrolling the instant
-  // preventDefault() is called on it, and there was no detection logic
-  // reliable enough across devices to avoid false positives). Scrolling
-  // working correctly matters far more than the indicator being pixel
-  // perfect, so this version is purely visual: it reads the drag distance
-  // to animate the indicator, and never fights the browser for control of
-  // the touch gesture. Native scrolling and native bounce behave exactly
-  // as they would with no code here at all.
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStartY.current = window.scrollY <= 0 && !refreshing ? e.touches[0].clientY : null;
   };
@@ -178,21 +180,75 @@ export default function ProfilePage() {
 
   if (loading) return <ProfileSkeleton />;
 
-  // If profile data is null, maybe user hasn't onboarded? We shouldn't normally reach here because onboarding would have redirected.
   if (!profile) {
     return (
-      <div className="min-h-screen bg-[#0A0A0A] flex flex-col items-center justify-center text-white">
-        <p className="mb-4">You haven't set up your profile yet.</p>
-        <Link to="/onboarding" className="bg-[#1E90FF] px-6 py-2 rounded-xl">
+      <div className="min-h-screen bg-[#0A0A0A] flex flex-col items-center justify-center text-white px-6 text-center gap-4">
+        <p className="text-gray-400">You haven't set up your profile yet.</p>
+        <Link
+          to="/onboarding"
+          className={`bg-[#1E90FF] hover:bg-blue-600 px-8 py-3 rounded-xl font-semibold transition ${PRESS} ${FOCUS_RING}`}
+        >
           Complete Setup
         </Link>
       </div>
     );
   }
 
+  // Compute stats
+  const oneVOne = Number(profile.one_v_one) || 0;
+  const coOp = Number(profile.co_op) || 0;
+  const tor = Number(profile.tor) || 0;
+  const gamesPlayed = Number(profile.gp) || 0;
+  const exp = Number(profile.exp) || 0;
+
+  let mostPlayed = null;
+  const maxGames = Math.max(oneVOne, coOp, tor);
+  if (maxGames > 0) {
+    if (maxGames === oneVOne) mostPlayed = { label: '1v1', icon: Swords, count: oneVOne };
+    else if (maxGames === coOp) mostPlayed = { label: 'Co-op', icon: Users, count: coOp };
+    else mostPlayed = { label: 'Tournament', icon: Trophy, count: tor };
+  }
+
+  // Determine XP level and progress
+  let xpLevel = 0;
+  let xpNextThreshold = 240;
+  if (exp >= 240 && exp < 496) {
+    xpLevel = 1;
+    xpNextThreshold = 496;
+  } else if (exp >= 496 && exp < 1201) {
+    xpLevel = 2;
+    xpNextThreshold = 1201;
+  } else if (exp >= 1201 && exp < 5160) {
+    xpLevel = 3;
+    xpNextThreshold = 5160;
+  } else if (exp >= 5160) {
+    xpLevel = 4;
+    xpNextThreshold = 999999;
+  }
+
+  let xpRemaining = 0;
+  if (xpLevel === 0) xpRemaining = 240 - exp;
+  else if (xpLevel === 1) xpRemaining = 496 - exp;
+  else if (xpLevel === 2) xpRemaining = 1201 - exp;
+  else if (xpLevel === 3) xpRemaining = 5160 - exp;
+  else xpRemaining = 0;
+
+  let xpProgress = 0;
+  if (xpLevel === 0) xpProgress = (exp / 240) * 100;
+  else if (xpLevel === 1) xpProgress = ((exp - 240) / (496 - 240)) * 100;
+  else if (xpLevel === 2) xpProgress = ((exp - 496) / (1201 - 496)) * 100;
+  else if (xpLevel === 3) xpProgress = ((exp - 1201) / (5160 - 1201)) * 100;
+  else xpProgress = 100;
+
+  xpProgress = Math.max(0, Math.min(100, xpProgress));
+
   const trollPct = Math.max(0, Math.min(100, Number(profile.tc) || 0));
   const trollColor = trollPct < 20 ? '#22c55e' : trollPct < 30 ? '#eab308' : '#ef4444';
-  const trollLabel = trollPct < 20 ? 'Chill' : trollPct < 30 ? 'Cheecky' : 'Troll';
+  const trollLabel = trollPct < 20 ? 'Chill' : trollPct < 30 ? 'Cheeky' : 'Troll';
+
+  // Avatar ring intensifies with XP level — a quiet, continuous status signal.
+  const ringGlow = [0.16, 0.26, 0.36, 0.48, 0.62][xpLevel];
+  const isMaxLevel = xpLevel === 4;
 
   return (
     <div
@@ -205,12 +261,19 @@ export default function ProfilePage() {
         @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Inter:wght@400;500;600&display=swap');
         .cr-display { font-family: 'Rajdhani', sans-serif; letter-spacing: 0.01em; }
         .cr-body { font-family: 'Inter', sans-serif; }
+        .cr-card {
+          background: linear-gradient(180deg, #161616 0%, #121212 100%);
+          box-shadow: inset 0 1px 0 0 rgba(255,255,255,0.05);
+        }
+        .cr-avatar-ring {
+          box-shadow: 0 0 0 2px #1E90FF, 0 0 0 6px rgba(30,144,255,0.08), 0 0 26px var(--ring-glow);
+        }
+        .tabular-nums { font-variant-numeric: tabular-nums; }
+        @media (prefers-reduced-motion: reduce) {
+          * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+        }
       `}</style>
 
-      {/* Pull-to-refresh indicator - absolutely positioned overlay, so it
-          never occupies real layout space. It cannot push content down or
-          leave blank space behind: it just fades/scales in on top of the
-          page while pulling, and disappears again on release. */}
       {(pullDistance > 0 || refreshing) && (
         <div
           className="absolute top-3 left-1/2 -translate-x-1/2 z-10 bg-[#141414] border border-white/10 rounded-full p-2.5 shadow-lg transition-opacity duration-150"
@@ -223,43 +286,57 @@ export default function ProfilePage() {
         </div>
       )}
 
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6 space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
-        {/* Profile header card */}
-        <div className="bg-[#141414] rounded-3xl p-5 sm:p-6 border border-white/5">
-          <div className="flex items-start gap-4 sm:gap-5">
-            {/* Avatar with edit pen */}
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6 space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
+        {/* 1. Player card */}
+        <div className="cr-card rounded-3xl p-5 sm:p-6 border border-white/5 relative overflow-hidden">
+          {/* faint radial spotlight behind the avatar, echoes a trading-card frame */}
+          <div
+            className="pointer-events-none absolute -top-16 -left-16 h-56 w-56 rounded-full blur-3xl"
+            style={{ background: 'radial-gradient(circle, rgba(30,144,255,0.14), transparent 70%)' }}
+          />
+
+          <div className="relative flex items-start gap-4 sm:gap-5">
             <div className="relative flex-shrink-0">
-              <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-full overflow-hidden bg-[#0A0A0A] border-2 border-[#1E90FF] ring-4 ring-[#1E90FF]/10">
+              <div
+                className="cr-avatar-ring w-24 h-24 sm:w-32 sm:h-32 rounded-full overflow-hidden bg-[#0A0A0A]"
+                style={{ '--ring-glow': `rgba(30,144,255,${ringGlow})` } as React.CSSProperties}
+              >
                 <img src={profile.p_url} alt="Profile" className="w-full h-full object-cover" />
               </div>
+              {isMaxLevel && (
+                <div
+                  className="absolute -top-1.5 -left-1.5 bg-gradient-to-br from-yellow-400 to-amber-500 rounded-full p-1 ring-2 ring-[#0A0A0A]"
+                  title="Max XP level"
+                >
+                  <Star className="h-3 w-3 text-black" fill="black" />
+                </div>
+              )}
               <button
                 onClick={() => setAvatarModalOpen(true)}
                 aria-label="Change profile picture"
-                className="absolute bottom-0 right-0 bg-[#1E90FF] p-2 rounded-full shadow-lg hover:bg-blue-600 transition ring-2 ring-[#0A0A0A]"
+                className={`absolute bottom-0 right-0 bg-[#1E90FF] p-2 rounded-full shadow-lg hover:bg-blue-600 transition ring-2 ring-[#0A0A0A] ${PRESS} ${FOCUS_RING}`}
               >
                 <Pencil className="h-4 w-4 text-white" />
               </button>
             </div>
 
-            {/* Username, email, badges */}
             <div className="flex-1 min-w-0 pt-1">
               <div className="flex items-center gap-2 flex-wrap">
-                <h1 className="cr-display text-xl sm:text-3xl font-bold truncate">{profile.username}</h1>
+                <h1 className="cr-display text-2xl sm:text-4xl font-bold tracking-tight truncate">{profile.username}</h1>
                 <UserBadges isStaff={!!profile.iss} isVerified={!!profile.isv} size="md" />
               </div>
 
-              <div className="flex items-center gap-1.5 mt-1 text-xs sm:text-sm text-gray-500">
+              <div className="flex items-center gap-1.5 mt-1.5 text-xs sm:text-sm text-gray-500">
                 <Lock className="h-3.5 w-3.5 flex-shrink-0" />
                 <span className="truncate">{user.email}</span>
                 <div className="relative group flex-shrink-0">
-                  <Info className="h-3.5 w-3.5 cursor-help" />
-                  <div className="absolute bottom-full left-0 mb-2 w-48 bg-[#1F1F1F] text-xs p-2 rounded-lg opacity-0 group-hover:opacity-100 transition pointer-events-none z-10 border border-white/10">
+                  <Info className={`h-3.5 w-3.5 cursor-help rounded-full ${FOCUS_RING}`} tabIndex={0} />
+                  <div className="absolute bottom-full left-0 mb-2 w-48 bg-[#1F1F1F] text-xs p-2 rounded-lg opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition pointer-events-none z-10 border border-white/10">
                     Your sign‑in credentials are securely managed and cannot be changed here.
                   </div>
                 </div>
               </div>
 
-              {/* Badges area - replaces the old "about me" block */}
               <div className="mt-4 flex items-center gap-5">
                 <RankBadgeTile imageUrl={profile.r_url} label="Squad" size="md" />
                 <RankBadgeTile imageUrl={profile.pr_url} label="Player" size="md" />
@@ -268,47 +345,104 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        {/* Troll meter - signature element replacing the old menu/follow row */}
-        <div className="bg-[#141414] rounded-2xl p-4 sm:p-5 border border-white/5">
+        {/* 2. Unified stat strip — Squad Rank & Troll %, sharing one frame like a card's rating row */}
+        <div className="cr-card rounded-2xl border border-white/5 grid grid-cols-2 divide-x divide-white/5">
+          <div className="p-4 text-center">
+            <p className="text-[11px] uppercase tracking-wide text-gray-500 mb-1">Squad Rank</p>
+            <p className="cr-display text-xl font-bold tabular-nums">{profile.squad_strength || 'N/A'}</p>
+          </div>
+          <div className="p-4 text-center">
+            <p className="text-[11px] uppercase tracking-wide text-gray-500 mb-1">Troll %</p>
+            <p className="cr-display text-xl font-bold tabular-nums" style={{ color: trollColor }}>
+              {trollPct}%
+            </p>
+            <div className="h-1 w-16 mx-auto mt-1.5 rounded-full bg-white/5 overflow-hidden">
+              <div
+                className="h-full rounded-full transition-all duration-500"
+                style={{ width: `${trollPct}%`, backgroundColor: trollColor }}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* 3. Experience card — dual-scale progression: fine progress within the level, plus the overall ladder */}
+        <div className="cr-card rounded-2xl p-5 border border-white/5">
           <div className="flex items-center justify-between mb-3">
-            <p className="cr-display text-xs sm:text-sm font-semibold tracking-wide text-gray-400 uppercase">Troll Counter</p>
-            <span className="cr-display text-sm font-bold" style={{ color: trollColor }}>
-              {trollLabel} · {trollPct}%
+            <div className="flex items-center gap-2">
+              <Zap className="h-5 w-5 text-yellow-500" />
+              <span className="cr-display text-base font-bold text-white">XP Level {xpLevel}</span>
+            </div>
+            <span className="text-xs text-gray-400 tabular-nums">
+              {xpLevel === 4 ? 'Maxed out' : `${xpRemaining} XP to next`}
             </span>
           </div>
-          <div className="h-2.5 rounded-full bg-[#0A0A0A] overflow-hidden">
+
+          <div className="h-3 rounded-full bg-[#0A0A0A] overflow-hidden">
             <div
-              className="h-full rounded-full transition-all duration-500"
-              style={{ width: `${trollPct}%`, backgroundColor: trollColor }}
+              className="h-full rounded-full bg-gradient-to-r from-yellow-500 to-amber-400 transition-all duration-500"
+              style={{ width: `${xpProgress}%` }}
             />
+          </div>
+          <div className="flex justify-between text-xs text-gray-500 mt-1.5 tabular-nums">
+            <span>Current: {exp} XP</span>
+            <span>{xpLevel === 4 ? 'MAX' : `Next: ${xpNextThreshold} XP`}</span>
+          </div>
+
+          {/* Level ladder — makes the long-term climb visible, not just the current step */}
+          <div className="flex items-center gap-1.5 mt-3" aria-hidden="true">
+            {[0, 1, 2, 3, 4].map(lvl => (
+              <div
+                key={lvl}
+                className={`h-1.5 flex-1 rounded-full transition-all duration-500 ${lvl <= xpLevel ? 'bg-gradient-to-r from-yellow-500 to-amber-400' : 'bg-white/5'
+                  }`}
+              />
+            ))}
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 mt-4 pt-4 border-t border-white/5">
+            <div className="flex items-center gap-2">
+              <Gamepad2 className="h-4 w-4 text-gray-400" />
+              <div>
+                <p className="text-[11px] uppercase tracking-wide text-gray-500">Games Played</p>
+                <p className="text-sm font-semibold text-white tabular-nums">{gamesPlayed}</p>
+              </div>
+            </div>
+            {mostPlayed && (
+              <div className="flex items-center gap-2">
+                <mostPlayed.icon className="h-4 w-4 text-[#1E90FF]" />
+                <div>
+                  <p className="text-[11px] uppercase tracking-wide text-gray-500">Most Played</p>
+                  <p className="text-sm font-semibold text-white">
+                    {mostPlayed.label}
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Stat tiles */}
-        <div className="grid grid-cols-2 gap-3">
-          <StatTile label="Squad Rank" value={profile.squad_strength || 'N/A'} />
-          <StatTile label="Troll %" value={`${trollPct}%`} valueColor={trollColor} />
-        </div>
-
-        {/* Show if pending */}
+        {/* Pending / Rejected banners */}
         {profile.squad_strength === 'Pending' && (
           <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-2xl p-5 flex items-center gap-3">
-            <Clock className="h-5 w-5 text-yellow-500 flex-shrink-0" />
+            <div className="bg-yellow-500/15 rounded-full p-1.5 flex-shrink-0">
+              <Clock className="h-4 w-4 text-yellow-500" />
+            </div>
             <p className="text-sm text-yellow-300">Your squad evaluation is in progress. You'll be notified when it's complete.</p>
           </div>
         )}
 
-        {/* Show if rejected */}
         {profile.squad_strength === 'Rejected' && (
           <div className="bg-red-500/10 border border-red-500/30 rounded-2xl p-5 flex items-center gap-3">
-            <FileWarning className="h-5 w-5 text-red-500 flex-shrink-0" />
-            <p className="text-sm text-white">The screenshot you submitted was rejected. Please update your squad and resubmit for evaluation.</p>
+            <div className="bg-red-500/15 rounded-full p-1.5 flex-shrink-0">
+              <FileWarning className="h-4 w-4 text-red-400" />
+            </div>
+            <p className="text-sm text-red-300">Your last squad screenshot was rejected. Upload a new one to get re-evaluated.</p>
           </div>
         )}
 
         {/* Conditional Update Squad button */}
         {(!profile.squad_strength || profile.squad_strength === 'N/A' || profile.squad_strength === 'Rejected') && (
-          <div className="bg-[#141414] rounded-2xl p-5 border border-white/5">
+          <div className="cr-card rounded-2xl p-5 border border-white/5">
             <div className="flex items-start gap-3 mb-4">
               <Info className="h-5 w-5 text-yellow-500 flex-shrink-0 mt-0.5" />
               <p className="text-sm text-gray-300">
@@ -317,7 +451,7 @@ export default function ProfilePage() {
             </div>
             <button
               onClick={() => navigate('/update-squad')}
-              className="w-full bg-yellow-600 hover:bg-yellow-700 text-white py-3 rounded-xl font-semibold transition"
+              className={`w-full bg-yellow-600 hover:bg-yellow-700 text-white py-3 rounded-xl font-semibold transition ${PRESS} ${FOCUS_RING}`}
             >
               Update Squad For Evaluation
             </button>
@@ -325,15 +459,15 @@ export default function ProfilePage() {
         )}
 
         {/* Ranking / Tournaments / Achievements tabs */}
-        <div className="bg-[#141414] rounded-2xl border border-white/5 overflow-hidden">
+        <div className="cr-card rounded-2xl border border-white/5 overflow-hidden">
           <div className="flex border-b border-white/5">
             {(['ranking', 'tournaments', 'achievements'] as const).map(tab => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
-                className={`flex-1 py-3 text-sm font-medium capitalize transition ${activeTab === tab
-                    ? 'text-[#1E90FF] border-b-2 border-[#1E90FF] bg-[#1E90FF]/5'
-                    : 'text-gray-500 hover:text-gray-300'
+                className={`flex-1 py-3 text-sm font-medium capitalize transition ${FOCUS_RING} ${activeTab === tab
+                  ? 'text-[#1E90FF] border-b-2 border-[#1E90FF] bg-[#1E90FF]/5'
+                  : 'text-gray-500 hover:text-gray-300'
                   }`}
               >
                 {tab}
@@ -348,7 +482,7 @@ export default function ProfilePage() {
                   <span className="cr-display text-sm font-semibold text-gray-400">Your Ranks</span>
                   <button
                     onClick={() => setBadgeInfoOpen(true)}
-                    className="text-gray-500 hover:text-white transition p-1 rounded-full hover:bg-white/5"
+                    className={`text-gray-500 hover:text-white transition p-1 rounded-full hover:bg-white/5 ${FOCUS_RING}`}
                     aria-label="Learn about badges"
                     title="Learn about badges"
                   >
@@ -368,24 +502,14 @@ export default function ProfilePage() {
         {/* Menu items */}
         <div className="space-y-2">
           <button
-            onClick={() => navigate('/request-changes')}
-            className="w-full bg-[#141414] rounded-xl p-4 flex items-center justify-between hover:bg-[#1A1A1A] transition border border-white/5"
-          >
-            <span className="flex items-center gap-3 font-medium">
-              <SlidersHorizontal className="h-4 w-4 text-gray-500" />
-              Request Changes
-            </span>
-            <ChevronRight className="h-5 w-5 text-gray-600" />
-          </button>
-          <button
             onClick={() => navigate('/settings')}
-            className="w-full bg-[#141414] rounded-xl p-4 flex items-center justify-between hover:bg-[#1A1A1A] transition border border-white/5"
+            className={`w-full cr-card rounded-xl p-4 flex items-center justify-between hover:bg-white/[0.03] transition border border-white/5 group ${FOCUS_RING}`}
           >
             <span className="flex items-center gap-3 font-medium">
               <SettingsIcon className="h-4 w-4 text-gray-500" />
               Settings
             </span>
-            <ChevronRight className="h-5 w-5 text-gray-600" />
+            <ChevronRight className="h-5 w-5 text-gray-600 transition-transform group-hover:translate-x-0.5" />
           </button>
         </div>
 
@@ -394,7 +518,7 @@ export default function ProfilePage() {
           <button
             onClick={handleLogout}
             disabled={isLoggingOut}
-            className={`w-full rounded-xl p-4 flex items-center justify-between transition text-red-400 border ${isLoggingOut ? 'bg-red-500/10 border-red-500/20 cursor-not-allowed' : 'bg-red-600/10 border-red-500/30 hover:bg-red-600/20'
+            className={`w-full rounded-xl p-4 flex items-center justify-between transition text-red-400 border ${FOCUS_RING} ${PRESS} ${isLoggingOut ? 'bg-red-500/10 border-red-500/20 cursor-not-allowed' : 'bg-red-600/10 border-red-500/30 hover:bg-red-600/20'
               }`}
           >
             <span className="font-medium">{isLoggingOut ? 'Logging out...' : 'Log Out'}</span>
@@ -406,12 +530,10 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      {/* Avatar Selection Modal */}
       {avatarModalOpen && (
         <AvatarModal onSelect={handleAvatarUpdate} onClose={() => setAvatarModalOpen(false)} />
       )}
 
-      {/* Badge Info Modal */}
       {badgeInfoOpen && (
         <BadgeInfoModal onClose={() => setBadgeInfoOpen(false)} />
       )}
@@ -419,16 +541,7 @@ export default function ProfilePage() {
   );
 }
 
-// ---------- Small presentational pieces ----------
-
-function StatTile({ label, value, valueColor }: { label: string; value: string; valueColor?: string }) {
-  return (
-    <div className="bg-[#141414] rounded-2xl p-4 border border-white/5 text-center">
-      <p className="text-[11px] uppercase tracking-wide text-gray-500 mb-1">{label}</p>
-      <p className="cr-display text-xl font-bold" style={valueColor ? { color: valueColor } : undefined}>{value}</p>
-    </div>
-  );
-}
+// ---------- Helper Components ----------
 
 function RankBadgeTile({
   imageUrl,
@@ -474,10 +587,9 @@ function ComingSoon({ label }: { label: string }) {
   );
 }
 
-// ---------- Skeleton Loader ----------
 function ProfileSkeleton() {
   return (
-    <div className="min-h-screen bg-[#0A0A0A] p-4 sm:p-6 max-w-3xl mx-auto space-y-4">
+    <div className="min-h-screen bg-[#0A0A0A] p-4 sm:p-6 max-w-3xl mx-auto space-y-3">
       <div className="bg-[#141414] rounded-3xl p-5 sm:p-6">
         <div className="flex items-start gap-5">
           <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-full bg-[#1F1F1F] animate-pulse" />
@@ -505,7 +617,6 @@ function ProfileSkeleton() {
   );
 }
 
-// ---------- Avatar Modal (redesigned) ----------
 function AvatarModal({ onSelect, onClose }: { onSelect: (url: string) => void; onClose: () => void }) {
   const [activeTab, setActiveTab] = useState(0);
   const [selectedSeed, setSelectedSeed] = useState<string | null>(null);
@@ -513,45 +624,31 @@ function AvatarModal({ onSelect, onClose }: { onSelect: (url: string) => void; o
 
   return (
     <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
-      <div className="bg-[#141414] rounded-2xl w-full max-w-lg max-h-[85vh] flex flex-col shadow-2xl border border-white/10 overflow-hidden">
-
-        {/* Header */}
+      <div className="cr-card rounded-2xl w-full max-w-lg max-h-[85vh] flex flex-col shadow-2xl border border-white/10 overflow-hidden">
         <div className="flex items-center justify-between px-5 py-4 border-b border-white/10 shrink-0">
           <div className="flex items-center gap-3">
             <h2 className="cr-display text-base font-bold">Choose Your Avatar</h2>
             {selectedSeed && (
-              <img
-                src={selectedSeed}
-                alt="Selected avatar"
-                className="h-7 w-7 rounded-full border border-[#1E90FF] object-cover"
-              />
+              <img src={selectedSeed} alt="Selected avatar" className="h-7 w-7 rounded-full border border-[#1E90FF] object-cover" />
             )}
           </div>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-white transition p-1 rounded-full hover:bg-white/10"
-          >
+          <button onClick={onClose} className={`text-gray-400 hover:text-white transition p-1 rounded-full hover:bg-white/10 ${FOCUS_RING}`}>
             <X className="h-4 w-4" />
           </button>
         </div>
 
-        {/* Tabs */}
         <div className="flex border-b border-white/10 px-3 overflow-x-auto py-2 gap-1 shrink-0">
           {AVATAR_CATEGORIES.map((cat, idx) => (
             <button
               key={cat.name}
               onClick={() => { setActiveTab(idx); setSelectedSeed(null); }}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-full transition whitespace-nowrap ${idx === activeTab
-                  ? 'bg-[#1E90FF] text-white'
-                  : 'text-gray-400 hover:text-white hover:bg-white/5'
-                }`}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-full transition whitespace-nowrap ${FOCUS_RING} ${idx === activeTab ? 'bg-[#1E90FF] text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
             >
               {cat.name}
             </button>
           ))}
         </div>
 
-        {/* Avatar grid */}
         <div className="p-4 overflow-y-auto flex-1">
           <div className="grid grid-cols-4 sm:grid-cols-5 gap-3">
             {category.seeds.map(seed => {
@@ -561,29 +658,17 @@ function AvatarModal({ onSelect, onClose }: { onSelect: (url: string) => void; o
                 <button
                   key={seed}
                   onClick={() => setSelectedSeed(url)}
-                  className={`aspect-square rounded-xl overflow-hidden border-2 transition-all bg-[#0A0A0A] ${isSelected
-                      ? 'border-[#1E90FF] ring-2 ring-[#1E90FF]/40'
-                      : 'border-white/10 hover:border-gray-400'
-                    }`}
+                  className={`aspect-square rounded-xl overflow-hidden border-2 transition-all bg-[#0A0A0A] ${FOCUS_RING} ${isSelected ? 'border-[#1E90FF] ring-2 ring-[#1E90FF]/40' : 'border-white/10 hover:border-gray-400'}`}
                 >
-                  <img
-                    src={url}
-                    alt={`Avatar option ${seed}`}
-                    className="w-full h-full object-cover"
-                    loading="lazy"
-                  />
+                  <img src={url} alt={`Avatar option ${seed}`} className="w-full h-full object-cover" loading="lazy" />
                 </button>
               );
             })}
           </div>
         </div>
 
-        {/* Footer actions */}
         <div className="p-4 border-t border-white/10 flex gap-2 shrink-0">
-          <button
-            onClick={onClose}
-            className="flex-1 bg-transparent border border-white/10 text-gray-300 py-2 rounded-lg text-sm hover:bg-white/5 transition"
-          >
+          <button onClick={onClose} className={`flex-1 bg-transparent border border-white/10 text-gray-300 py-2 rounded-lg text-sm hover:bg-white/5 transition ${FOCUS_RING} ${PRESS}`}>
             Cancel
           </button>
           <button
@@ -594,7 +679,7 @@ function AvatarModal({ onSelect, onClose }: { onSelect: (url: string) => void; o
                 toast.error('Please select an avatar');
               }
             }}
-            className="flex-1 bg-[#1E90FF] hover:bg-blue-600 text-white py-2 rounded-lg text-sm font-semibold transition"
+            className={`flex-1 bg-[#1E90FF] hover:bg-blue-600 text-white py-2 rounded-lg text-sm font-semibold transition ${FOCUS_RING} ${PRESS}`}
           >
             Save Avatar
           </button>
@@ -604,7 +689,6 @@ function AvatarModal({ onSelect, onClose }: { onSelect: (url: string) => void; o
   );
 }
 
-// ---------- Badge Info Modal ----------
 function BadgeInfoModal({ onClose }: { onClose: () => void }) {
   const playerLevels = [
     { name: 'Tepid', url: 'https://res.cloudinary.com/ctr-cloud/image/upload/v1786380914/jpuxanxhxotl5asuoc5g.png', desc: 'Just getting started.' },
@@ -615,69 +699,35 @@ function BadgeInfoModal({ onClose }: { onClose: () => void }) {
   ];
 
   const squadLevels = [
-    {
-      name: 'Academy',
-      url: 'https://res.cloudinary.com/ctr-cloud/image/upload/v1786380918/hiew6m38ulz49klmrsxd.png',
-      desc: 'Young prospects learning the game. Raw potential waiting to break through.'
-    },
-    {
-      name: 'Cadets',
-      url: 'https://res.cloudinary.com/ctr-cloud/image/upload/v1786380918/oqweb7wxxqzgwpdkhuw1.png',
-      desc: 'Rising stars sharpening their edge. One step away from the big leagues.'
-    },
-    {
-      name: 'Wildcard',
-      url: 'https://res.cloudinary.com/ctr-cloud/image/upload/v1786380918/e95rg0zppnficltnhhvf.png',
-      desc: 'Unpredictable and dangerous. No formation is safe against this chaos.'
-    },
-    {
-      name: 'Generals',
-      url: 'https://res.cloudinary.com/ctr-cloud/image/upload/v1786380919/h5byjrvrdsrtxpauyowl.png',
-      desc: 'Leaders on the pitch. Tactical masterminds who dictate the tempo.'
-    },
-    {
-      name: 'Golden Eleven',
-      url: 'https://res.cloudinary.com/ctr-cloud/image/upload/v1786380918/dwbweupxgs1fjkla3hzb.png',
-      desc: 'An elite starting XI – precision, chemistry, and pure class.'
-    },
-    {
-      name: 'Galacticos',
-      url: 'https://res.cloudinary.com/ctr-cloud/image/upload/v1786380916/hjih4glyecynmxxmvr6h.png',
-      desc: 'A star-studded squad of generational talent. The envy of the world.'
-    },
-    {
-      name: 'Gen XI',
-      url: 'https://res.cloudinary.com/ctr-cloud/image/upload/v1786380916/v2oomsnv2cb720pijvrw.png',
-      desc: 'The ultimate eleven. Legends forged in glory, unstoppable.'
-    },
+    { name: 'Academy', url: 'https://res.cloudinary.com/ctr-cloud/image/upload/v1786380918/hiew6m38ulz49klmrsxd.png', desc: 'Young prospects learning the game. Raw potential waiting to break through.' },
+    { name: 'Cadets', url: 'https://res.cloudinary.com/ctr-cloud/image/upload/v1786380918/oqweb7wxxqzgwpdkhuw1.png', desc: 'Rising stars sharpening their edge. One step away from the big leagues.' },
+    { name: 'Wildcard', url: 'https://res.cloudinary.com/ctr-cloud/image/upload/v1786380918/e95rg0zppnficltnhhvf.png', desc: 'Unpredictable and dangerous. No formation is safe against this chaos.' },
+    { name: 'Generals', url: 'https://res.cloudinary.com/ctr-cloud/image/upload/v1786380919/h5byjrvrdsrtxpauyowl.png', desc: 'Leaders on the pitch. Tactical masterminds who dictate the tempo.' },
+    { name: 'Golden Eleven', url: 'https://res.cloudinary.com/ctr-cloud/image/upload/v1786380918/dwbweupxgs1fjkla3hzb.png', desc: 'An elite starting XI – precision, chemistry, and pure class.' },
+    { name: 'Galacticos', url: 'https://res.cloudinary.com/ctr-cloud/image/upload/v1786380916/hjih4glyecynmxxmvr6h.png', desc: 'A star-studded squad of generational talent. The envy of the world.' },
+    { name: 'Gen XI', url: 'https://res.cloudinary.com/ctr-cloud/image/upload/v1786380916/v2oomsnv2cb720pijvrw.png', desc: 'The ultimate eleven. Legends forged in glory, unstoppable.' },
   ];
 
   const specialBadges = [
-    { name: 'Verified', url: VERIFIED_BADGE_URL, desc: 'Identity confirmed.' },
-    { name: 'Staff', url: STAFF_BADGE_URL, desc: 'Keeps the community running.' },
+    { name: 'Verified', url: 'https://res.cloudinary.com/ctr-cloud/image/upload/v1786380916/rsfa4dftmbz427k5cnmw.png', desc: 'Identity confirmed.' },
+    { name: 'Staff', url: 'https://res.cloudinary.com/ctr-cloud/image/upload/v1786380915/ff7rn60eiylq1x1oixsz.png', desc: 'Keeps the community running.' },
     { name: 'Admin', url: 'https://res.cloudinary.com/ctr-cloud/image/upload/v1786380918/op1kkxepisfkre1apdyt.png', desc: 'Top-level management.' },
     { name: 'Troll', url: 'https://res.cloudinary.com/ctr-cloud/image/upload/v1786380917/l1bl2nyhvmudc75z1nqc.png', desc: 'Notorious mischief-maker.' },
   ];
 
   return (
     <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-[#141414] rounded-3xl w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl border border-white/10">
-
-        {/* Header */}
+      <div className="cr-card rounded-3xl w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl border border-white/10">
         <div className="flex items-center justify-between px-6 py-5 border-b border-white/10 shrink-0">
           <div>
             <h2 className="cr-display text-lg font-bold">Badges guide</h2>
             <p className="text-xs text-gray-500 mt-0.5">What each badge means and how you earn it</p>
           </div>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-white transition p-1.5 rounded-full hover:bg-white/10"
-          >
+          <button onClick={onClose} className={`text-gray-400 hover:text-white transition p-1.5 rounded-full hover:bg-white/10 ${FOCUS_RING}`}>
             <X className="h-5 w-5" />
           </button>
         </div>
 
-        {/* Content – scrollable */}
         <div className="px-6 py-5 overflow-y-auto flex-1 space-y-7">
           <BadgeSection title="Player levels" subtitle="Your individual rank, based on performance">
             {playerLevels.map(b => (
@@ -698,12 +748,8 @@ function BadgeInfoModal({ onClose }: { onClose: () => void }) {
           </BadgeSection>
         </div>
 
-        {/* Footer */}
         <div className="px-6 py-4 border-t border-white/10 shrink-0">
-          <button
-            onClick={onClose}
-            className="w-full bg-transparent border border-white/10 text-gray-300 py-2.5 rounded-xl hover:bg-white/5 transition text-sm font-medium"
-          >
+          <button onClick={onClose} className={`w-full bg-transparent border border-white/10 text-gray-300 py-2.5 rounded-xl hover:bg-white/5 transition text-sm font-medium ${FOCUS_RING} ${PRESS}`}>
             Close
           </button>
         </div>
@@ -740,8 +786,7 @@ function BadgeItem({
       <img
         src={url}
         alt={name}
-        className={`h-14 w-14 object-contain shrink-0 ${shape === 'round' ? 'rounded-full' : 'rounded-lg'
-          }`}
+        className={`h-14 w-14 object-contain shrink-0 ${shape === 'round' ? 'rounded-full' : 'rounded-lg'}`}
       />
       <div className="min-w-0">
         <p className="text-sm font-semibold text-white truncate">{name}</p>

@@ -6,6 +6,7 @@ import { useKindeAuth } from '@kinde-oss/kinde-auth-react';
 import { FeedCard, FeedCardSkeleton } from '@/components/FeedCard';
 import { useIsMobile } from '@/hooks/use-mobile';
 import type { MatchWithHost } from '@/types';
+import { supabase } from '@/lib/supabaseClient';
 
 const PULL_THRESHOLD = 64;
 const PULL_RESISTANCE = 0.45;
@@ -99,6 +100,27 @@ export default function FeedPage() {
   }, []);
 
   useEffect(() => { fetchMatches(); }, [fetchMatches]);
+
+  useEffect(() => {
+    const channel = supabase
+      .channel('feed-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'matches',
+        },
+        () => {
+          fetchMatches(true);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [fetchMatches]);
 
   const handleRefresh = () => {
     if (loading || refreshing) return;

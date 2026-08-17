@@ -5,6 +5,7 @@ import { useKindeAuth } from '@kinde-oss/kinde-auth-react';
 import { NotificationRow } from '@/components/NotificationBell';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { supabase } from '@/lib/supabaseClient';
 
 interface NotifItem {
   id: number;
@@ -73,6 +74,30 @@ function NotificationsPage() {
 
   useEffect(() => {
     if (user) fetchNotifications();
+  }, [user, fetchNotifications]);
+
+  useEffect(() => {
+    if (!user) return;
+
+    const channel = supabase
+      .channel(`notif-page-${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'notifications',
+          filter: `user_id=eq.${user.id}`,
+        },
+        () => {
+          fetchNotifications();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [user, fetchNotifications]);
 
   const unreadCount = notifs.filter((n) => !n.read).length;

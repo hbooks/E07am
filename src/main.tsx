@@ -3,3 +3,13 @@ import App from "./App.tsx";
 import "./index.css";
 
 createRoot(document.getElementById("root")!).render(<App />);
+
+// Register the service worker for PWA support
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js').then(
+            () => console.log('Service Worker registered'),
+            (err) => console.error('SW registration failed', err)
+        );
+    });
+}
