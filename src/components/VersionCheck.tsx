@@ -19,7 +19,7 @@ export default function VersionCheck() {
                 const data = await res.json();
                 if (data.minRequiredVersion && data.minRequiredVersion !== CURRENT_VERSION) {
                     setUpdateInfo({
-                        message: data.message || 'A new version is available. Please update to continue.',
+                        message: data.message || 'Your app version is outdated. A new version is available. Please update to continue.',
                         downloadUrl: data.downloadUrl || '/',
                     });
                     setUpdateRequired(true);
