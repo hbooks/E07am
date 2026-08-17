@@ -39,7 +39,7 @@ export default function VersionCheck() {
                 <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-yellow-500/10 border border-yellow-500/20">
                     <RefreshCw className="h-7 w-7 text-yellow-500" />
                 </div>
-                <h2 className="text-lg font-bold mb-2">Update Required</h2>
+                <h2 className="text-lg text-orange-500 font-bold mb-2">Update Required</h2>
                 <p className="text-sm text-gray-300 mb-6">{updateInfo?.message}</p>
                 <a
                     href={updateInfo?.downloadUrl}
