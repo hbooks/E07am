@@ -1,28 +1,49 @@
 {
     "name": "Claim The Room",
     "short_name": "CTR",
+    "start_url": "/",
+    "display": "standalone",
+    "description": "eFootball match making platform. Create room, Claim, Play, Repeat.",
+    "lang": "en",
+    "dir": "ltr",
+    "theme_color": "#1E90FF",
+    "background_color": "#0F0F0F",
+    "orientation": "any",
     "icons": [
         {
-            "src": "/assets/favicon/web-app-manifest-192x192.png",
-            "sizes": "192x192",
-            "type": "image/png",
+            "src": "/public/assets/favicon/icon_192.jpg",
+            "sizes": "512x512",
+            "type": "image/jpeg",
             "purpose": "maskable"
         },
         {
-            "src": "/assets/favicon/web-app-manifest-512x512.png",
-            "sizes": "512x512",
-            "type": "image/png",
-            "purpose": "maskable"
+            "src": "/public/assets/favicon/icon_192.jpg",
+            "sizes": "192x192",
+            "type": "image/jpeg",
+            "purpose": "any"
         }
     ],
-    "theme_color": "#ffffff",
-    "background_color": "#ffffff",
-    "display": "standalone",
-    "dir": "ltr",
-    "lang": "en",
-    "orientation": "any",
-    "start_url": "/",
-    "categories": [
-        "games"
+    "screenshots": [
+        {
+            "src": "https://www.pwabuilder.com/assets/screenshots/screen1.png",
+            "sizes": "2880x1800",
+            "type": "image/png",
+            "description": "A screenshot of the home page"
+        }
+    ],
+    "related_applications": [
+        {
+            "platform": "windows",
+            "url": "https://www.microsoft.com/store/apps/9NBLGGH4NNS1",
+            "id": "9NBLGGH4NNS1"
+        }
+    ],
+    "prefer_related_applications": false,
+    "shortcuts": [
+        {
+            "name": "The name you would like to be displayed for your shortcut",
+            "url": "The url you would like to open when the user chooses this shortcut. This must be a URL local to your PWA. For example: If my start_url is /, this URL must be something like /shortcut",
+            "description": "A description of the functionality of this shortcut"
+        }
     ]
 }
