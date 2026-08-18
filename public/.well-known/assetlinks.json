@@ -3,6 +3,6 @@
       "target": {
         "namespace": "android_app",
         "package_name": "uk.hpbooks.app.twa",
-        "sha256_cert_fingerprints": ["58:83:B4:86:68:A5:72:E6:9F:F1:47:2C:FF:21:D7:82:CD:9C:84:D0:54:33:07:B1:2B:A4:7E:5A:54:A9:01:0A"]
+        "sha256_cert_fingerprints": ["4C:8A:25:13:47:DC:92:B4:C8:A3:C2:95:49:9D:50:C5:2E:B0:AA:96:C2:DD:37:1A:1B:BA:F4:E1:FF:02:84:A4"]
       }
     }]
