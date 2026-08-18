@@ -25,3 +25,8 @@ dist-ssr
 
 # Variables
 .env
+
+# Bubblewrap / Android signing
+android.keystore
+app/
+*.apk
