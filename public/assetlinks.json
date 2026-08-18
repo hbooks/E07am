@@ -1,0 +1,8 @@
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "uk.hpbooks.app.twa",
+        "sha256_cert_fingerprints": ["58:83:B4:86:68:A5:72:E6:9F:F1:47:2C:FF:21:D7:82:CD:9C:84:D0:54:33:07:B1:2B:A4:7E:5A:54:A9:01:0A"]
+      }
+    }]
