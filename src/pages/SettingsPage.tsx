@@ -3,14 +3,19 @@ import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
     ChevronLeft, ChevronRight, Moon, Sun, Bell, Eye, Shield, FileText,
-    Mail, Copy, X
+    Mail, Copy, X, AlertTriangle, Send, UserCog, Loader2, CheckCircle,
 } from 'lucide-react';
 import { SiInstagram, SiTiktok } from 'react-icons/si';
+import { useKindeAuth } from '@kinde-oss/kinde-auth-react';
+import { supabase } from '@/lib/supabaseClient';
 import { useIsMobile } from '@/hooks/use-mobile';
 
 const APP_VERSION = 'v1.0.0';
 
-// Default settings (language removed)
+const ACTIVE_REQUEST_CACHE_KEY = 'ctr_active_request_';
+const CACHE_EXPIRY_MS = 60 * 60 * 1000; // 1 hour
+
+// Default settings
 const defaultSettings = {
     darkMode: false,
     pushNotifications: true,
@@ -20,7 +25,6 @@ const defaultSettings = {
 
 type SettingsType = typeof defaultSettings;
 
-// Human-readable labels for toast messages
 const SETTING_LABELS: Record<keyof SettingsType, (value: any) => string> = {
     darkMode: (v) => (v ? 'Dark mode turned on' : 'Dark mode turned off'),
     pushNotifications: (v) => (v ? 'Push notifications enabled' : 'Push notifications disabled'),
@@ -28,7 +32,7 @@ const SETTING_LABELS: Record<keyof SettingsType, (value: any) => string> = {
     showOnlineStatus: (v) => (v ? 'Online status is now visible' : 'Online status is now hidden'),
 };
 
-// Contact info with official social icons (from lucide-react)
+// Contact info
 const CONTACT = {
     instagram: {
         label: 'Instagram',
@@ -53,7 +57,6 @@ const CONTACT = {
     },
 };
 
-// Shared focus + press affordance, matching Profile/other pages.
 const FOCUS_RING =
     'focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1E90FF] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0A0A0A]';
 const PRESS = 'active:scale-[0.97]';
@@ -61,24 +64,93 @@ const PRESS = 'active:scale-[0.97]';
 export default function SettingsPage() {
     const navigate = useNavigate();
     const isMobile = useIsMobile();
-    const [contactModalOpen, setContactModalOpen] = useState(false);
+    const { user } = useKindeAuth();
 
-    // Lazy init from localStorage
+    // ---- Settings ----
     const [settings, setSettings] = useState<SettingsType>(() => {
         try {
             const stored = localStorage.getItem('userSettings');
             if (stored) return { ...defaultSettings, ...JSON.parse(stored) };
         } catch {
-            // fallback to defaults
+            // fallback
         }
         return defaultSettings;
     });
 
-    // Apply dark mode class to html element
+    // ---- Support form ----
+    const [requestType, setRequestType] = useState<'report_abuse' | 'request_changes' | 'delete_account'>('report_abuse');
+    const [requestReason, setRequestReason] = useState('');
+    const [submitting, setSubmitting] = useState(false);
+    const [hasActiveRequest, setHasActiveRequest] = useState(false);
+    const [activeRequestStatus, setActiveRequestStatus] = useState<string | null>(null);
+    const [loadingRequestStatus, setLoadingRequestStatus] = useState(true);
+
+    // ---- Delete confirmation modal ----
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+    // ---- Contact modal ----
+    const [contactModalOpen, setContactModalOpen] = useState(false);
+
+    // Apply dark mode
     useEffect(() => {
         document.documentElement.classList.toggle('dark', settings.darkMode);
     }, [settings.darkMode]);
 
+    // ---- Check for existing active request with caching ----
+    useEffect(() => {
+        if (!user?.id) {
+            setLoadingRequestStatus(false);
+            return;
+        }
+        const cacheKey = `${ACTIVE_REQUEST_CACHE_KEY}${user.id}`;
+        const cached = localStorage.getItem(cacheKey);
+        if (cached) {
+            try {
+                const data = JSON.parse(cached);
+                // If cache is fresh, use it without DB query
+                if (Date.now() - data.timestamp < CACHE_EXPIRY_MS) {
+                    setHasActiveRequest(true);
+                    setActiveRequestStatus(data.status);
+                    setLoadingRequestStatus(false);
+                    return;
+                } else {
+                    // Cache expired, remove it
+                    localStorage.removeItem(cacheKey);
+                }
+            } catch {
+                localStorage.removeItem(cacheKey);
+            }
+        }
+        // No valid cache – query the database once
+        const checkActiveRequest = async () => {
+            try {
+                const { data, error } = await supabase
+                    .from('user_requests')
+                    .select('status')
+                    .eq('user_id', user.id)
+                    .in('status', ['pending', 'processing'])
+                    .limit(1);
+                if (error) throw error;
+                if (data && data.length > 0) {
+                    const status = data[0].status;
+                    setHasActiveRequest(true);
+                    setActiveRequestStatus(status);
+                    // Store fresh cache
+                    localStorage.setItem(cacheKey, JSON.stringify({ status, timestamp: Date.now() }));
+                } else {
+                    setHasActiveRequest(false);
+                    setActiveRequestStatus(null);
+                }
+            } catch (err) {
+                console.warn('Could not fetch active request:', err);
+            } finally {
+                setLoadingRequestStatus(false);
+            }
+        };
+        checkActiveRequest();
+    }, [user?.id]);
+
+    // ---- Settings handlers ----
     const updateSetting = <K extends keyof SettingsType>(key: K, value: SettingsType[K]) => {
         const newSettings = { ...settings, [key]: value };
         setSettings(newSettings);
@@ -86,7 +158,6 @@ export default function SettingsPage() {
         toast.success(SETTING_LABELS[key](value));
     };
 
-    // Push notifications permission handling
     const handlePushToggle = async (checked: boolean) => {
         if (checked && typeof window !== 'undefined' && 'Notification' in window) {
             if (Notification.permission === 'denied') {
@@ -106,7 +177,7 @@ export default function SettingsPage() {
         updateSetting('pushNotifications', checked);
     };
 
-    // Copy handler
+    // ---- Copy handler ----
     const copyToClipboard = (text: string, label: string) => {
         if (navigator.clipboard) {
             navigator.clipboard.writeText(text).then(() => {
@@ -132,6 +203,58 @@ export default function SettingsPage() {
         }
     };
 
+    // ---- Submit support request ----
+    const handleSubmit = async () => {
+        if (!requestReason.trim()) {
+            toast.error('Please describe your request in detail.');
+            return;
+        }
+        if (requestType === 'delete_account') {
+            setShowDeleteConfirm(true);
+            return;
+        }
+        // For other types, submit directly
+        await submitRequest();
+    };
+
+    const submitRequest = async () => {
+        if (!user) {
+            toast.error('You must be signed in to submit a request.');
+            return;
+        }
+        setSubmitting(true);
+        try {
+            const { error } = await supabase.from('user_requests').insert({
+                user_id: user.id,
+                type: requestType,
+                reason: requestReason.trim(),
+                status: 'pending',
+                meta: {},
+            });
+            if (error) throw error;
+            // Success: store cache immediately
+            const cacheKey = `${ACTIVE_REQUEST_CACHE_KEY}${user.id}`;
+            localStorage.setItem(cacheKey, JSON.stringify({ status: 'pending', timestamp: Date.now() }));
+            setHasActiveRequest(true);
+            setActiveRequestStatus('pending');
+            toast.success('Your request has been submitted. We’ll review it and get back to you.');
+            setRequestReason('');
+            setRequestType('report_abuse');
+        } catch (err: any) {
+            if (err.message?.includes('permission denied') || err.status === 401) {
+                toast.error('Permission denied. Please contact support.');
+            } else {
+                toast.error(err.message || 'Failed to submit request.');
+            }
+        } finally {
+            setSubmitting(false);
+            setShowDeleteConfirm(false);
+        }
+    };
+
+    // ---- Determine if form should be disabled ----
+    const isFormDisabled = loadingRequestStatus || hasActiveRequest || submitting;
+
     return (
         <div className="min-h-screen bg-[#0A0A0A] text-white cr-body">
             <style>{`
@@ -145,7 +268,7 @@ export default function SettingsPage() {
             `}</style>
 
             <div className="mx-auto max-w-3xl px-4 sm:px-6 py-6">
-                {/* Header with back button */}
+                {/* Header */}
                 <div className="flex items-center gap-4 mb-8">
                     <button
                         onClick={() => navigate(-1)}
@@ -208,6 +331,88 @@ export default function SettingsPage() {
                             <span className="text-sm">Contact Support</span>
                             <ChevronRight className="h-4 w-4 text-gray-500" />
                         </button>
+                    </Section>
+
+                    {/* Support & Account */}
+                    <Section title="Support & Account" icon={<UserCog className="h-4 w-4" />}>
+                        {loadingRequestStatus ? (
+                            <div className="flex items-center justify-center py-6">
+                                <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+                            </div>
+                        ) : hasActiveRequest ? (
+                            <div className="rounded-xl border border-blue-500/20 bg-blue-500/10 p-4 text-sm text-blue-300">
+                                <CheckCircle className="inline h-4 w-4 mr-2" />
+                                You already have a {activeRequestStatus === 'pending' ? 'pending' : 'processing'} request.
+                                <br />
+                                <span className="text-xs text-gray-400">
+                                    We’re reviewing it and will get back to you soon. You can’t submit another request until this one is resolved.
+                                </span>
+                            </div>
+                        ) : (
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-xs font-semibold uppercase tracking-wide text-gray-400 mb-1.5">
+                                        Request type
+                                    </label>
+                                    <select
+                                        value={requestType}
+                                        onChange={(e) => setRequestType(e.target.value as any)}
+                                        disabled={isFormDisabled}
+                                        className={`w-full rounded-xl border border-white/10 bg-[#0A0A0A] px-4 py-2.5 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-[#1E90FF]/50 ${isFormDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                    >
+                                        <option value="report_abuse">Report Abuse</option>
+                                        <option value="request_changes">Request Changes</option>
+                                        <option value="delete_account">Delete Account</option>
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label className="block text-xs font-semibold uppercase tracking-wide text-gray-400 mb-1.5">
+                                        Details
+                                    </label>
+                                    <textarea
+                                        value={requestReason}
+                                        onChange={(e) => setRequestReason(e.target.value.slice(0, 1000))}
+                                        rows={4}
+                                        disabled={isFormDisabled}
+                                        placeholder={
+                                            requestType === 'report_abuse'
+                                                ? 'Describe the abusive content or behaviour…'
+                                                : requestType === 'request_changes'
+                                                    ? 'What changes do you need? (profile info, squad, etc.)'
+                                                    : 'Why do you want to delete your account? (optional)'
+                                        }
+                                        className={`w-full resize-none rounded-xl border border-white/10 bg-[#0A0A0A] px-4 py-3 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-[#1E90FF]/50 ${isFormDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                    />
+                                    <p className="mt-1 text-xs text-gray-500">{requestReason.length}/1000</p>
+                                </div>
+
+                                {requestType === 'delete_account' && (
+                                    <div className="rounded-xl border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-300">
+                                        <AlertTriangle className="inline h-4 w-4 mr-2" />
+                                        Account deletion is permanent. All your data will be removed.
+                                        <br />
+                                        <span className="text-xs text-gray-400">
+                                            You have <strong>7 days</strong> to cancel this request by contacting support.
+                                            This waiting period allows us to ensure security and give you a chance to recover your data if needed.
+                                        </span>
+                                    </div>
+                                )}
+
+                                <button
+                                    onClick={handleSubmit}
+                                    disabled={isFormDisabled}
+                                    className={`w-full flex items-center justify-center gap-2 rounded-xl bg-[#1E90FF] py-3 text-sm font-semibold text-white transition hover:brightness-110 disabled:opacity-50 ${FOCUS_RING}`}
+                                >
+                                    {submitting ? (
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                        <Send className="h-4 w-4" />
+                                    )}
+                                    Submit Request
+                                </button>
+                            </div>
+                        )}
                     </Section>
 
                     {/* Legal */}
@@ -277,11 +482,60 @@ export default function SettingsPage() {
                     </div>
                 </div>
             )}
+
+            {/* Delete Confirmation Modal */}
+            {showDeleteConfirm && (
+                <div
+                    className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+                    onClick={(e) => {
+                        if (e.target === e.currentTarget) setShowDeleteConfirm(false);
+                    }}
+                    onKeyDown={(e) => e.key === 'Escape' && setShowDeleteConfirm(false)}
+                >
+                    <div className="relative cr-card rounded-2xl w-full max-w-md border border-white/10 shadow-2xl p-6 animate-in fade-in zoom-in duration-200">
+                        <button
+                            onClick={() => setShowDeleteConfirm(false)}
+                            className={`absolute top-3 right-3 rounded-full p-1.5 text-gray-400 hover:text-white hover:bg-white/5 transition ${FOCUS_RING}`}
+                            aria-label="Close"
+                        >
+                            <X className="h-5 w-5" />
+                        </button>
+                        <div className="flex items-start gap-3 mb-4">
+                            <AlertTriangle className="h-6 w-6 text-red-500 flex-shrink-0 mt-0.5" />
+                            <div>
+                                <h2 className="cr-display text-lg font-bold">Delete Account</h2>
+                                <p className="text-sm text-gray-300 mt-1">
+                                    Are you sure? This action is permanent and cannot be undone.
+                                </p>
+                                <p className="text-xs text-gray-400 mt-2">
+                                    All your data (profile, matches, stats, etc.) will be removed.
+                                    You’ll have 7 days to cancel this request.
+                                </p>
+                            </div>
+                        </div>
+                        <div className="flex gap-3 mt-6">
+                            <button
+                                onClick={() => setShowDeleteConfirm(false)}
+                                className={`flex-1 rounded-xl border border-white/10 bg-transparent py-2.5 text-sm font-medium text-gray-300 transition hover:bg-white/5 ${FOCUS_RING}`}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={submitRequest}
+                                disabled={submitting}
+                                className={`flex-1 rounded-xl bg-red-600 py-2.5 text-sm font-semibold text-white transition hover:brightness-110 disabled:opacity-50 ${FOCUS_RING}`}
+                            >
+                                {submitting ? <Loader2 className="h-4 w-4 animate-spin mx-auto" /> : 'Confirm Delete'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
 
-// Helper components
+// ---------- Helper Components (unchanged) ----------
 
 function Section({ title, icon, children }: { title: string; icon: React.ReactNode; children: React.ReactNode }) {
     return (
@@ -290,8 +544,6 @@ function Section({ title, icon, children }: { title: string; icon: React.ReactNo
                 <span className="text-gray-500">{icon}</span>
                 <h2 className="cr-display text-sm font-semibold tracking-wide text-gray-300 uppercase">{title}</h2>
             </div>
-            {/* Spacing lives on each row (pt-3.5 first:pt-0) — don't also add space-y here,
-                or the gap doubles up against the divider line. */}
             <div className="divide-y divide-white/5">{children}</div>
         </div>
     );

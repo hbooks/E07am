@@ -6,7 +6,6 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NavRail from "@/components/NavRail";
 import ProtectedRoute from "@/components/ProtectedRoute";
-import { NotificationBell } from "@/components/NotificationBell";
 import VersionCheck from '@/components/VersionCheck';
 import MaintenanceGate from "@/components/MaintenanceGate";
 import AdminGate from "@/components/AdminGate";
@@ -14,7 +13,6 @@ import AdminGate from "@/components/AdminGate";
 import IndexPage from "@/pages/IndexPage";
 import CreateRoomPage from "@/pages/CreateRoomPage";
 import NewsPage from "@/pages/NewsPage";
-import SearchPage from "@/pages/SearchPage";
 import ProfilePage from "@/pages/ProfilePage";
 import NotificationsPage from "@/pages/NotificationsPage";
 import OnboardingPage from "@/pages/OnboardingPage";
@@ -38,7 +36,6 @@ function AppShell() {
       <main className="pb-20 md:pb-0 md:pl-20">
         <Outlet />
       </main>
-      <NotificationBell />
     </div>
   );
 }
@@ -81,7 +78,6 @@ const App = () => (
               <Route path="/" element={<IndexPage />} />
               <Route path="/create" element={<CreateRoomPage />} />
               <Route path="/news" element={<NewsPage />} />
-              <Route path="/search" element={<SearchPage />} />
               <Route path="/settings" element={<SettingsPage />} />
               <Route path="/results" element={<ResultsPage />} />
               <Route path="/update-squad" element={<UpdateSquadPage />} />
