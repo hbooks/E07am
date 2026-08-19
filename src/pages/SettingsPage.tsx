@@ -380,7 +380,7 @@ export default function SettingsPage() {
                                                 ? 'Describe the abusive content or behaviour…'
                                                 : requestType === 'request_changes'
                                                     ? 'What changes do you need? (profile info, squad, etc.)'
-                                                    : 'Why do you want to delete your account? (optional)'
+                                                    : 'Why do you want to delete your account? (give us a clue so we can improve!)'
                                         }
                                         className={`w-full resize-none rounded-xl border border-white/10 bg-[#0A0A0A] px-4 py-3 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-[#1E90FF]/50 ${isFormDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
                                     />

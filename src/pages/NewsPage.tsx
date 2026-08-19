@@ -339,7 +339,7 @@ function AdminUpdatesTab() {
                 <span className="font-mono text-[10px] text-muted-foreground/60">TX-{transmissionNo}</span>
                 <span>· {timeAgo(post.created_at)}</span>
               </p>
-              <div className="chat-tail relative overflow-hidden rounded-2xl rounded-tl-sm border-l-2 border-primary/40 bg-secondary px-4 py-3 text-sm leading-relaxed">
+              <div className="chat-tail rounded-2xl rounded-tl-sm bg-secondary px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap">
                 {post.content}
               </div>
             </div>
@@ -383,7 +383,7 @@ function GameUpdatesTab() {
       <div className="grid place-items-center rounded-2xl border border-dashed border-border px-6 py-16 text-center">
         <Gamepad2 className="mb-2 h-7 w-7 text-muted-foreground" />
         <p className="text-lg font-semibold">No game updates yet.</p>
-        <p className="mt-1 text-sm text-muted-foreground">Check back later.</p>
+        <p className="mt-1 text-sm text-muted-foreground">Game updates are fetched every Thursday after efootball server maintenance is complete.</p>
       </div>
     );
   }
@@ -428,7 +428,9 @@ function GameUpdatesTab() {
             {rest.map((post) => (
               <div key={post.id} className="flex items-center gap-2.5 bg-card px-3 py-2.5 animate-in fade-in duration-200">
                 <Gamepad2 className="h-3.5 w-3.5 flex-shrink-0 text-emerald-400/70" />
-                <p className="min-w-0 flex-1 truncate text-xs text-foreground/90">{post.content}</p>
+                <p className="mt-1.5 text-sm leading-relaxed whitespace-pre-wrap">
+                  <MentionText text={post.content} />
+                </p>
                 <span className="flex-shrink-0 text-[10px] text-muted-foreground/60">{timeAgo(post.created_at)}</span>
               </div>
             ))}
@@ -822,7 +824,7 @@ function CommunityFeed() {
                             · {commentPending ? "sending…" : timeAgo(c.created_at)}
                           </span>
                         </p>
-                        <p className="mt-0.5 text-sm text-muted-foreground">
+                        <p className="mt-0.5 text-sm text-muted-foreground whitespace-pre-wrap">
                           <MentionText text={c.content} />
                         </p>
                       </div>

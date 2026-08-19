@@ -280,6 +280,11 @@ export default function CreateRoomPage() {
     return '';
   };
 
+  // ---- Show skeleton while loading active match ----
+  if (loadingActive) {
+    return <CreateRoomSkeleton />;
+  }
+
   // ---------- render ----------
   return (
     <>
@@ -715,6 +720,70 @@ function SummaryRow({ label, value, mono }: { label: string; value: string; mono
       <dd className={cn('font-semibold text-white', mono && 'font-mono tracking-[0.2em] text-emerald-400')}>
         {value}
       </dd>
+    </div>
+  );
+}
+
+// ---------- Skeleton Loader ----------
+function CreateRoomSkeleton() {
+  return (
+    <div className="min-h-screen bg-[#0A0A0A] text-white cr-body">
+      <div className="mx-auto w-full max-w-xl px-4 pt-16 pb-6">
+        {/* Header skeleton */}
+        <div className="mb-6 flex items-center gap-4">
+          <div className="h-14 w-14 rounded-2xl bg-[#1F1F1F] animate-pulse" />
+          <div className="flex-1">
+            <div className="h-7 w-48 bg-[#1F1F1F] rounded animate-pulse" />
+          </div>
+        </div>
+
+        {/* Active match card skeleton */}
+        <div className="mb-8 rounded-3xl border border-white/5 bg-[#141414] p-5 md:p-6">
+          <div className="flex items-center justify-between">
+            <div className="space-y-2 flex-1">
+              <div className="h-4 w-24 bg-[#1F1F1F] rounded animate-pulse" />
+              <div className="h-6 w-32 bg-[#1F1F1F] rounded animate-pulse" />
+              <div className="h-4 w-40 bg-[#1F1F1F] rounded animate-pulse" />
+            </div>
+            <div className="h-10 w-32 bg-[#1F1F1F] rounded-full animate-pulse" />
+          </div>
+        </div>
+
+        {/* Form card skeleton */}
+        <div className="space-y-6 rounded-3xl border border-white/5 bg-[#141414] p-5 md:p-7">
+          {/* Match type label */}
+          <div className="h-5 w-24 bg-[#1F1F1F] rounded animate-pulse" />
+
+          {/* 3 match type buttons */}
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="flex w-full items-center gap-3 rounded-2xl border border-white/10 bg-[#0A0A0A] p-3.5">
+              <div className="h-10 w-10 rounded-xl bg-[#1F1F1F] animate-pulse" />
+              <div className="flex-1 space-y-1.5">
+                <div className="h-4 w-16 bg-[#1F1F1F] rounded animate-pulse" />
+                <div className="h-3 w-24 bg-[#1F1F1F] rounded animate-pulse" />
+              </div>
+            </div>
+          ))}
+
+          {/* Room number skeleton */}
+          <div>
+            <div className="mb-2 h-5 w-24 bg-[#1F1F1F] rounded animate-pulse" />
+            <div className="h-12 w-full rounded-xl bg-[#1F1F1F] animate-pulse" />
+          </div>
+
+          {/* Password toggle skeleton */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <div className="h-5 w-24 bg-[#1F1F1F] rounded animate-pulse" />
+              <div className="h-7 w-12 rounded-full bg-[#1F1F1F] animate-pulse" />
+            </div>
+            <div className="h-4 w-48 bg-[#1F1F1F] rounded animate-pulse" />
+          </div>
+
+          {/* Review button skeleton */}
+          <div className="h-12 w-full rounded-full bg-[#1F1F1F] animate-pulse" />
+        </div>
+      </div>
     </div>
   );
 }

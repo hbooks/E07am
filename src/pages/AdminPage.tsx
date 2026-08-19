@@ -2,10 +2,11 @@ import { useEffect, useState } from "react";
 import { useKindeAuth } from "@kinde-oss/kinde-auth-react";
 import {
     Send, RefreshCw, Loader2, Pencil, Trash2, Check, X, CheckCircle, XCircle, AlertTriangle,
-    Newspaper, Activity, Construction, KeyRound, LogOut, ShieldAlert,
+    Newspaper, Activity, Construction, KeyRound, LogOut, ShieldAlert, BarChart3, Globe, MonitorSmartphone, Bug,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/lib/supabaseClient";
 
 const BASE_URL = import.meta.env.VITE_SUPABASE_FUNCTIONS_URL;
 
@@ -30,19 +31,37 @@ interface WorkerStat {
     last_timestamp: string;
 }
 
-type Section = "news" | "workers" | "maintenance";
+interface AnalyticsEvent {
+    id: number;
+    event_type: 'page_view' | 'error';
+    page_path: string;
+    user_id: string | null;
+    session_id: string;
+    browser: string;
+    os: string;
+    device_type: string;
+    screen_width: number | null;
+    screen_height: number | null;
+    referrer: string | null;
+    error_message: string | null;
+    error_stack: string | null;
+    created_at: string;
+}
+
+type Section = "news" | "workers" | "maintenance" | "analytics";
 
 const NAV_ITEMS: { id: Section; label: string; icon: typeof Newspaper }[] = [
     { id: "news", label: "News", icon: Newspaper },
     { id: "workers", label: "Workers", icon: Activity },
     { id: "maintenance", label: "Maintenance", icon: Construction },
+    { id: "analytics", label: "Analytics", icon: BarChart3 },
 ];
 
 export default function AdminPage() {
     const { user, logout } = useKindeAuth();
     const [section, setSection] = useState<Section>("news");
 
-    // ---- News state & handlers — unchanged from the original page ----
+    // ---- News state & handlers ----
     const [newsContent, setNewsContent] = useState("");
     const [posting, setPosting] = useState(false);
     const [newsPosts, setNewsPosts] = useState<NewsPost[]>([]);
@@ -74,7 +93,7 @@ export default function AdminPage() {
             if (!res.ok) throw new Error(data.error || "Failed to post news");
             toast.success("News posted!");
             setNewsContent("");
-            fetchNewsPosts(); // refresh list
+            fetchNewsPosts();
         } catch (err: any) {
             toast.error(err.message || "Failed to post news");
         } finally {
@@ -130,7 +149,7 @@ export default function AdminPage() {
         }
     };
 
-    // ---- Workers state & handlers — unchanged from the original page ----
+    // ---- Workers state & handlers ----
     const [workers, setWorkers] = useState<WorkerStat[]>([]);
     const [loadingWorkers, setLoadingWorkers] = useState(true);
 
@@ -148,12 +167,7 @@ export default function AdminPage() {
         }
     };
 
-    useEffect(() => {
-        fetchNewsPosts();
-        fetchWorkers();
-    }, []);
-
-    // ---- Maintenance mode — new ----
+    // ---- Maintenance mode ----
     const [maintenanceEnabled, setMaintenanceEnabled] = useState(false);
     const [maintenanceMessage, setMaintenanceMessage] = useState("");
     const [maintenanceKey, setMaintenanceKey] = useState("");
@@ -173,10 +187,6 @@ export default function AdminPage() {
             setLoadingMaintenance(false);
         }
     };
-
-    useEffect(() => {
-        fetchMaintenance();
-    }, []);
 
     const applyMaintenance = async (nextEnabled: boolean) => {
         if (!maintenanceKey.trim()) {
@@ -205,6 +215,91 @@ export default function AdminPage() {
             setSavingMaintenance(false);
         }
     };
+
+    // ---- Analytics state & logic (direct Supabase) ----
+    const [analyticsEvents, setAnalyticsEvents] = useState<AnalyticsEvent[]>([]);
+    const [loadingAnalytics, setLoadingAnalytics] = useState(true);
+    const [analyticsSummary, setAnalyticsSummary] = useState({
+        totalPageViews: 0,
+        totalErrors: 0,
+        uniqueSessions: 0,
+        pageViewsByPath: {} as Record<string, number>,
+        deviceBreakdown: {} as Record<string, number>,
+        browserBreakdown: {} as Record<string, number>,
+        recentErrors: [] as any[],
+    });
+
+    const fetchAnalytics = async () => {
+        setLoadingAnalytics(true);
+        try {
+            const { data, error } = await supabase
+                .from('analytics_events')
+                .select('*')
+                .order('created_at', { ascending: false })
+                .limit(1000);
+            if (error) throw error;
+            setAnalyticsEvents(data || []);
+        } catch (err: any) {
+            toast.error(err.message || 'Failed to load analytics');
+        } finally {
+            setLoadingAnalytics(false);
+        }
+    };
+
+    useEffect(() => {
+        const events = analyticsEvents;
+        const totalPageViews = events.filter(e => e.event_type === 'page_view').length;
+        const totalErrors = events.filter(e => e.event_type === 'error').length;
+        const uniqueSessions = new Set(events.map(e => e.session_id).filter(Boolean)).size;
+
+        const pageViewsByPath: Record<string, number> = {};
+        events.filter(e => e.event_type === 'page_view').forEach(e => {
+            const path = e.page_path || '/unknown';
+            pageViewsByPath[path] = (pageViewsByPath[path] || 0) + 1;
+        });
+
+        const deviceBreakdown: Record<string, number> = {};
+        events.forEach(e => {
+            const d = e.device_type || 'unknown';
+            deviceBreakdown[d] = (deviceBreakdown[d] || 0) + 1;
+        });
+
+        const browserBreakdown: Record<string, number> = {};
+        events.forEach(e => {
+            const b = e.browser || 'unknown';
+            browserBreakdown[b] = (browserBreakdown[b] || 0) + 1;
+        });
+
+        const recentErrors = events
+            .filter(e => e.event_type === 'error')
+            .slice(0, 10)
+            .map(e => ({
+                id: e.id,
+                message: e.error_message || 'Unknown error',
+                page_path: e.page_path,
+                created_at: e.created_at,
+                browser: e.browser,
+                device_type: e.device_type,
+            }));
+
+        setAnalyticsSummary({
+            totalPageViews,
+            totalErrors,
+            uniqueSessions,
+            pageViewsByPath,
+            deviceBreakdown,
+            browserBreakdown,
+            recentErrors,
+        });
+    }, [analyticsEvents]);
+
+    // Initial data fetches
+    useEffect(() => {
+        fetchNewsPosts();
+        fetchWorkers();
+        fetchMaintenance();
+        fetchAnalytics();
+    }, []);
 
     return (
         <div className="flex min-h-screen bg-[#0A0A0A] text-white">
@@ -288,7 +383,6 @@ export default function AdminPage() {
                                 <p className="mt-1 text-sm text-gray-500">Post and manage official announcements.</p>
                             </div>
 
-                            {/* News composer */}
                             <div className="rounded-2xl border border-white/5 bg-[#141414] p-5">
                                 <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-400">Post News</h2>
                                 <textarea
@@ -311,7 +405,6 @@ export default function AdminPage() {
                                 </div>
                             </div>
 
-                            {/* Existing news posts */}
                             <div className="rounded-2xl border border-white/5 bg-[#141414] p-5">
                                 <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-gray-400">
                                     Existing News <span className="text-gray-600">· {newsPosts.length}</span>
@@ -530,8 +623,113 @@ export default function AdminPage() {
                             </div>
                         </div>
                     )}
+
+                    {section === "analytics" && (
+                        <div className="space-y-6">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <h1 className="cr-display text-xl font-bold">Analytics</h1>
+                                    <p className="mt-1 text-sm text-gray-500">Traffic, errors, and device insights.</p>
+                                </div>
+                                <button
+                                    onClick={fetchAnalytics}
+                                    className="rounded-full p-2 text-gray-400 transition hover:bg-white/5 hover:text-white"
+                                    title="Refresh"
+                                >
+                                    <RefreshCw className={cn("h-5 w-5", loadingAnalytics && "animate-spin")} />
+                                </button>
+                            </div>
+
+                            {loadingAnalytics ? (
+                                <div className="grid place-items-center py-16">
+                                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                                </div>
+                            ) : (
+                                <div className="space-y-4">
+                                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                                        <StatCard label="Page Views" value={analyticsSummary.totalPageViews} icon={<BarChart3 className="h-4 w-4" />} />
+                                        <StatCard label="Unique Sessions" value={analyticsSummary.uniqueSessions} icon={<Globe className="h-4 w-4" />} />
+                                        <StatCard label="Errors" value={analyticsSummary.totalErrors} icon={<Bug className="h-4 w-4" />} />
+                                    </div>
+
+                                    <div className="rounded-2xl border border-white/5 bg-[#141414] p-5">
+                                        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-400">Top Pages</h2>
+                                        {Object.keys(analyticsSummary.pageViewsByPath).length === 0 ? (
+                                            <p className="text-sm text-gray-500">No page views recorded yet.</p>
+                                        ) : (
+                                            <div className="space-y-2">
+                                                {Object.entries(analyticsSummary.pageViewsByPath)
+                                                    .sort((a: any, b: any) => b[1] - a[1])
+                                                    .map(([path, count]: any) => (
+                                                        <div key={path} className="flex items-center justify-between rounded-lg bg-[#0A0A0A] px-3 py-2">
+                                                            <span className="truncate text-sm">{path}</span>
+                                                            <span className="text-xs font-semibold text-gray-400">{count}</span>
+                                                        </div>
+                                                    ))}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div className="rounded-2xl border border-white/5 bg-[#141414] p-5">
+                                        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-400">Devices</h2>
+                                        <div className="grid grid-cols-3 gap-2">
+                                            {Object.entries(analyticsSummary.deviceBreakdown).map(([device, count]: any) => (
+                                                <div key={device} className="rounded-xl bg-[#0A0A0A] p-4 text-center">
+                                                    <MonitorSmartphone className="mx-auto h-5 w-5 text-gray-500" />
+                                                    <p className="mt-1 text-lg font-bold">{count}</p>
+                                                    <p className="text-xs capitalize text-gray-500">{device}</p>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    <div className="rounded-2xl border border-white/5 bg-[#141414] p-5">
+                                        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-400">Browsers</h2>
+                                        <div className="space-y-2">
+                                            {Object.entries(analyticsSummary.browserBreakdown).map(([browser, count]: any) => (
+                                                <div key={browser} className="flex items-center justify-between rounded-lg bg-[#0A0A0A] px-3 py-2">
+                                                    <span className="text-sm">{browser}</span>
+                                                    <span className="text-xs font-semibold text-gray-400">{count}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    <div className="rounded-2xl border border-white/5 bg-[#141414] p-5">
+                                        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-400">Recent Errors</h2>
+                                        {analyticsSummary.recentErrors.length === 0 ? (
+                                            <p className="text-sm text-gray-500">No errors recorded.</p>
+                                        ) : (
+                                            <div className="space-y-2">
+                                                {analyticsSummary.recentErrors.map((err: any) => (
+                                                    <div key={err.id} className="rounded-lg bg-[#0A0A0A] p-3">
+                                                        <p className="text-sm text-red-400">{err.message}</p>
+                                                        <p className="mt-1 text-xs text-gray-500">
+                                                            {err.page_path} · {err.browser} · {err.device_type} · {new Date(err.created_at).toLocaleString()}
+                                                        </p>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
                 </div>
             </main>
+        </div>
+    );
+}
+
+function StatCard({ label, value, icon }: { label: string; value: number; icon: React.ReactNode }) {
+    return (
+        <div className="rounded-2xl border border-white/5 bg-[#141414] p-4">
+            <div className="flex items-center gap-2 text-gray-500">
+                {icon}
+                <span className="text-xs uppercase tracking-wide">{label}</span>
+            </div>
+            <p className="mt-2 text-2xl font-bold">{value}</p>
         </div>
     );
 }

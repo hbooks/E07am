@@ -1,6 +1,7 @@
+import { useEffect } from 'react';
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Outlet, Route, Routes } from "react-router-dom";
-import { KindeProvider } from "@kinde-oss/kinde-auth-react";
+import { BrowserRouter, Outlet, Route, Routes, useLocation } from "react-router-dom";
+import { KindeProvider, useKindeAuth } from "@kinde-oss/kinde-auth-react";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -9,6 +10,7 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 import VersionCheck from '@/components/VersionCheck';
 import MaintenanceGate from "@/components/MaintenanceGate";
 import AdminGate from "@/components/AdminGate";
+import { trackPageView, trackError } from '@/lib/analytics';
 
 import IndexPage from "@/pages/IndexPage";
 import CreateRoomPage from "@/pages/CreateRoomPage";
@@ -40,6 +42,36 @@ function AppShell() {
   );
 }
 
+// Analytics tracker: records page views and errors.
+function AnalyticsTracker() {
+  const location = useLocation();
+  const { user } = useKindeAuth();
+
+  // Track page views on route change
+  useEffect(() => {
+    trackPageView(location.pathname, user?.id || null);
+  }, [location.pathname, user?.id]);
+
+  // Track global errors and unhandled promise rejections
+  useEffect(() => {
+    const handleError = (event: ErrorEvent) => {
+      trackError(event.message, event.error?.stack, user?.id || null);
+    };
+    const handleRejection = (event: PromiseRejectionEvent) => {
+      trackError('Unhandled promise rejection', String(event.reason), user?.id || null);
+    };
+
+    window.addEventListener('error', handleError);
+    window.addEventListener('unhandledrejection', handleRejection);
+    return () => {
+      window.removeEventListener('error', handleError);
+      window.removeEventListener('unhandledrejection', handleRejection);
+    };
+  }, [user?.id]);
+
+  return null;
+}
+
 const App = () => (
   <KindeProvider
     clientId={import.meta.env.VITE_KINDE_CLIENT_ID}
@@ -53,6 +85,7 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter>
+          <AnalyticsTracker />
           <Routes>
             {/* /admin: no nav rail, no notification bell, no maintenance gate
                 (so you can never lock yourself out of the page that turns

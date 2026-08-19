@@ -48,7 +48,7 @@ export default function NotFoundPage() {
                 </p>
                 <h1 className="cr-display text-xl font-semibold text-white mb-2">Offside</h1>
                 <p className="text-sm text-gray-400 leading-relaxed mb-8">
-                    This page doesn't exist, was moved, or isn't you just guessed it.
+                    This page doesn't exist, never existed, why and how did you get here? You might want to check the URL or go back to the feed.
                 </p>
 
                 <Link
