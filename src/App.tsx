@@ -11,6 +11,7 @@ import VersionCheck from '@/components/VersionCheck';
 import MaintenanceGate from "@/components/MaintenanceGate";
 import AdminGate from "@/components/AdminGate";
 import { trackPageView, trackError } from '@/lib/analytics';
+import { useLocationCapture } from '@/hooks/useLocationCapture';
 
 import IndexPage from "@/pages/IndexPage";
 import CreateRoomPage from "@/pages/CreateRoomPage";
@@ -24,7 +25,7 @@ import NotFoundPage from "@/pages/NotFoundPage";
 import ResultsPage from "./pages/ResultsPage";
 import UpdateSquadPage from "@/pages/UpdateSquadPage";
 import AdminPage from "./pages/AdminPage";
-import SettingsPage from "./pages/SettingsPage";
+import SettingsPage from "@/pages/SettingsPage";
 
 const queryClient = new QueryClient();
 
@@ -46,6 +47,9 @@ function AppShell() {
 function AnalyticsTracker() {
   const location = useLocation();
   const { user } = useKindeAuth();
+
+  // Warm the location cache once per 24h — used by every analytics insert
+  useLocationCapture();
 
   // Track page views on route change
   useEffect(() => {

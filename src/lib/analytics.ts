@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabaseClient';
+import { getCachedLocation } from '@/hooks/useLocationCapture';
 
 const SESSION_KEY = 'ctr_session_id';
 
@@ -35,6 +36,7 @@ function parseUserAgent(ua: string) {
 export function trackPageView(path: string, userId?: string | null) {
     const ua = navigator.userAgent;
     const { browser, os, deviceType } = parseUserAgent(ua);
+    const loc = getCachedLocation();
 
     const payload = {
         event_type: 'page_view',
@@ -48,6 +50,11 @@ export function trackPageView(path: string, userId?: string | null) {
         screen_width: window.screen.width,
         screen_height: window.screen.height,
         referrer: document.referrer || null,
+        // Location — null until ipwho.is resolves (first ~1s of a fresh session)
+        country: loc.country,
+        country_code: loc.country_code,
+        city: loc.city,
+        region: loc.region,
     };
 
     supabase.from('analytics_events').insert(payload).then(
@@ -59,6 +66,7 @@ export function trackPageView(path: string, userId?: string | null) {
 export function trackError(message: string, stack?: string, userId?: string | null) {
     const ua = navigator.userAgent;
     const { browser, os, deviceType } = parseUserAgent(ua);
+    const loc = getCachedLocation();
 
     const payload = {
         event_type: 'error',
@@ -74,6 +82,11 @@ export function trackError(message: string, stack?: string, userId?: string | nu
         referrer: document.referrer || null,
         error_message: message,
         error_stack: stack || null,
+        // Location
+        country: loc.country,
+        country_code: loc.country_code,
+        city: loc.city,
+        region: loc.region,
     };
 
     supabase.from('analytics_events').insert(payload).then(
