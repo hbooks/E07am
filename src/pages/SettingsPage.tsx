@@ -7,13 +7,20 @@ import {
 } from 'lucide-react';
 import { SiInstagram, SiTiktok } from 'react-icons/si';
 import { useKindeAuth } from '@kinde-oss/kinde-auth-react';
-import { supabase } from '@/lib/supabaseClient';
 import { useIsMobile } from '@/hooks/use-mobile';
+import {
+    validateRequestReason,
+    stripControlChars,
+    REQUEST_REASON_MAX,
+} from '@/lib/sanitizeRequest';
 
 const APP_VERSION = 'v1.0.0';
 
 const ACTIVE_REQUEST_CACHE_KEY = 'ctr_active_request_';
 const CACHE_EXPIRY_MS = 60 * 60 * 1000; // 1 hour
+
+// Base URL for your Edge Functions (set in .env as VITE_SUPABASE_FUNCTIONS_URL)
+const FUNCTIONS_URL = import.meta.env.VITE_SUPABASE_FUNCTIONS_URL as string;
 
 // Default settings
 const defaultSettings = {
@@ -32,7 +39,6 @@ const SETTING_LABELS: Record<keyof SettingsType, (value: any) => string> = {
     showOnlineStatus: (v) => (v ? 'Online status is now visible' : 'Online status is now hidden'),
 };
 
-// Contact info
 const CONTACT = {
     instagram: {
         label: 'Instagram',
@@ -61,34 +67,32 @@ const FOCUS_RING =
     'focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1E90FF] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0A0A0A]';
 const PRESS = 'active:scale-[0.97]';
 
+type RequestType = 'report_abuse' | 'request_changes' | 'delete_account';
+
 export default function SettingsPage() {
     const navigate = useNavigate();
     const isMobile = useIsMobile();
-    const { user } = useKindeAuth();
+    const { user, getToken } = useKindeAuth();
 
     // ---- Settings ----
     const [settings, setSettings] = useState<SettingsType>(() => {
         try {
             const stored = localStorage.getItem('userSettings');
             if (stored) return { ...defaultSettings, ...JSON.parse(stored) };
-        } catch {
-            // fallback
-        }
+        } catch { /* fallback */ }
         return defaultSettings;
     });
 
     // ---- Support form ----
-    const [requestType, setRequestType] = useState<'report_abuse' | 'request_changes' | 'delete_account'>('report_abuse');
+    const [requestType, setRequestType] = useState<RequestType>('report_abuse');
     const [requestReason, setRequestReason] = useState('');
     const [submitting, setSubmitting] = useState(false);
     const [hasActiveRequest, setHasActiveRequest] = useState(false);
     const [activeRequestStatus, setActiveRequestStatus] = useState<string | null>(null);
     const [loadingRequestStatus, setLoadingRequestStatus] = useState(true);
 
-    // ---- Delete confirmation modal ----
+    // ---- Modals ----
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-
-    // ---- Contact modal ----
     const [contactModalOpen, setContactModalOpen] = useState(false);
 
     // Apply dark mode
@@ -96,47 +100,54 @@ export default function SettingsPage() {
         document.documentElement.classList.toggle('dark', settings.darkMode);
     }, [settings.darkMode]);
 
-    // ---- Check for existing active request with caching ----
+    // ---- Check for existing active request (via Edge Function) ----
     useEffect(() => {
         if (!user?.id) {
             setLoadingRequestStatus(false);
             return;
         }
+
         const cacheKey = `${ACTIVE_REQUEST_CACHE_KEY}${user.id}`;
         const cached = localStorage.getItem(cacheKey);
         if (cached) {
             try {
                 const data = JSON.parse(cached);
-                // If cache is fresh, use it without DB query
                 if (Date.now() - data.timestamp < CACHE_EXPIRY_MS) {
                     setHasActiveRequest(true);
                     setActiveRequestStatus(data.status);
                     setLoadingRequestStatus(false);
                     return;
-                } else {
-                    // Cache expired, remove it
-                    localStorage.removeItem(cacheKey);
                 }
+                localStorage.removeItem(cacheKey);
             } catch {
                 localStorage.removeItem(cacheKey);
             }
         }
-        // No valid cache – query the database once
+
         const checkActiveRequest = async () => {
             try {
-                const { data, error } = await supabase
-                    .from('user_requests')
-                    .select('status')
-                    .eq('user_id', user.id)
-                    .in('status', ['pending', 'processing'])
-                    .limit(1);
-                if (error) throw error;
-                if (data && data.length > 0) {
-                    const status = data[0].status;
+                const token = await getToken();
+                if (!token) {
+                    setLoadingRequestStatus(false);
+                    return;
+                }
+                const res = await fetch(`${FUNCTIONS_URL}/submit-request/status`, {
+                    headers: { Authorization: `Bearer ${token}` },
+                });
+                if (!res.ok) {
+                    // 404/401 etc — treat as no active request
+                    setHasActiveRequest(false);
+                    setActiveRequestStatus(null);
+                    return;
+                }
+                const data = await res.json();
+                if (data?.active) {
                     setHasActiveRequest(true);
-                    setActiveRequestStatus(status);
-                    // Store fresh cache
-                    localStorage.setItem(cacheKey, JSON.stringify({ status, timestamp: Date.now() }));
+                    setActiveRequestStatus(data.status);
+                    localStorage.setItem(
+                        cacheKey,
+                        JSON.stringify({ status: data.status, timestamp: Date.now() }),
+                    );
                 } else {
                     setHasActiveRequest(false);
                     setActiveRequestStatus(null);
@@ -148,7 +159,7 @@ export default function SettingsPage() {
             }
         };
         checkActiveRequest();
-    }, [user?.id]);
+    }, [user?.id, getToken]);
 
     // ---- Settings handlers ----
     const updateSetting = <K extends keyof SettingsType>(key: K, value: SettingsType[K]) => {
@@ -169,7 +180,7 @@ export default function SettingsPage() {
             if (Notification.permission === 'default') {
                 const permission = await Notification.requestPermission();
                 if (permission !== 'granted') {
-                    toast.error('Notifications weren\'t enabled.');
+                    toast.error("Notifications weren't enabled.");
                     return;
                 }
             }
@@ -177,13 +188,11 @@ export default function SettingsPage() {
         updateSetting('pushNotifications', checked);
     };
 
-    // ---- Copy handler ----
     const copyToClipboard = (text: string, label: string) => {
         if (navigator.clipboard) {
             navigator.clipboard.writeText(text).then(() => {
                 toast.success(`${label} copied to clipboard`);
             }).catch(() => {
-                // fallback
                 const textarea = document.createElement('textarea');
                 textarea.value = text;
                 document.body.appendChild(textarea);
@@ -203,18 +212,23 @@ export default function SettingsPage() {
         }
     };
 
-    // ---- Submit support request ----
-    const handleSubmit = async () => {
-        if (!requestReason.trim()) {
-            toast.error('Please describe your request in detail.');
+    // ---- Input handler (blocks control chars live) ----
+    const handleReasonChange = (value: string) => {
+        setRequestReason(stripControlChars(value, REQUEST_REASON_MAX));
+    };
+
+    // ---- Submit flow ----
+    const handleSubmit = () => {
+        const validation = validateRequestReason(requestReason);
+        if (!validation.ok) {
+            toast.error(validation.error);
             return;
         }
         if (requestType === 'delete_account') {
             setShowDeleteConfirm(true);
             return;
         }
-        // For other types, submit directly
-        await submitRequest();
+        void submitRequest();
     };
 
     const submitRequest = async () => {
@@ -222,37 +236,73 @@ export default function SettingsPage() {
             toast.error('You must be signed in to submit a request.');
             return;
         }
+
+        const validation = validateRequestReason(requestReason);
+        if (!validation.ok) {
+            toast.error(validation.error);
+            return;
+        }
+
         setSubmitting(true);
         try {
-            const { error } = await supabase.from('user_requests').insert({
-                user_id: user.id,
-                type: requestType,
-                reason: requestReason.trim(),
-                status: 'pending',
-                meta: {},
+            const token = await getToken();
+            if (!token) {
+                toast.error('Your session expired. Please sign in again.');
+                return;
+            }
+
+            const res = await fetch(`${FUNCTIONS_URL}/submit-request`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${token}`,
+                },
+                body: JSON.stringify({
+                    type: requestType,
+                    reason: validation.value,
+                }),
             });
-            if (error) throw error;
-            // Success: store cache immediately
+
+            const data = await res.json().catch(() => ({}));
+
+            if (!res.ok) {
+                if (res.status === 409) {
+                    toast.error(data.error ?? 'You already have an active request.');
+                    const cacheKey = `${ACTIVE_REQUEST_CACHE_KEY}${user.id}`;
+                    localStorage.setItem(
+                        cacheKey,
+                        JSON.stringify({ status: 'pending', timestamp: Date.now() }),
+                    );
+                    setHasActiveRequest(true);
+                    setActiveRequestStatus('pending');
+                    return;
+                }
+                if (res.status === 401) {
+                    toast.error('Session expired. Please sign in again.');
+                    return;
+                }
+                toast.error(data.error ?? 'Failed to submit request.');
+                return;
+            }
+
             const cacheKey = `${ACTIVE_REQUEST_CACHE_KEY}${user.id}`;
-            localStorage.setItem(cacheKey, JSON.stringify({ status: 'pending', timestamp: Date.now() }));
+            localStorage.setItem(
+                cacheKey,
+                JSON.stringify({ status: 'pending', timestamp: Date.now() }),
+            );
             setHasActiveRequest(true);
             setActiveRequestStatus('pending');
-            toast.success('Your request has been submitted. We’ll review it and get back to you.');
+            toast.success("Your request has been submitted. We'll review it and get back to you.");
             setRequestReason('');
             setRequestType('report_abuse');
         } catch (err: any) {
-            if (err.message?.includes('permission denied') || err.status === 401) {
-                toast.error('Permission denied. Please contact support.');
-            } else {
-                toast.error(err.message || 'Failed to submit request.');
-            }
+            toast.error(err?.message ?? 'Failed to submit request.');
         } finally {
             setSubmitting(false);
             setShowDeleteConfirm(false);
         }
     };
 
-    // ---- Determine if form should be disabled ----
     const isFormDisabled = loadingRequestStatus || hasActiveRequest || submitting;
 
     return (
@@ -345,7 +395,7 @@ export default function SettingsPage() {
                                 You already have a {activeRequestStatus === 'pending' ? 'pending' : 'processing'} request.
                                 <br />
                                 <span className="text-xs text-gray-400">
-                                    We’re reviewing it and will get back to you soon. You can’t submit another request until this one is resolved.
+                                    We're reviewing it and will get back to you soon. You can't submit another request until this one is resolved.
                                 </span>
                             </div>
                         ) : (
@@ -356,7 +406,7 @@ export default function SettingsPage() {
                                     </label>
                                     <select
                                         value={requestType}
-                                        onChange={(e) => setRequestType(e.target.value as any)}
+                                        onChange={(e) => setRequestType(e.target.value as RequestType)}
                                         disabled={isFormDisabled}
                                         className={`w-full rounded-xl border border-white/10 bg-[#0A0A0A] px-4 py-2.5 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-[#1E90FF]/50 ${isFormDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
                                     >
@@ -372,7 +422,7 @@ export default function SettingsPage() {
                                     </label>
                                     <textarea
                                         value={requestReason}
-                                        onChange={(e) => setRequestReason(e.target.value.slice(0, 1000))}
+                                        onChange={(e) => handleReasonChange(e.target.value)}
                                         rows={4}
                                         disabled={isFormDisabled}
                                         placeholder={
@@ -384,7 +434,7 @@ export default function SettingsPage() {
                                         }
                                         className={`w-full resize-none rounded-xl border border-white/10 bg-[#0A0A0A] px-4 py-3 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-[#1E90FF]/50 ${isFormDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
                                     />
-                                    <p className="mt-1 text-xs text-gray-500">{requestReason.length}/1000</p>
+                                    <p className="mt-1 text-xs text-gray-500">{requestReason.length}/{REQUEST_REASON_MAX}</p>
                                 </div>
 
                                 {requestType === 'delete_account' && (
@@ -439,9 +489,7 @@ export default function SettingsPage() {
             {contactModalOpen && (
                 <div
                     className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
-                    onClick={(e) => {
-                        if (e.target === e.currentTarget) setContactModalOpen(false);
-                    }}
+                    onClick={(e) => { if (e.target === e.currentTarget) setContactModalOpen(false); }}
                     onKeyDown={(e) => e.key === 'Escape' && setContactModalOpen(false)}
                 >
                     <div className="relative cr-card rounded-2xl w-full max-w-md border border-white/10 shadow-2xl p-6 animate-in fade-in zoom-in duration-200">
@@ -487,9 +535,7 @@ export default function SettingsPage() {
             {showDeleteConfirm && (
                 <div
                     className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
-                    onClick={(e) => {
-                        if (e.target === e.currentTarget) setShowDeleteConfirm(false);
-                    }}
+                    onClick={(e) => { if (e.target === e.currentTarget) setShowDeleteConfirm(false); }}
                     onKeyDown={(e) => e.key === 'Escape' && setShowDeleteConfirm(false)}
                 >
                     <div className="relative cr-card rounded-2xl w-full max-w-md border border-white/10 shadow-2xl p-6 animate-in fade-in zoom-in duration-200">
@@ -509,7 +555,7 @@ export default function SettingsPage() {
                                 </p>
                                 <p className="text-xs text-gray-400 mt-2">
                                     All your data (profile, matches, stats, etc.) will be removed.
-                                    You’ll have 7 days to cancel this request.
+                                    You'll have 7 days to cancel this request.
                                 </p>
                             </div>
                         </div>
@@ -535,7 +581,7 @@ export default function SettingsPage() {
     );
 }
 
-// ---------- Helper Components (unchanged) ----------
+// ---------- Helper Components ----------
 
 function Section({ title, icon, children }: { title: string; icon: React.ReactNode; children: React.ReactNode }) {
     return (
@@ -550,11 +596,7 @@ function Section({ title, icon, children }: { title: string; icon: React.ReactNo
 }
 
 function ToggleRow({
-    label,
-    description,
-    checked,
-    onChange,
-    thumbIcon,
+    label, description, checked, onChange, thumbIcon,
 }: {
     label: string;
     description?: string;
@@ -570,15 +612,13 @@ function ToggleRow({
             </div>
             <button
                 onClick={() => onChange(!checked)}
-                className={`relative inline-flex h-6 w-11 flex-shrink-0 items-center cursor-pointer rounded-full transition-colors duration-200 ${FOCUS_RING} ${checked ? 'bg-[#1E90FF]' : 'bg-[#0A0A0A] border border-white/10'
-                    } hover:ring-2 hover:ring-[#1E90FF]/30`}
+                className={`relative inline-flex h-6 w-11 flex-shrink-0 items-center cursor-pointer rounded-full transition-colors duration-200 ${FOCUS_RING} ${checked ? 'bg-[#1E90FF]' : 'bg-[#0A0A0A] border border-white/10'} hover:ring-2 hover:ring-[#1E90FF]/30`}
                 role="switch"
                 aria-checked={checked}
                 aria-label={label}
             >
                 <span
-                    className={`grid h-5 w-5 place-items-center transform rounded-full bg-white shadow-sm transition-transform duration-200 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${checked ? 'translate-x-[22px]' : 'translate-x-0.5'
-                        }`}
+                    className={`grid h-5 w-5 place-items-center transform rounded-full bg-white shadow-sm transition-transform duration-200 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${checked ? 'translate-x-[22px]' : 'translate-x-0.5'}`}
                 >
                     {thumbIcon === 'theme' &&
                         (checked ? (
@@ -605,11 +645,7 @@ function LinkRow({ to, label }: { to: string; label: string }) {
 }
 
 function ContactItem({
-    icon: Icon,
-    iconColor,
-    label,
-    value,
-    onCopy,
+    icon: Icon, iconColor, label, value, onCopy,
 }: {
     icon: any;
     iconColor: string;
