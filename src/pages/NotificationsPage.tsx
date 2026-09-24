@@ -19,8 +19,6 @@ interface NotifGroup {
   items: NotifItem[];
 }
 
-// Chronological data earns a real grouping — "Today" vs "Earlier" tells the reader
-// something the timestamp alone doesn't: how fresh the whole batch is at a glance.
 function groupByDate(notifs: NotifItem[]): NotifGroup[] {
   const today: NotifItem[] = [];
   const yesterday: NotifItem[] = [];
@@ -106,7 +104,7 @@ function NotificationsPage() {
   const handleMarkAllRead = async () => {
     if (!user || unreadCount === 0) return;
     const prev = notifs;
-    setNotifs((cur) => cur.map((n) => ({ ...n, read: true }))); // optimistic
+    setNotifs((cur) => cur.map((n) => ({ ...n, read: true })));
 
     try {
       const res = await fetch(`${import.meta.env.VITE_SUPABASE_FUNCTIONS_URL}/Mark_Read`, {
@@ -130,116 +128,162 @@ function NotificationsPage() {
   };
 
   return (
-    <div className="mx-auto w-full max-w-xl px-4 pt-4 pb-6 animate-in fade-in slide-in-from-bottom-3 duration-300">
-      <header className="sticky top-0 z-20 -mx-4 mb-4 flex items-center gap-3 border-b border-border bg-background/95 px-4 py-3 backdrop-blur">
-        <button
-          type="button"
-          aria-label="Go back"
-          onClick={() => navigate('/')}
-          className="rounded-full p-2 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-        >
-          <ArrowLeft className="h-5 w-5" />
-        </button>
-        <div className="flex flex-1 items-center gap-2">
-          <h1 className="text-lg font-bold">Notifications</h1>
-          {unreadCount > 0 && (
-            <span className="rounded-full bg-primary/15 px-1.5 py-0.5 text-[10px] font-bold text-primary">
-              {unreadCount} new
-            </span>
-          )}
-        </div>
-        <button
-          type="button"
-          onClick={fetchNotifications}
-          disabled={!user || loading}
-          className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold text-primary transition-colors hover:bg-primary/10 disabled:opacity-40"
-        >
-          <RefreshCw className={cn('h-4 w-4', loading && 'animate-spin')} />
-          Refresh
-        </button>
-      </header>
+    <div className="min-h-screen bg-[#08090b] text-white">
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&family=Inter:wght@400;500;600&display=swap');
+        .np-display { font-family: 'Rajdhani', sans-serif; letter-spacing: 0.01em; }
+        .np-body { font-family: 'Inter', sans-serif; }
+      `}</style>
 
-      {authLoading ? (
-        <SkeletonList />
-      ) : !user ? (
-        <div className="grid place-items-center rounded-2xl border border-dashed border-border px-6 py-16 text-center">
-          <LogIn className="h-8 w-8 text-muted-foreground" />
-          <p className="mt-3 text-lg font-semibold">Sign in to see your notifications</p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Claims, follows, and updates about your matches live here.
-          </p>
-          {login && (
-            <button
-              onClick={() => login()}
-              className="mt-4 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
-            >
-              Sign in
-            </button>
-          )}
-        </div>
-      ) : loading ? (
-        <SkeletonList />
-      ) : error ? (
-        <div className="grid place-items-center rounded-2xl border border-dashed border-destructive/30 bg-destructive/5 px-6 py-16 text-center">
-          <AlertCircle className="h-8 w-8 text-destructive" />
-          <p className="mt-3 font-semibold text-destructive">{error}</p>
-          <p className="mt-1 text-sm text-muted-foreground">Your notifications couldn't be loaded.</p>
+      <div className="mx-auto w-full max-w-xl px-4 pb-24 np-body">
+        {/* Header — sticky, subtle, matches IndexPage header */}
+        <header className="sticky top-0 z-20 -mx-4 mb-5 flex items-center gap-3 border-b border-white/[0.06] bg-[#08090b]/85 px-4 py-3 backdrop-blur-xl">
           <button
-            onClick={fetchNotifications}
-            className="mt-4 rounded-full border border-border px-4 py-1.5 text-sm font-semibold text-primary transition-colors hover:bg-primary/10"
+            type="button"
+            aria-label="Go back"
+            onClick={() => navigate('/')}
+            className="rounded-full p-2 text-gray-400 transition-colors hover:bg-white/5 hover:text-white"
           >
-            Try again
+            <ArrowLeft className="h-5 w-5" />
           </button>
-        </div>
-      ) : notifs.length === 0 ? (
-        <div className="grid place-items-center rounded-2xl border border-dashed border-border px-6 py-16 text-center">
-          <BellOff className="h-8 w-8 text-muted-foreground" />
-          <p className="mt-3 text-lg font-semibold">All caught up</p>
-          <p className="mt-1 text-sm text-muted-foreground">No notifications right now.</p>
-        </div>
-      ) : (
-        <>
-          {unreadCount > 0 && (
-            <div className="mb-4 flex items-center justify-between">
-              <p className="text-sm text-muted-foreground">{unreadCount} unread</p>
-              <button
-                onClick={handleMarkAllRead}
-                className="flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
-              >
-                <CheckCheck className="h-4 w-4" />
-                Mark all read
-              </button>
-            </div>
-          )}
+          <div className="flex flex-1 items-center gap-2">
+            <h1 className="np-display text-lg font-bold tracking-tight">Notifications</h1>
+            {unreadCount > 0 && (
+              <span className="rounded-full border border-[#1E90FF]/25 bg-[#1E90FF]/10 px-2 py-0.5 text-[10px] font-bold text-[#5CA8FF]">
+                {unreadCount} new
+              </span>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={fetchNotifications}
+            disabled={!user || loading}
+            className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold text-[#5CA8FF] transition-colors hover:bg-[#1E90FF]/10 disabled:opacity-40"
+          >
+            <RefreshCw className={cn('h-4 w-4', loading && 'animate-spin')} />
+            Refresh
+          </button>
+        </header>
 
-          {groups.map((group) => (
-            <div key={group.label} className="mb-5 last:mb-0">
-              <p className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground/70">
-                {group.label}
-              </p>
-              <ul className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-card">
-                {group.items.map((n) => (
-                  <NotificationRow key={n.id} n={n} />
-                ))}
-              </ul>
+        {/* Content */}
+        {authLoading ? (
+          <SkeletonList />
+        ) : !user ? (
+          <EmptyState
+            icon={<LogIn className="h-7 w-7 text-gray-500" />}
+            title="Sign in to see your notifications"
+            body="Claims, follows, and updates about your matches live here."
+            action={
+              login && (
+                <button
+                  onClick={() => login()}
+                  className="mt-5 inline-flex items-center gap-2 rounded-full bg-[#1E90FF] px-5 py-2.5 text-sm font-semibold text-white transition hover:brightness-110"
+                >
+                  Sign in
+                </button>
+              )
+            }
+          />
+        ) : loading ? (
+          <SkeletonList />
+        ) : error ? (
+          <EmptyState
+            icon={<AlertCircle className="h-7 w-7 text-red-400" />}
+            title={error}
+            titleClass="text-red-400"
+            body="Your notifications couldn't be loaded."
+            action={
+              <button
+                onClick={fetchNotifications}
+                className="mt-5 rounded-full border border-white/10 px-5 py-2 text-sm font-semibold text-[#5CA8FF] transition-colors hover:bg-[#1E90FF]/10"
+              >
+                Try again
+              </button>
+            }
+          />
+        ) : notifs.length === 0 ? (
+          <EmptyState
+            icon={<BellOff className="h-7 w-7 text-gray-500" />}
+            title="All caught up"
+            body="No notifications right now."
+          />
+        ) : (
+          <>
+            {unreadCount > 0 && (
+              <div className="mb-4 flex items-center justify-between px-1">
+                <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
+                  {unreadCount} unread
+                </p>
+                <button
+                  onClick={handleMarkAllRead}
+                  className="flex items-center gap-1.5 text-xs font-semibold text-[#5CA8FF] transition-colors hover:text-[#7BB8FF]"
+                >
+                  <CheckCheck className="h-4 w-4" />
+                  Mark all read
+                </button>
+              </div>
+            )}
+
+            <div className="space-y-5">
+              {groups.map((group) => (
+                <div key={group.label}>
+                  <p className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-[0.15em] text-gray-600">
+                    {group.label}
+                  </p>
+                  <ul className="divide-y divide-white/[0.05] overflow-hidden rounded-2xl border border-white/[0.06] bg-[#141414]">
+                    {group.items.map((n) => (
+                      <NotificationRow key={n.id} n={n} />
+                    ))}
+                  </ul>
+                </div>
+              ))}
             </div>
-          ))}
-        </>
-      )}
+          </>
+        )}
+      </div>
     </div>
   );
 }
 
+/* ---------- Empty / status state ---------- */
+
+function EmptyState({
+  icon,
+  title,
+  body,
+  action,
+  titleClass,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  body: string;
+  action?: React.ReactNode;
+  titleClass?: string;
+}) {
+  return (
+    <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-white/[0.08] bg-[#101010] px-6 py-16 text-center">
+      <div className="grid h-12 w-12 place-items-center rounded-full border border-white/5 bg-[#161616]">
+        {icon}
+      </div>
+      <p className={cn('mt-4 text-base font-semibold', titleClass ?? 'text-white')}>{title}</p>
+      <p className="mt-1 max-w-xs text-sm text-gray-500">{body}</p>
+      {action}
+    </div>
+  );
+}
+
+/* ---------- Skeleton ---------- */
+
 function SkeletonList() {
   return (
-    <ul className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-card">
+    <ul className="divide-y divide-white/[0.05] overflow-hidden rounded-2xl border border-white/[0.06] bg-[#141414]">
       {[0, 1, 2, 3, 4].map((i) => (
         <li key={i} className="flex items-start gap-3 px-4 py-3.5">
-          <span className="h-9 w-9 shrink-0 animate-pulse rounded-full bg-secondary" />
+          <span className="h-9 w-9 shrink-0 animate-pulse rounded-full bg-[#1f1f1f]" />
           <span className="min-w-0 flex-1 space-y-1.5 pt-0.5">
-            <span className="block h-3 w-1/2 animate-pulse rounded bg-secondary" />
-            <span className="block h-2.5 w-4/5 animate-pulse rounded bg-secondary" />
-            <span className="block h-2 w-1/4 animate-pulse rounded bg-secondary" />
+            <span className="block h-3 w-1/2 animate-pulse rounded bg-[#1f1f1f]" />
+            <span className="block h-2.5 w-4/5 animate-pulse rounded bg-[#1f1f1f]" />
+            <span className="block h-2 w-1/4 animate-pulse rounded bg-[#1f1f1f]" />
           </span>
         </li>
       ))}
