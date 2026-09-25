@@ -40,6 +40,13 @@ export function NavRail() {
     fetchUnreadCount();
   }, [user?.id]);
 
+  // Listen for manual "mark all read" from NotificationsPage / bell panel
+  useEffect(() => {
+    const handler = () => fetchUnreadCount();
+    window.addEventListener('ctr:notifications-updated', handler);
+    return () => window.removeEventListener('ctr:notifications-updated', handler);
+  }, [user?.id]);
+
   // Realtime subscription + popup trigger
   useEffect(() => {
     if (!user?.id) return;
@@ -81,43 +88,45 @@ export function NavRail() {
 
   return (
     <>
-      {/* Notification popup (fixed, non-blocking) */}
+      {/* Toast-style popup — appears below the bell, doesn't overlap */}
       {popup && (
         <div
-          className="fixed top-4 left-1/2 z-[70] w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 md:left-auto md:right-4 md:translate-x-0"
+          className="fixed top-20 right-4 left-4 z-[70] mx-auto max-w-sm md:left-auto md:right-5 md:mx-0"
           role="alert"
           aria-live="assertive"
         >
-          <div className="bg-[#141414] border border-white/10 shadow-2xl rounded-2xl p-4 animate-in slide-in-from-top-2 fade-in duration-200">
-            <div className="flex items-start gap-3">
-              <div className="h-10 w-10 flex-shrink-0 rounded-full bg-[#1E90FF]/15 flex items-center justify-center">
-                <Bell className="h-5 w-5 text-[#1E90FF]" />
+          <div className="overflow-hidden rounded-xl border border-white/[0.08] bg-[#141414] shadow-[0_16px_48px_-12px_rgba(0,0,0,0.9)] animate-in slide-in-from-top-1 fade-in duration-150">
+            <div className="flex items-start gap-3 p-3">
+              <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-white/[0.04]">
+                <Bell className="h-4 w-4 text-[#5CA8FF]" />
               </div>
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center justify-between gap-2">
-                  <h4 className="text-sm font-semibold text-white truncate">{popup.title}</h4>
+              <div className="min-w-0 flex-1 pt-0.5">
+                <div className="flex items-start justify-between gap-2">
+                  <p className="truncate text-[13px] font-semibold text-white">
+                    {popup.title}
+                  </p>
                   <button
                     onClick={() => setPopup(null)}
-                    className="text-gray-400 hover:text-white transition p-0.5"
+                    className="-mt-0.5 -mr-0.5 shrink-0 rounded-md p-1 text-gray-500 transition-colors hover:bg-white/[0.05] hover:text-gray-200"
                     aria-label="Dismiss notification"
                   >
-                    <X className="h-4 w-4" />
+                    <X className="h-3.5 w-3.5" />
                   </button>
                 </div>
-                <p className="mt-0.5 text-xs text-gray-400 line-clamp-2">{popup.detail}</p>
+                <p className="mt-0.5 line-clamp-2 text-[12px] leading-relaxed text-gray-500">
+                  {popup.detail}
+                </p>
               </div>
             </div>
-            <div className="mt-3 flex justify-end">
-              <button
-                onClick={() => {
-                  setPopup(null);
-                  navigate('/notifications');
-                }}
-                className="text-xs font-medium text-[#1E90FF] hover:underline"
-              >
-                View notifications
-              </button>
-            </div>
+            <button
+              onClick={() => {
+                setPopup(null);
+                navigate('/notifications');
+              }}
+              className="block w-full border-t border-white/[0.06] px-4 py-2 text-left text-[11px] font-semibold text-[#5CA8FF] transition-colors hover:bg-white/[0.03]"
+            >
+              View notifications →
+            </button>
           </div>
         </div>
       )}
@@ -125,7 +134,7 @@ export function NavRail() {
       {/* Desktop: fixed left icon rail */}
       <nav
         aria-label="Main navigation"
-        className="fixed inset-y-0 left-0 z-40 hidden w-20 flex-col items-center justify-center gap-7 border-r border-border bg-background/95 md:flex"
+        className="fixed inset-y-0 left-0 z-40 hidden w-20 flex-col items-center justify-center gap-7 border-r border-white/[0.06] bg-[#08090b]/95 md:flex"
       >
         {BASE_ITEMS.map((item) => {
           const active = item.to === "/" ? pathname === "/" : pathname.startsWith(item.to);
@@ -137,7 +146,7 @@ export function NavRail() {
                 key={item.to}
                 to={item.to}
                 aria-label={item.label}
-                className="group relative translate-x-2 rounded-full bg-primary p-3.5 text-primary-foreground transition-transform duration-200 hover:scale-110 glow-blue"
+                className="group relative translate-x-2 rounded-full bg-[#1E90FF] p-3.5 text-white transition-transform duration-200 hover:scale-110 glow-blue"
               >
                 <Icon className="h-6 w-6" strokeWidth={2.5} />
                 <Tooltip label={item.label} />
@@ -155,8 +164,8 @@ export function NavRail() {
               className={cn(
                 "group relative rounded-xl p-2.5 transition-colors",
                 active
-                  ? "bg-accent text-primary"
-                  : "text-muted-foreground hover:bg-secondary hover:text-foreground",
+                  ? "bg-white/[0.05] text-[#5CA8FF]"
+                  : "text-gray-500 hover:bg-white/[0.04] hover:text-gray-200",
               )}
             >
               <span className="relative inline-flex">
@@ -168,9 +177,9 @@ export function NavRail() {
           );
         })}
 
-        {/* Profile / Login button – the watchdog */}
+        {/* Profile / Login button */}
         {isLoading ? (
-          <div className="rounded-xl p-2.5 text-muted-foreground opacity-50">
+          <div className="rounded-xl p-2.5 text-gray-500 opacity-50">
             <User className="h-6 w-6" />
           </div>
         ) : isAuthenticated ? (
@@ -180,8 +189,8 @@ export function NavRail() {
             className={cn(
               "group relative rounded-xl p-2.5 transition-colors",
               pathname.startsWith("/onboarding") || pathname.startsWith("/profile")
-                ? "bg-accent text-primary"
-                : "text-muted-foreground hover:bg-secondary hover:text-foreground",
+                ? "bg-white/[0.05] text-[#5CA8FF]"
+                : "text-gray-500 hover:bg-white/[0.04] hover:text-gray-200",
             )}
           >
             <User className="h-6 w-6" />
@@ -192,7 +201,7 @@ export function NavRail() {
             onClick={() => login({ prompt: PromptTypes.login })}
             aria-label="Sign in"
             className={cn(
-              "group relative rounded-xl p-2.5 transition-colors text-muted-foreground hover:bg-secondary hover:text-foreground",
+              "group relative rounded-xl p-2.5 transition-colors text-gray-500 hover:bg-white/[0.04] hover:text-gray-200",
             )}
           >
             <User className="h-6 w-6" />
@@ -204,7 +213,7 @@ export function NavRail() {
       {/* Mobile: fixed bottom bar */}
       <nav
         aria-label="Main navigation"
-        className="fixed inset-x-0 bottom-0 z-40 grid h-16 grid-cols-5 items-center border-t border-border bg-background/95 backdrop-blur md:hidden"
+        className="fixed inset-x-0 bottom-0 z-40 grid h-16 grid-cols-5 items-center border-t border-white/[0.06] bg-[#08090b]/95 backdrop-blur md:hidden"
       >
         {BASE_ITEMS.map((item) => {
           const active = item.to === "/" ? pathname === "/" : pathname.startsWith(item.to);
@@ -216,7 +225,7 @@ export function NavRail() {
                 key={item.to}
                 to={item.to}
                 aria-label={item.label}
-                className="mx-auto grid h-14 w-14 -translate-y-4 place-items-center rounded-full bg-primary text-primary-foreground transition-transform duration-200 active:scale-95 glow-blue"
+                className="mx-auto grid h-14 w-14 -translate-y-4 place-items-center rounded-full bg-[#1E90FF] text-white transition-transform duration-200 active:scale-95 glow-blue"
               >
                 <Icon className="h-7 w-7" strokeWidth={2.5} />
               </Link>
@@ -232,7 +241,7 @@ export function NavRail() {
               aria-label={item.label}
               className={cn(
                 "mx-auto grid h-full w-full place-items-center transition-colors",
-                active ? "text-primary" : "text-muted-foreground",
+                active ? "text-[#5CA8FF]" : "text-gray-500",
               )}
             >
               <span className="relative inline-flex">
@@ -245,7 +254,7 @@ export function NavRail() {
 
         {/* Profile / Login for mobile */}
         {isLoading ? (
-          <div className="mx-auto grid h-full w-full place-items-center text-muted-foreground opacity-50">
+          <div className="mx-auto grid h-full w-full place-items-center text-gray-500 opacity-50">
             <User className="h-6 w-6" />
           </div>
         ) : isAuthenticated ? (
@@ -255,8 +264,8 @@ export function NavRail() {
             className={cn(
               "mx-auto grid h-full w-full place-items-center transition-colors",
               pathname.startsWith("/onboarding") || pathname.startsWith("/profile")
-                ? "text-primary"
-                : "text-muted-foreground",
+                ? "text-[#5CA8FF]"
+                : "text-gray-500",
             )}
           >
             <User className="h-6 w-6" />
@@ -264,7 +273,7 @@ export function NavRail() {
         ) : (
           <button
             onClick={() => login({ prompt: PromptTypes.login })}
-            className="mx-auto grid h-full w-full place-items-center text-muted-foreground"
+            className="mx-auto grid h-full w-full place-items-center text-gray-500"
           >
             <User className="h-6 w-6" />
           </button>
@@ -276,7 +285,7 @@ export function NavRail() {
 
 function UnreadBadge({ count }: { count: number }) {
   return (
-    <span className="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground ring-2 ring-background">
+    <span className="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-[#1E90FF] px-1 text-[10px] font-bold text-white ring-2 ring-[#08090b]">
       {count > 99 ? '99+' : count}
     </span>
   );
@@ -284,7 +293,7 @@ function UnreadBadge({ count }: { count: number }) {
 
 function Tooltip({ label }: { label: string }) {
   return (
-    <span className="pointer-events-none absolute left-full top-1/2 z-50 ml-4 -translate-y-1/2 translate-x-1 rounded-md border border-border bg-popover px-2.5 py-1 text-xs font-medium whitespace-nowrap text-popover-foreground opacity-0 shadow-lg transition-all duration-150 group-hover:translate-x-0 group-hover:opacity-100">
+    <span className="pointer-events-none absolute left-full top-1/2 z-50 ml-4 -translate-y-1/2 translate-x-1 rounded-md border border-white/[0.08] bg-[#141414] px-2.5 py-1 text-xs font-medium whitespace-nowrap text-gray-200 opacity-0 shadow-lg transition-all duration-150 group-hover:translate-x-0 group-hover:opacity-100">
       {label}
     </span>
   );

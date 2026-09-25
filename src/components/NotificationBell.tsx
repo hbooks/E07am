@@ -11,15 +11,15 @@ import { MESSAGE_MAP } from '@/lib/notificationMessages';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabaseClient';
 
-// Each notification "kind" gets its own icon + accent, so the list stays scannable
-// without reading every line — colour tells you what you're looking at before the text does.
+// Restrained per-kind accent. Icon tints only — no background, no glow.
 const KIND_STYLES = {
-  claim: { icon: Swords, color: 'text-blue-400', bg: 'bg-blue-500/15' },
-  match: { icon: Swords, color: 'text-cyan-400', bg: 'bg-cyan-500/15' },
-  follow: { icon: UserPlus, color: 'text-violet-400', bg: 'bg-violet-500/15' },
-  admin: { icon: Megaphone, color: 'text-amber-400', bg: 'bg-amber-500/15' },
+  claim: { icon: Swords, color: '#5CA8FF' },
+  match: { icon: Swords, color: '#22d3ee' },
+  follow: { icon: UserPlus, color: '#a78bfa' },
+  admin: { icon: Megaphone, color: '#f59e0b' },
 } as const;
-const DEFAULT_KIND_STYLE = { icon: Megaphone, color: 'text-muted-foreground', bg: 'bg-secondary' };
+
+const DEFAULT_KIND_STYLE = { icon: Megaphone, color: '#9ca3af' };
 
 interface NotifItem {
   id: number;
@@ -38,7 +38,6 @@ export function NotificationBell() {
   const [ring, setRing] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
   const prevUnreadRef = useRef<number | null>(null);
-  const hasLoadedRef = useRef(false);
 
   const fetchNotifications = useCallback(async () => {
     if (!user) return;
@@ -60,9 +59,7 @@ export function NotificationBell() {
   }, [user]);
 
   useEffect(() => {
-    if (user) {
-      fetchNotifications();
-    }
+    if (user) fetchNotifications();
   }, [user, fetchNotifications]);
 
   useEffect(() => {
@@ -72,52 +69,30 @@ export function NotificationBell() {
       .channel(`notif-bell-${user.id}`)
       .on(
         'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'notifications',
-          filter: `user_id=eq.${user.id}`,
-        },
-        () => {
-          fetchNotifications();
-        }
+        { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` },
+        () => fetchNotifications(),
       )
       .on(
         'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'notifications',
-          filter: `user_id=eq.${user.id}`,
-        },
-        () => {
-          fetchNotifications();
-        }
+        { event: 'UPDATE', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` },
+        () => fetchNotifications(),
       )
       .subscribe();
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return () => { supabase.removeChannel(channel); };
   }, [user, fetchNotifications]);
 
   const unread = notifs.filter((n) => !n.read).length;
 
-  // One-shot "something just arrived" cue — never a looping animation, just a single ring on increase.
   useEffect(() => {
     if (prevUnreadRef.current !== null && unread > prevUnreadRef.current) {
       setRing(true);
-      const t = setTimeout(() => setRing(false), 650);
+      const t = setTimeout(() => setRing(false), 700);
       return () => clearTimeout(t);
     }
     prevUnreadRef.current = unread;
   }, [unread]);
 
-  useEffect(() => {
-    if (!loading && notifs.length >= 0) hasLoadedRef.current = true;
-  }, [loading, notifs]);
-
-  // Close on outside click / Escape
   useEffect(() => {
     if (!open) return;
     const onPointerDown = (e: PointerEvent) => {
@@ -137,7 +112,7 @@ export function NotificationBell() {
   const handleMarkAllRead = async () => {
     if (!user || unread === 0) return;
     const prev = notifs;
-    setNotifs((cur) => cur.map((n) => ({ ...n, read: true }))); // optimistic
+    setNotifs((cur) => cur.map((n) => ({ ...n, read: true })));
     try {
       const res = await fetch(`${import.meta.env.VITE_SUPABASE_FUNCTIONS_URL}/Mark_Read`, {
         method: 'POST',
@@ -162,10 +137,10 @@ export function NotificationBell() {
       <Link
         to="/notifications"
         aria-label={`Notifications, ${unread} unread`}
-        className="fixed right-4 top-4 z-50 grid h-11 w-11 place-items-center rounded-full border border-border bg-card/90 backdrop-blur transition-colors hover:bg-secondary"
+        className="fixed right-4 top-4 z-50 grid h-11 w-11 place-items-center rounded-full border border-white/[0.06] bg-[#141414]/90 backdrop-blur transition-colors hover:bg-[#1a1a1a]"
       >
-        <Bell className={cn('h-5 w-5', ring && 'animate-[nb-ring_.6s_ease-in-out]')} />
-        {unread > 0 && <UnreadBadge count={unread} pulse={ring} />}
+        <Bell className={cn('h-5 w-5', ring && 'animate-[nb-ring_.65s_ease-in-out]')} />
+        {unread > 0 && <UnreadBadge count={unread} />}
       </Link>
     );
   }
@@ -175,15 +150,18 @@ export function NotificationBell() {
       <style>{`
         @keyframes nb-ring {
           0%, 100% { transform: rotate(0deg); }
-          20% { transform: rotate(-14deg); }
-          40% { transform: rotate(11deg); }
-          60% { transform: rotate(-7deg); }
-          80% { transform: rotate(4deg); }
+          20% { transform: rotate(-12deg); }
+          40% { transform: rotate(9deg); }
+          60% { transform: rotate(-6deg); }
+          80% { transform: rotate(3deg); }
         }
-        @keyframes nb-pop {
-          0% { transform: scale(0.6); }
-          60% { transform: scale(1.15); }
-          100% { transform: scale(1); }
+        @keyframes nb-slide-in {
+          from { opacity: 0; transform: translateY(-6px); }
+          to   { opacity: 1; transform: translateY(0);    }
+        }
+        @keyframes nb-row-in {
+          from { opacity: 0; }
+          to   { opacity: 1; }
         }
       `}</style>
 
@@ -196,33 +174,35 @@ export function NotificationBell() {
           if (!open) fetchNotifications();
         }}
         className={cn(
-          'grid h-11 w-11 place-items-center rounded-full border border-border bg-card/90 backdrop-blur transition-colors hover:bg-secondary',
-          open && 'border-primary/60 text-primary glow-blue-soft',
+          'relative grid h-11 w-11 place-items-center rounded-full border border-white/[0.06] bg-[#141414]/90 backdrop-blur transition-colors',
+          'hover:bg-[#1a1a1a]',
+          open && 'border-white/[0.12] bg-[#1a1a1a]',
         )}
       >
-        <Bell className={cn('h-5 w-5', ring && 'animate-[nb-ring_.6s_ease-in-out]')} />
-        {unread > 0 && <UnreadBadge count={unread} pulse={ring} />}
+        <Bell className={cn('h-5 w-5 text-gray-300', ring && 'animate-[nb-ring_.65s_ease-in-out]')} />
+        {unread > 0 && <UnreadBadge count={unread} />}
       </button>
 
       {open && (
-        <div className="animate-in fade-in slide-in-from-top-2 absolute right-0 top-14 w-80 overflow-hidden rounded-2xl border border-border bg-popover shadow-2xl duration-150 sm:w-96">
-          <div className="flex items-center justify-between border-b border-border px-4 py-3">
+        <div className="absolute right-0 top-14 w-80 overflow-hidden rounded-xl border border-white/[0.08] bg-[#141414] shadow-[0_16px_48px_-12px_rgba(0,0,0,0.9)] animate-[nb-slide-in_.15s_ease-out] sm:w-96">
+          {/* Header */}
+          <div className="flex items-center justify-between border-b border-white/[0.06] px-4 py-3">
             <div className="flex items-center gap-2">
-              <p className="text-sm font-semibold">Notifications</p>
+              <p className="text-sm font-semibold text-white">Notifications</p>
               {unread > 0 && (
-                <span className="rounded-full bg-primary/15 px-1.5 py-0.5 text-[10px] font-bold text-primary">
-                  {unread} new
+                <span className="rounded-full bg-[#1E90FF] px-1.5 py-0.5 text-[10px] font-bold text-white">
+                  {unread}
                 </span>
               )}
             </div>
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-0.5">
               {unread > 0 && (
                 <button
                   type="button"
                   aria-label="Mark all as read"
                   title="Mark all as read"
                   onClick={handleMarkAllRead}
-                  className="rounded-full p-1 text-muted-foreground hover:bg-secondary hover:text-foreground"
+                  className="rounded-md p-1.5 text-gray-500 transition-colors hover:bg-white/[0.05] hover:text-gray-200"
                 >
                   <CheckCheck className="h-4 w-4" />
                 </button>
@@ -232,7 +212,7 @@ export function NotificationBell() {
                 aria-label="Refresh"
                 title="Refresh"
                 onClick={fetchNotifications}
-                className="rounded-full p-1 text-muted-foreground hover:bg-secondary hover:text-foreground"
+                className="rounded-md p-1.5 text-gray-500 transition-colors hover:bg-white/[0.05] hover:text-gray-200"
               >
                 <RefreshCw className={cn('h-4 w-4', loading && 'animate-spin')} />
               </button>
@@ -240,13 +220,14 @@ export function NotificationBell() {
                 type="button"
                 aria-label="Close notifications"
                 onClick={() => setOpen(false)}
-                className="rounded-full p-1 text-muted-foreground hover:bg-secondary hover:text-foreground"
+                className="rounded-md p-1.5 text-gray-500 transition-colors hover:bg-white/[0.05] hover:text-gray-200"
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
           </div>
 
+          {/* Body */}
           <div className="relative">
             {loading ? (
               <ul>
@@ -256,33 +237,34 @@ export function NotificationBell() {
               </ul>
             ) : error ? (
               <div className="grid place-items-center gap-2 px-4 py-10 text-center">
-                <AlertCircle className="h-6 w-6 text-destructive" />
-                <p className="text-sm text-muted-foreground">{error}</p>
+                <AlertCircle className="h-5 w-5 text-red-400" />
+                <p className="text-sm text-gray-400">{error}</p>
                 <button
                   onClick={fetchNotifications}
-                  className="text-xs font-semibold text-primary hover:underline"
+                  className="text-xs font-semibold text-[#5CA8FF] hover:underline"
                 >
                   Try again
                 </button>
               </div>
             ) : notifs.length === 0 ? (
               <div className="grid place-items-center gap-2 py-12 px-4 text-center">
-                <BellOff className="h-7 w-7 text-muted-foreground" />
-                <p className="text-sm text-muted-foreground">No notifications yet.</p>
-                <p className="text-xs text-muted-foreground/70">
+                <BellOff className="h-6 w-6 text-gray-600" />
+                <p className="text-sm text-gray-400">No notifications yet.</p>
+                <p className="text-xs text-gray-600">
                   Claims, follows, and updates will show up here.
                 </p>
               </div>
             ) : (
-              <>
-                <ul className="max-h-96 overflow-y-auto">
-                  {notifs.map((n) => (
-                    <NotificationRow key={n.id} n={n} onNavigate={() => setOpen(false)} />
-                  ))}
-                </ul>
-                {/* Scroll hint — fades the last row rather than cutting it off sharply */}
-                <div className="pointer-events-none absolute inset-x-0 bottom-0 h-6 bg-gradient-to-t from-popover to-transparent" />
-              </>
+              <ul className="max-h-96 overflow-y-auto">
+                {notifs.map((n, i) => (
+                  <NotificationRow
+                    key={n.id}
+                    n={n}
+                    onNavigate={() => setOpen(false)}
+                    index={i}
+                  />
+                ))}
+              </ul>
             )}
           </div>
 
@@ -290,7 +272,7 @@ export function NotificationBell() {
             <Link
               to="/notifications"
               onClick={() => setOpen(false)}
-              className="flex items-center justify-center gap-1 border-t border-border px-4 py-2.5 text-xs font-semibold text-primary transition-colors hover:bg-secondary/70"
+              className="flex items-center justify-center gap-1 border-t border-white/[0.06] px-4 py-2.5 text-xs font-semibold text-[#5CA8FF] transition-colors hover:bg-white/[0.03]"
             >
               View all notifications
               <ChevronRight className="h-3.5 w-3.5" />
@@ -302,12 +284,17 @@ export function NotificationBell() {
   );
 }
 
+/* ============================================================
+   NotificationRow — classic and clean
+   ============================================================ */
 export function NotificationRow({
   n,
   onNavigate,
+  index,
 }: {
   n: NotifItem;
   onNavigate?: () => void;
+  index?: number;
 }) {
   const msg = MESSAGE_MAP[n.mes] || {
     title: 'New notification',
@@ -318,32 +305,48 @@ export function NotificationRow({
   const Icon = style.icon;
   const timeAgo = formatTimeAgo(n.created_at);
 
+  const delay = index !== undefined ? Math.min(index, 8) * 25 : 0;
+
   return (
-    <li>
+    <li
+      className="border-b border-white/[0.04] last:border-b-0"
+      style={{
+        animation: `nb-row-in .2s ease-out ${delay}ms both`,
+      }}
+    >
       <Link
         to="/notifications"
         onClick={onNavigate}
         className={cn(
-          'group relative flex items-start gap-3 border-l-2 border-transparent px-4 py-3 transition-colors hover:bg-secondary/70',
-          !n.read && 'border-l-current bg-accent/30',
-          !n.read && style.color,
+          'group flex items-start gap-3 px-4 py-3 transition-colors hover:bg-white/[0.03]',
+          !n.read && 'bg-white/[0.015]',
         )}
       >
-        <span className={cn('mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-full', style.bg, style.color)}>
-          <Icon className="h-4 w-4" />
+        <span className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-full bg-white/[0.04]">
+          <Icon className="h-4 w-4" style={{ color: style.color }} />
         </span>
-        <span className="min-w-0 flex-1 text-current">
-          <span className="flex items-center gap-2">
-            <span className={cn('truncate text-sm font-semibold', !n.read ? 'text-foreground' : 'text-foreground/90')}>
+
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start gap-2">
+            <p
+              className={cn(
+                'flex-1 truncate text-[13px] leading-snug',
+                n.read ? 'font-medium text-gray-400' : 'font-semibold text-white',
+              )}
+            >
               {msg.title}
-            </span>
-          </span>
-          <span className="mt-0.5 block text-xs leading-relaxed text-muted-foreground">
+            </p>
+            {!n.read && (
+              <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[#1E90FF]" />
+            )}
+          </div>
+          <p className="mt-0.5 line-clamp-2 text-[12px] leading-relaxed text-gray-500">
             {msg.detail}
-          </span>
-          <span className="mt-1 block text-[11px] text-muted-foreground/70">{timeAgo}</span>
-        </span>
-        <ChevronRight className="mt-2 h-4 w-4 shrink-0 text-muted-foreground/50 transition-transform group-hover:translate-x-0.5" />
+          </p>
+          <p className="mt-1 text-[11px] text-gray-600">{timeAgo}</p>
+        </div>
+
+        <ChevronRight className="mt-2.5 h-4 w-4 shrink-0 text-gray-700 opacity-0 transition-opacity group-hover:opacity-100" />
       </Link>
     </li>
   );
@@ -351,25 +354,20 @@ export function NotificationRow({
 
 function RowSkeleton() {
   return (
-    <li className="flex items-start gap-3 px-4 py-3">
-      <span className="h-9 w-9 shrink-0 animate-pulse rounded-full bg-secondary" />
-      <span className="min-w-0 flex-1 space-y-1.5 pt-0.5">
-        <span className="block h-3 w-2/3 animate-pulse rounded bg-secondary" />
-        <span className="block h-2.5 w-4/5 animate-pulse rounded bg-secondary" />
-        <span className="block h-2 w-1/4 animate-pulse rounded bg-secondary" />
-      </span>
+    <li className="flex items-start gap-3 border-b border-white/[0.04] px-4 py-3 last:border-b-0">
+      <span className="h-8 w-8 shrink-0 animate-pulse rounded-full bg-white/[0.04]" />
+      <div className="min-w-0 flex-1 space-y-1.5 pt-0.5">
+        <div className="h-3 w-1/2 animate-pulse rounded bg-white/[0.04]" />
+        <div className="h-2.5 w-4/5 animate-pulse rounded bg-white/[0.04]" />
+        <div className="h-2 w-1/4 animate-pulse rounded bg-white/[0.04]" />
+      </div>
     </li>
   );
 }
 
-function UnreadBadge({ count, pulse }: { count: number; pulse?: boolean }) {
+function UnreadBadge({ count }: { count: number }) {
   return (
-    <span
-      className={cn(
-        'absolute -right-0.5 -top-0.5 grid h-5 min-w-5 place-items-center rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground ring-2 ring-background',
-        pulse && 'animate-[nb-pop_.4s_cubic-bezier(0.34,1.56,0.64,1)]',
-      )}
-    >
+    <span className="absolute -right-0.5 -top-0.5 grid h-5 min-w-5 place-items-center rounded-full bg-[#1E90FF] px-1 text-[10px] font-bold text-white ring-2 ring-[#141414]">
       {count > 99 ? '99+' : count}
     </span>
   );
