@@ -2,10 +2,10 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
-    ChevronLeft, ChevronRight, Moon, Sun, Bell, Eye, Shield, FileText,
-    Mail, Copy, X, AlertTriangle, Send, UserCog, Loader2, CheckCircle,
+    ChevronLeft, ChevronRight, ChevronDown, Moon, Sun, Bell, Eye, Shield, FileText,
+    Mail, Copy, X, AlertTriangle, Send, UserCog, Loader2, CheckCircle, LogOut,
+ Camera, Music2,
 } from 'lucide-react';
-import { SiInstagram, SiTiktok } from 'react-icons/si';
 import { useKindeAuth } from '@kinde-oss/kinde-auth-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 import {
@@ -14,15 +14,13 @@ import {
     REQUEST_REASON_MAX,
 } from '@/lib/sanitizeRequest';
 
-const APP_VERSION = 'v1.0.0';
+const APP_VERSION = 'v1.0.1';
 
 const ACTIVE_REQUEST_CACHE_KEY = 'ctr_active_request_';
-const CACHE_EXPIRY_MS = 60 * 60 * 1000; // 1 hour
+const CACHE_EXPIRY_MS = 60 * 60 * 1000;
 
-// Base URL for your Edge Functions (set in .env as VITE_SUPABASE_FUNCTIONS_URL)
 const FUNCTIONS_URL = import.meta.env.VITE_SUPABASE_FUNCTIONS_URL as string;
 
-// Default settings
 const defaultSettings = {
     darkMode: false,
     pushNotifications: true,
@@ -43,38 +41,34 @@ const CONTACT = {
     instagram: {
         label: 'Instagram',
         handle: '@claim.the.room',
-        icon: SiInstagram,
+        icon: Camera,
         iconColor: '#E4405F',
-        url: 'https://instagram.com/claim.the.room',
     },
     tiktok: {
         label: 'TikTok',
         handle: '@Claimtheroom',
-        icon: SiTiktok,
-        iconColor: '#000000',
-        url: 'https://tiktok.com/@claimtheroom',
+        icon: Music2,
+        iconColor: '#ffffff',
     },
     email: {
         label: 'Email',
         handle: 'support@hpbooks.uk',
         icon: Mail,
-        iconColor: '#6B7280',
-        url: 'mailto:support@hpbooks.uk',
+        iconColor: '#9ca3af',
     },
 };
 
 const FOCUS_RING =
-    'focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1E90FF] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0A0A0A]';
-const PRESS = 'active:scale-[0.97]';
+    'focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1E90FF] focus-visible:ring-offset-2 focus-visible:ring-offset-[#08090b]';
 
 type RequestType = 'report_abuse' | 'request_changes' | 'delete_account';
 
 export default function SettingsPage() {
     const navigate = useNavigate();
-    const isMobile = useIsMobile();
+    useIsMobile();
     const { user, getToken } = useKindeAuth();
+    const { logout } = useKindeAuth();
 
-    // ---- Settings ----
     const [settings, setSettings] = useState<SettingsType>(() => {
         try {
             const stored = localStorage.getItem('userSettings');
@@ -83,24 +77,24 @@ export default function SettingsPage() {
         return defaultSettings;
     });
 
-    // ---- Support form ----
+    const [isLoggingOut, setIsLoggingOut] = useState(false);
+
     const [requestType, setRequestType] = useState<RequestType>('report_abuse');
     const [requestReason, setRequestReason] = useState('');
     const [submitting, setSubmitting] = useState(false);
     const [hasActiveRequest, setHasActiveRequest] = useState(false);
     const [activeRequestStatus, setActiveRequestStatus] = useState<string | null>(null);
     const [loadingRequestStatus, setLoadingRequestStatus] = useState(true);
+    const [supportOpen, setSupportOpen] = useState(false);
 
-    // ---- Modals ----
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [contactModalOpen, setContactModalOpen] = useState(false);
+    const [aboutOpen, setAboutOpen] = useState(false);
 
-    // Apply dark mode
     useEffect(() => {
         document.documentElement.classList.toggle('dark', settings.darkMode);
     }, [settings.darkMode]);
 
-    // ---- Check for existing active request (via Edge Function) ----
     useEffect(() => {
         if (!user?.id) {
             setLoadingRequestStatus(false);
@@ -135,7 +129,6 @@ export default function SettingsPage() {
                     headers: { Authorization: `Bearer ${token}` },
                 });
                 if (!res.ok) {
-                    // 404/401 etc — treat as no active request
                     setHasActiveRequest(false);
                     setActiveRequestStatus(null);
                     return;
@@ -161,7 +154,6 @@ export default function SettingsPage() {
         checkActiveRequest();
     }, [user?.id, getToken]);
 
-    // ---- Settings handlers ----
     const updateSetting = <K extends keyof SettingsType>(key: K, value: SettingsType[K]) => {
         const newSettings = { ...settings, [key]: value };
         setSettings(newSettings);
@@ -212,12 +204,19 @@ export default function SettingsPage() {
         }
     };
 
-    // ---- Input handler (blocks control chars live) ----
+    const handleLogout = () => {
+        setIsLoggingOut(true);
+        try {
+            localStorage.clear();
+            sessionStorage.clear();
+        } catch { /* ignore */ }
+        logout();
+    };
+
     const handleReasonChange = (value: string) => {
         setRequestReason(stripControlChars(value, REQUEST_REASON_MAX));
     };
 
-    // ---- Submit flow ----
     const handleSubmit = () => {
         const validation = validateRequestReason(requestReason);
         if (!validation.ok) {
@@ -295,6 +294,7 @@ export default function SettingsPage() {
             toast.success("Your request has been submitted. We'll review it and get back to you.");
             setRequestReason('');
             setRequestType('report_abuse');
+            setSupportOpen(false);
         } catch (err: any) {
             toast.error(err?.message ?? 'Failed to submit request.');
         } finally {
@@ -306,202 +306,323 @@ export default function SettingsPage() {
     const isFormDisabled = loadingRequestStatus || hasActiveRequest || submitting;
 
     return (
-        <div className="min-h-screen bg-[#0A0A0A] text-white cr-body">
+        <div className="min-h-screen bg-[#08090b] text-white">
             <style>{`
                 @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&family=Inter:wght@400;500;600&display=swap');
-                .cr-display { font-family: 'Rajdhani', sans-serif; letter-spacing: 0.02em; }
-                .cr-body { font-family: 'Inter', sans-serif; }
-                .cr-card {
-                    background: linear-gradient(180deg, #161616 0%, #121212 100%);
-                    box-shadow: inset 0 1px 0 0 rgba(255,255,255,0.05);
+                .sp-display { font-family: 'Rajdhani', sans-serif; letter-spacing: 0.01em; }
+                .sp-body { font-family: 'Inter', sans-serif; }
+                .sp-group {
+                    background: #0f0f11;
+                    border: 1px solid rgba(255,255,255,0.06);
+                    border-radius: 14px;
+                    overflow: hidden;
+                }
+                .sp-row {
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                    gap: 16px;
+                    padding: 14px 16px;
+                    transition: background-color .15s ease;
+                }
+                .sp-row + .sp-row,
+                .sp-row + .sp-row-group,
+                .sp-row-group + .sp-row-group {
+                    border-top: 1px solid rgba(255,255,255,0.05);
+                }
+                .sp-row-group + .sp-row,
+                .sp-row + .sp-row-group {
+                    border-top: 1px solid rgba(255,255,255,0.05);
+                }
+                a.sp-row:hover,
+                button.sp-row:hover {
+                    background: rgba(255,255,255,0.02);
+                }
+                .sp-label {
+                    font-size: 11px;
+                    font-weight: 600;
+                    letter-spacing: 0.14em;
+                    text-transform: uppercase;
+                    color: #6b7280;
+                    padding: 0 4px 8px;
                 }
             `}</style>
 
-            <div className="mx-auto max-w-3xl px-4 sm:px-6 py-6">
+            <div className="mx-auto w-full max-w-xl px-4 pb-24 pt-4 sp-body">
                 {/* Header */}
-                <div className="flex items-center gap-4 mb-8">
+                <header className="mb-6 flex items-center gap-3">
                     <button
                         onClick={() => navigate(-1)}
-                        className={`rounded-full p-2 text-gray-400 hover:text-white hover:bg-white/5 transition ${PRESS} ${FOCUS_RING}`}
+                        className={`rounded-full p-2 text-gray-400 transition hover:bg-white/[0.05] hover:text-white ${FOCUS_RING}`}
                         aria-label="Go back"
                     >
                         <ChevronLeft className="h-5 w-5" />
                     </button>
-                    <h1 className="cr-display text-2xl font-bold">Settings</h1>
-                </div>
+                    <h1 className="sp-display text-2xl font-bold tracking-tight">Settings</h1>
+                </header>
 
-                <div className="space-y-4">
-                    {/* Appearance */}
-                    <Section title="Appearance" icon={<Moon className="h-4 w-4" />}>
-                        <ToggleRow
-                            label="Dark Mode"
-                            description="Applies across the app wherever theming is wired up"
-                            checked={settings.darkMode}
-                            onChange={(checked) => updateSetting('darkMode', checked)}
-                            thumbIcon="theme"
-                        />
-                    </Section>
+                <div className="space-y-6">
+                    {/* APPEARANCE */}
+                    <div>
+                        <p className="sp-label">Appearance</p>
+                        <div className="sp-group">
+                            <ToggleRow
+                                label="Dark mode"
+                                description="Applies across the app where theming is wired up"
+                                checked={settings.darkMode}
+                                onChange={(checked) => updateSetting('darkMode', checked)}
+                                thumbIcon="theme"
+                            />
+                        </div>
+                    </div>
 
-                    {/* Notifications */}
-                    <Section title="Notifications" icon={<Bell className="h-4 w-4" />}>
-                        <ToggleRow
-                            label="Push Notifications"
-                            description={
-                                typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'denied'
-                                    ? 'Blocked in your browser settings'
-                                    : 'Receive match updates and reminders'
-                            }
-                            checked={settings.pushNotifications}
-                            onChange={handlePushToggle}
-                        />
-                        <ToggleRow
-                            label="Email Notifications"
-                            description="Get important alerts via email"
-                            checked={settings.emailNotifications}
-                            onChange={(checked) => updateSetting('emailNotifications', checked)}
-                        />
-                    </Section>
+                    {/* NOTIFICATIONS */}
+                    <div>
+                        <p className="sp-label">Notifications</p>
+                        <div className="sp-group">
+                            <ToggleRow
+                                label="Push notifications"
+                                description={
+                                    typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'denied'
+                                        ? 'Blocked in your browser settings'
+                                        : 'Match updates and reminders'
+                                }
+                                checked={settings.pushNotifications}
+                                onChange={handlePushToggle}
+                            />
+                            <ToggleRow
+                                label="Email notifications"
+                                description="Important alerts via email"
+                                checked={settings.emailNotifications}
+                                onChange={(checked) => updateSetting('emailNotifications', checked)}
+                            />
+                        </div>
+                    </div>
 
-                    {/* Privacy */}
-                    <Section title="Privacy" icon={<Eye className="h-4 w-4" />}>
-                        <ToggleRow
-                            label="Show Online Status"
-                            description="Let others see when you're active"
-                            checked={settings.showOnlineStatus}
-                            onChange={(checked) => updateSetting('showOnlineStatus', checked)}
-                        />
-                    </Section>
+                    {/* PRIVACY */}
+                    <div>
+                        <p className="sp-label">Privacy</p>
+                        <div className="sp-group">
+                            <ToggleRow
+                                label="Show online status"
+                                description="Let others see when you're active"
+                                checked={settings.showOnlineStatus}
+                                onChange={(checked) => updateSetting('showOnlineStatus', checked)}
+                            />
+                        </div>
+                    </div>
 
-                    {/* Contact */}
-                    <Section title="Contact" icon={<Mail className="h-4 w-4" />}>
-                        <button
-                            onClick={() => setContactModalOpen(true)}
-                            className={`flex w-full items-center justify-between py-2.5 px-3 rounded-lg hover:bg-white/5 active:bg-white/10 transition-colors ${FOCUS_RING}`}
-                        >
-                            <span className="text-sm">Contact Support</span>
-                            <ChevronRight className="h-4 w-4 text-gray-500" />
-                        </button>
-                    </Section>
-
-                    {/* Support & Account */}
-                    <Section title="Support & Account" icon={<UserCog className="h-4 w-4" />}>
-                        {loadingRequestStatus ? (
-                            <div className="flex items-center justify-center py-6">
-                                <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
-                            </div>
-                        ) : hasActiveRequest ? (
-                            <div className="rounded-xl border border-blue-500/20 bg-blue-500/10 p-4 text-sm text-blue-300">
-                                <CheckCircle className="inline h-4 w-4 mr-2" />
-                                You already have a {activeRequestStatus === 'pending' ? 'pending' : 'processing'} request.
-                                <br />
-                                <span className="text-xs text-gray-400">
-                                    We're reviewing it and will get back to you soon. You can't submit another request until this one is resolved.
-                                </span>
-                            </div>
-                        ) : (
-                            <div className="space-y-4">
-                                <div>
-                                    <label className="block text-xs font-semibold uppercase tracking-wide text-gray-400 mb-1.5">
-                                        Request type
-                                    </label>
-                                    <select
-                                        value={requestType}
-                                        onChange={(e) => setRequestType(e.target.value as RequestType)}
-                                        disabled={isFormDisabled}
-                                        className={`w-full rounded-xl border border-white/10 bg-[#0A0A0A] px-4 py-2.5 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-[#1E90FF]/50 ${isFormDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                    >
-                                        <option value="report_abuse">Report Abuse</option>
-                                        <option value="request_changes">Request Changes</option>
-                                        <option value="delete_account">Delete Account</option>
-                                    </select>
+                    {/* SUPPORT */}
+                    <div>
+                        <p className="sp-label">Support</p>
+                        <div className="sp-group">
+                            {loadingRequestStatus ? (
+                                <div className="flex items-center justify-center py-6">
+                                    <Loader2 className="h-5 w-5 animate-spin text-gray-500" />
                                 </div>
-
-                                <div>
-                                    <label className="block text-xs font-semibold uppercase tracking-wide text-gray-400 mb-1.5">
-                                        Details
-                                    </label>
-                                    <textarea
-                                        value={requestReason}
-                                        onChange={(e) => handleReasonChange(e.target.value)}
-                                        rows={4}
-                                        disabled={isFormDisabled}
-                                        placeholder={
-                                            requestType === 'report_abuse'
-                                                ? 'Describe the abusive content or behaviour…'
-                                                : requestType === 'request_changes'
-                                                    ? 'What changes do you need? (profile info, squad, etc.)'
-                                                    : 'Why do you want to delete your account? (give us a clue so we can improve!)'
-                                        }
-                                        className={`w-full resize-none rounded-xl border border-white/10 bg-[#0A0A0A] px-4 py-3 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-[#1E90FF]/50 ${isFormDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                    />
-                                    <p className="mt-1 text-xs text-gray-500">{requestReason.length}/{REQUEST_REASON_MAX}</p>
-                                </div>
-
-                                {requestType === 'delete_account' && (
-                                    <div className="rounded-xl border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-300">
-                                        <AlertTriangle className="inline h-4 w-4 mr-2" />
-                                        Account deletion is permanent. All your data will be removed.
-                                        <br />
-                                        <span className="text-xs text-gray-400">
-                                            You have <strong>7 days</strong> to cancel this request by contacting support.
-                                            This waiting period allows us to ensure security and give you a chance to recover your data if needed.
+                            ) : hasActiveRequest ? (
+                                <div className="px-4 py-4">
+                                    <div className="flex items-start gap-3">
+                                        <span className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#1E90FF]/10">
+                                            <CheckCircle className="h-4 w-4 text-[#5CA8FF]" />
                                         </span>
+                                        <div className="min-w-0 flex-1">
+                                            <p className="text-sm font-medium text-white">
+                                                Request {activeRequestStatus === 'pending' ? 'pending review' : 'being processed'}
+                                            </p>
+                                            <p className="mt-0.5 text-[12.5px] leading-relaxed text-gray-500">
+                                                We're on it. You can submit another request once this one is resolved.
+                                            </p>
+                                        </div>
                                     </div>
-                                )}
+                                </div>
+                            ) : (
+                                <>
+                                    <button
+                                        type="button"
+                                        onClick={() => setSupportOpen((v) => !v)}
+                                        aria-expanded={supportOpen}
+                                        className={`sp-row w-full text-left ${FOCUS_RING}`}
+                                    >
+                                        <span className="flex items-center gap-3">
+                                            <UserCog className="h-4 w-4 text-gray-500" />
+                                            <span className="text-sm font-medium">Contact support</span>
+                                        </span>
+                                        <ChevronDown
+                                            className={`h-4 w-4 text-gray-500 transition-transform ${supportOpen ? 'rotate-180' : ''}`}
+                                        />
+                                    </button>
 
-                                <button
-                                    onClick={handleSubmit}
-                                    disabled={isFormDisabled}
-                                    className={`w-full flex items-center justify-center gap-2 rounded-xl bg-[#1E90FF] py-3 text-sm font-semibold text-white transition hover:brightness-110 disabled:opacity-50 ${FOCUS_RING}`}
-                                >
-                                    {submitting ? (
-                                        <Loader2 className="h-4 w-4 animate-spin" />
-                                    ) : (
-                                        <Send className="h-4 w-4" />
+                                    {supportOpen && (
+                                        <div className="space-y-4 border-t border-white/[0.05] px-4 py-4">
+                                            <div>
+                                                <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wide text-gray-500">
+                                                    Request type
+                                                </label>
+                                                <select
+                                                    value={requestType}
+                                                    onChange={(e) => setRequestType(e.target.value as RequestType)}
+                                                    disabled={isFormDisabled}
+                                                    className={`w-full rounded-lg border border-white/[0.08] bg-[#0a0a0b] px-3.5 py-2.5 text-sm outline-none transition focus:border-[#1E90FF]/50 ${isFormDisabled ? 'cursor-not-allowed opacity-50' : ''}`}
+                                                >
+                                                    <option value="report_abuse">Report abuse</option>
+                                                    <option value="request_changes">Request changes</option>
+                                                    <option value="delete_account">Delete account</option>
+                                                </select>
+                                            </div>
+
+                                            <div>
+                                                <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wide text-gray-500">
+                                                    Details
+                                                </label>
+                                                <textarea
+                                                    value={requestReason}
+                                                    onChange={(e) => handleReasonChange(e.target.value)}
+                                                    rows={4}
+                                                    disabled={isFormDisabled}
+                                                    placeholder={
+                                                        requestType === 'report_abuse'
+                                                            ? 'Describe the abusive content or behaviour…'
+                                                            : requestType === 'request_changes'
+                                                                ? 'What changes do you need?'
+                                                                : 'Why do you want to delete your account?'
+                                                    }
+                                                    className={`w-full resize-none rounded-lg border border-white/[0.08] bg-[#0a0a0b] px-3.5 py-3 text-sm outline-none transition focus:border-[#1E90FF]/50 ${isFormDisabled ? 'cursor-not-allowed opacity-50' : ''}`}
+                                                />
+                                                <p className="mt-1 text-right text-[11px] text-gray-600">
+                                                    {requestReason.length}/{REQUEST_REASON_MAX}
+                                                </p>
+                                            </div>
+
+                                            {requestType === 'delete_account' && (
+                                                <div className="rounded-lg border border-red-500/20 bg-red-500/[0.06] p-3.5">
+                                                    <p className="flex items-center gap-2 text-[13px] font-medium text-red-300">
+                                                        <AlertTriangle className="h-3.5 w-3.5" />
+                                                        Permanent action
+                                                    </p>
+                                                    <p className="mt-1 text-[12px] leading-relaxed text-gray-500">
+                                                        All your data will be removed. You have 7 days to cancel by contacting support.
+                                                    </p>
+                                                </div>
+                                            )}
+
+                                            <button
+                                                onClick={handleSubmit}
+                                                disabled={isFormDisabled}
+                                                className={`flex w-full items-center justify-center gap-2 rounded-lg bg-[#1E90FF] py-2.5 text-sm font-semibold text-white transition hover:brightness-110 active:scale-[0.98] disabled:opacity-50 ${FOCUS_RING}`}
+                                            >
+                                                {submitting ? (
+                                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                                ) : (
+                                                    <Send className="h-4 w-4" />
+                                                )}
+                                                {submitting ? 'Submitting…' : 'Submit request'}
+                                            </button>
+                                        </div>
                                     )}
-                                    Submit Request
-                                </button>
-                            </div>
-                        )}
-                    </Section>
+                                </>
+                            )}
+                        </div>
+                    </div>
 
-                    {/* Legal */}
-                    <Section title="Legal" icon={<FileText className="h-4 w-4" />}>
-                        <div className="space-y-1.5 -my-1">
+                    {/* CONTACT */}
+                    <div>
+                        <p className="sp-label">Contact</p>
+                        <div className="sp-group">
+                            <button
+                                onClick={() => setContactModalOpen(true)}
+                                className={`sp-row w-full text-left ${FOCUS_RING}`}
+                            >
+                                <span className="flex items-center gap-3">
+                                    <Mail className="h-4 w-4 text-gray-500" />
+                                    <span className="text-sm font-medium">Get in touch</span>
+                                </span>
+                                <ChevronRight className="h-4 w-4 text-gray-600" />
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* LEGAL */}
+                    <div>
+                        <p className="sp-label">Legal</p>
+                        <div className="sp-group">
                             <LinkRow to="/terms" label="Terms of Service" />
                             <LinkRow to="/privacy" label="Privacy Policy" />
                         </div>
-                    </Section>
+                    </div>
 
-                    {/* About */}
-                    <Section title="About" icon={<Shield className="h-4 w-4" />}>
-                        <div className="flex items-center justify-between gap-4">
-                            <div>
-                                <p className="text-sm font-medium">Claim The Room (CTR)</p>
-                                <p className="text-xs text-gray-500 mt-0.5">Version {APP_VERSION}</p>
-                            </div>
+                    {/* ABOUT */}
+                    <div>
+                        <p className="sp-label">About</p>
+                        <div className="sp-group">
+                            <button
+                                type="button"
+                                onClick={() => setAboutOpen(true)}
+                                className={`sp-row w-full text-left ${FOCUS_RING}`}
+                            >
+                                <div className="flex min-w-0 items-center gap-3">
+                                    <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-white/[0.04]">
+                                        <Shield className="h-4 w-4 text-[#5CA8FF]" />
+                                    </span>
+                                    <div className="min-w-0">
+                                        <p className="truncate text-sm font-medium">
+                                            Claim The Room<sup className="ml-0.5 text-[11px] font-medium text-gray-400">™</sup>
+                                        </p>
+                                        <p className="mt-0.5 truncate text-[11px] text-gray-500">
+                                            Competitive eFootball matchmaking
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="flex shrink-0 items-center gap-1.5">
+                                    <span className="rounded-full border border-white/[0.08] px-2.5 py-0.5 text-[10px] font-medium text-gray-500">
+                                        {APP_VERSION}
+                                    </span>
+                                    <ChevronRight className="h-4 w-4 text-gray-600" />
+                                </div>
+                            </button>
                         </div>
-                    </Section>
+                    </div>
+
+                    {/* LOGOUT */}
+                    <button
+                        onClick={handleLogout}
+                        disabled={isLoggingOut}
+                        className={`flex w-full items-center justify-center gap-2 rounded-2xl border border-red-500/15 bg-red-500/[0.04] py-3.5 text-sm font-semibold text-red-400 transition hover:border-red-500/30 hover:bg-red-500/[0.08] active:scale-[0.99] disabled:opacity-50 ${FOCUS_RING}`}
+                    >
+                        {isLoggingOut ? (
+                            <>
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                                Signing out…
+                            </>
+                        ) : (
+                            <>
+                                <LogOut className="h-4 w-4" />
+                                Log out
+                            </>
+                        )}
+                    </button>
                 </div>
             </div>
 
             {/* Contact Modal */}
             {contactModalOpen && (
                 <div
-                    className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+                    className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-0 backdrop-blur-sm sm:items-center sm:p-4"
                     onClick={(e) => { if (e.target === e.currentTarget) setContactModalOpen(false); }}
                     onKeyDown={(e) => e.key === 'Escape' && setContactModalOpen(false)}
                 >
-                    <div className="relative cr-card rounded-2xl w-full max-w-md border border-white/10 shadow-2xl p-6 animate-in fade-in zoom-in duration-200">
-                        <button
-                            onClick={() => setContactModalOpen(false)}
-                            className={`absolute top-3 right-3 rounded-full p-1.5 text-gray-400 hover:text-white hover:bg-white/5 transition ${FOCUS_RING}`}
-                            aria-label="Close"
-                        >
-                            <X className="h-5 w-5" />
-                        </button>
-                        <h2 className="cr-display text-xl font-bold mb-6">Get in touch</h2>
-                        <div className="space-y-4">
+                    <div className="w-full max-w-md overflow-hidden rounded-t-2xl border border-white/[0.08] bg-[#0f0f11] sm:rounded-2xl">
+                        <div className="flex items-center justify-between border-b border-white/[0.06] px-4 py-3">
+                            <p className="text-sm font-semibold">Get in touch</p>
+                            <button
+                                onClick={() => setContactModalOpen(false)}
+                                className={`rounded-full p-1.5 text-gray-500 transition hover:bg-white/[0.05] hover:text-white ${FOCUS_RING}`}
+                                aria-label="Close"
+                            >
+                                <X className="h-4 w-4" />
+                            </button>
+                        </div>
+                        <div className="divide-y divide-white/[0.05]">
                             <ContactItem
                                 icon={CONTACT.instagram.icon}
                                 iconColor={CONTACT.instagram.iconColor}
@@ -524,54 +645,52 @@ export default function SettingsPage() {
                                 onCopy={() => copyToClipboard(CONTACT.email.handle, CONTACT.email.label)}
                             />
                         </div>
-                        <p className="text-xs text-gray-500 text-center mt-6">
-                            Tap any copy icon to copy the contact info.
+                        <p className="border-t border-white/[0.05] px-4 py-3 text-center text-[11px] text-gray-600">
+                            Tap any row to copy
                         </p>
                     </div>
                 </div>
             )}
 
-            {/* Delete Confirmation Modal */}
+            {/* About Modal */}
+            {aboutOpen && (
+                <AboutModal onClose={() => setAboutOpen(false)} version={APP_VERSION} />
+            )}
+
+            {/* Delete Confirmation */}
             {showDeleteConfirm && (
                 <div
-                    className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+                    className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-0 backdrop-blur-sm sm:items-center sm:p-4"
                     onClick={(e) => { if (e.target === e.currentTarget) setShowDeleteConfirm(false); }}
                     onKeyDown={(e) => e.key === 'Escape' && setShowDeleteConfirm(false)}
                 >
-                    <div className="relative cr-card rounded-2xl w-full max-w-md border border-white/10 shadow-2xl p-6 animate-in fade-in zoom-in duration-200">
-                        <button
-                            onClick={() => setShowDeleteConfirm(false)}
-                            className={`absolute top-3 right-3 rounded-full p-1.5 text-gray-400 hover:text-white hover:bg-white/5 transition ${FOCUS_RING}`}
-                            aria-label="Close"
-                        >
-                            <X className="h-5 w-5" />
-                        </button>
-                        <div className="flex items-start gap-3 mb-4">
-                            <AlertTriangle className="h-6 w-6 text-red-500 flex-shrink-0 mt-0.5" />
-                            <div>
-                                <h2 className="cr-display text-lg font-bold">Delete Account</h2>
-                                <p className="text-sm text-gray-300 mt-1">
-                                    Are you sure? This action is permanent and cannot be undone.
-                                </p>
-                                <p className="text-xs text-gray-400 mt-2">
-                                    All your data (profile, matches, stats, etc.) will be removed.
-                                    You'll have 7 days to cancel this request.
-                                </p>
+                    <div className="w-full max-w-md overflow-hidden rounded-t-2xl border border-white/[0.08] bg-[#0f0f11] sm:rounded-2xl">
+                        <div className="px-5 py-5">
+                            <div className="flex items-start gap-3">
+                                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-red-500/10">
+                                    <AlertTriangle className="h-4 w-4 text-red-400" />
+                                </span>
+                                <div className="min-w-0">
+                                    <p className="text-sm font-semibold text-white">Delete your account?</p>
+                                    <p className="mt-1 text-[12.5px] leading-relaxed text-gray-500">
+                                        This is permanent. All your data will be removed after a 7-day grace period.
+                                    </p>
+                                </div>
                             </div>
                         </div>
-                        <div className="flex gap-3 mt-6">
+                        <div className="flex gap-2 border-t border-white/[0.06] px-5 py-4">
                             <button
                                 onClick={() => setShowDeleteConfirm(false)}
-                                className={`flex-1 rounded-xl border border-white/10 bg-transparent py-2.5 text-sm font-medium text-gray-300 transition hover:bg-white/5 ${FOCUS_RING}`}
+                                className={`flex-1 rounded-lg border border-white/[0.08] py-2.5 text-sm font-medium text-gray-300 transition hover:bg-white/[0.03] ${FOCUS_RING}`}
                             >
                                 Cancel
                             </button>
                             <button
                                 onClick={submitRequest}
                                 disabled={submitting}
-                                className={`flex-1 rounded-xl bg-red-600 py-2.5 text-sm font-semibold text-white transition hover:brightness-110 disabled:opacity-50 ${FOCUS_RING}`}
+                                className={`flex-1 rounded-lg bg-red-600 py-2.5 text-sm font-semibold text-white transition hover:brightness-110 disabled:opacity-50 ${FOCUS_RING}`}
                             >
-                                {submitting ? <Loader2 className="h-4 w-4 animate-spin mx-auto" /> : 'Confirm Delete'}
+                                {submitting ? <Loader2 className="h-4 w-4 animate-spin mx-auto" /> : 'Confirm'}
                             </button>
                         </div>
                     </div>
@@ -581,22 +700,14 @@ export default function SettingsPage() {
     );
 }
 
-// ---------- Helper Components ----------
-
-function Section({ title, icon, children }: { title: string; icon: React.ReactNode; children: React.ReactNode }) {
-    return (
-        <div className="rounded-2xl border border-white/5 cr-card p-4 sm:p-5">
-            <div className="flex items-center gap-2 mb-4">
-                <span className="text-gray-500">{icon}</span>
-                <h2 className="cr-display text-sm font-semibold tracking-wide text-gray-300 uppercase">{title}</h2>
-            </div>
-            <div className="divide-y divide-white/5">{children}</div>
-        </div>
-    );
-}
+/* ---------- Row components ---------- */
 
 function ToggleRow({
-    label, description, checked, onChange, thumbIcon,
+    label,
+    description,
+    checked,
+    onChange,
+    thumbIcon,
 }: {
     label: string;
     description?: string;
@@ -605,20 +716,24 @@ function ToggleRow({
     thumbIcon?: 'theme';
 }) {
     return (
-        <div className="flex items-start justify-between gap-4 pt-3.5 first:pt-0">
+        <div className="sp-row">
             <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium">{label}</p>
-                {description && <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">{description}</p>}
+                <p className="text-sm font-medium text-white">{label}</p>
+                {description && (
+                    <p className="mt-0.5 text-[12px] leading-relaxed text-gray-500">{description}</p>
+                )}
             </div>
             <button
                 onClick={() => onChange(!checked)}
-                className={`relative inline-flex h-6 w-11 flex-shrink-0 items-center cursor-pointer rounded-full transition-colors duration-200 ${FOCUS_RING} ${checked ? 'bg-[#1E90FF]' : 'bg-[#0A0A0A] border border-white/10'} hover:ring-2 hover:ring-[#1E90FF]/30`}
+                className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer items-center rounded-full transition-colors duration-200 ${FOCUS_RING} ${checked ? 'bg-[#1E90FF]' : 'border border-white/[0.08] bg-transparent'
+                    }`}
                 role="switch"
                 aria-checked={checked}
                 aria-label={label}
             >
                 <span
-                    className={`grid h-5 w-5 place-items-center transform rounded-full bg-white shadow-sm transition-transform duration-200 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${checked ? 'translate-x-[22px]' : 'translate-x-0.5'}`}
+                    className={`grid h-5 w-5 transform place-items-center rounded-full bg-white shadow-sm transition-transform duration-200 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${checked ? 'translate-x-[22px]' : 'translate-x-0.5'
+                        }`}
                 >
                     {thumbIcon === 'theme' &&
                         (checked ? (
@@ -634,18 +749,22 @@ function ToggleRow({
 
 function LinkRow({ to, label }: { to: string; label: string }) {
     return (
-        <Link
-            to={to}
-            className={`flex items-center justify-between py-2.5 px-3 rounded-lg hover:bg-white/5 active:bg-white/10 transition-colors ${FOCUS_RING}`}
-        >
-            <span className="text-sm">{label}</span>
-            <ChevronRight className="h-4 w-4 text-gray-500" />
+        <Link to={to} className={`sp-row w-full ${FOCUS_RING}`}>
+            <span className="flex items-center gap-3">
+                <FileText className="h-4 w-4 text-gray-500" />
+                <span className="text-sm font-medium">{label}</span>
+            </span>
+            <ChevronRight className="h-4 w-4 text-gray-600" />
         </Link>
     );
 }
 
 function ContactItem({
-    icon: Icon, iconColor, label, value, onCopy,
+    icon: Icon,
+    iconColor,
+    label,
+    value,
+    onCopy,
 }: {
     icon: any;
     iconColor: string;
@@ -654,23 +773,166 @@ function ContactItem({
     onCopy: () => void;
 }) {
     return (
-        <div className="flex items-center justify-between gap-3 bg-[#0A0A0A] rounded-xl p-3 border border-white/5">
-            <div className="flex items-center gap-3 min-w-0">
-                <span className="flex-shrink-0" style={{ color: iconColor }}>
-                    <Icon className="h-5 w-5" />
+        <button
+            onClick={onCopy}
+            className={`flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition hover:bg-white/[0.03] ${FOCUS_RING}`}
+        >
+            <div className="flex min-w-0 items-center gap-3">
+                <span className="grid h-8 w-8 flex-shrink-0 place-items-center rounded-full bg-white/[0.04]">
+                    <Icon className="h-4 w-4" style={{ color: iconColor }} />
                 </span>
                 <div className="min-w-0">
-                    <p className="text-xs text-gray-500">{label}</p>
-                    <p className="text-sm font-medium truncate">{value}</p>
+                    <p className="text-[11px] uppercase tracking-wide text-gray-500">{label}</p>
+                    <p className="truncate text-[13px] font-medium text-white">{value}</p>
                 </div>
             </div>
-            <button
-                onClick={onCopy}
-                className={`flex-shrink-0 p-1.5 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white transition ${FOCUS_RING}`}
-                aria-label={`Copy ${label}`}
-            >
-                <Copy className="h-4 w-4" />
-            </button>
+            <Copy className="h-4 w-4 flex-shrink-0 text-gray-600" />
+        </button>
+    );
+}
+
+/* ---------- About Modal ---------- */
+
+function AboutModal({
+    onClose,
+    version,
+}: {
+    onClose: () => void;
+    version: string;
+}) {
+    useEffect(() => {
+        const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    }, [onClose]);
+
+    return (
+        <div
+            className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 backdrop-blur-sm sm:items-center sm:p-4"
+            onClick={(e) => {
+                if (e.target === e.currentTarget) onClose();
+            }}
+            role="dialog"
+            aria-modal="true"
+            aria-label="About Claim The Room"
+        >
+            <div className="w-full max-w-md overflow-hidden rounded-t-2xl border border-white/[0.08] bg-[#0f0f11] shadow-[0_24px_64px_-16px_rgba(0,0,0,0.9)] sm:rounded-2xl">
+                {/* Header */}
+                <div className="flex items-start justify-between gap-3 border-b border-white/[0.06] px-5 py-4">
+                    <div className="flex min-w-0 items-center gap-3">
+                        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-white/[0.04]">
+                            <Shield className="h-5 w-5 text-[#5CA8FF]" />
+                        </span>
+                        <div className="min-w-0">
+                            <p className="truncate text-[15px] font-semibold text-white">
+                                Claim The Room<sup className="ml-0.5 text-[11px] font-medium text-gray-400">™</sup>
+                            </p>
+                            <p className="mt-0.5 truncate text-[11px] text-gray-500">
+                                Competitive eFootball matchmaking
+                            </p>
+                        </div>
+                    </div>
+                    <button
+                        onClick={onClose}
+                        aria-label="Close"
+                        className={`rounded-full p-1.5 text-gray-500 transition hover:bg-white/[0.05] hover:text-gray-200 ${FOCUS_RING}`}
+                    >
+                        <X className="h-4 w-4" />
+                    </button>
+                </div>
+
+                {/* Body */}
+                <div className="divide-y divide-white/[0.05]">
+                    <AboutSection label="Brand">
+                        <p className="text-[13px] leading-relaxed text-gray-300">
+                            CTR (<span className="text-white">Claim The Room</span>) is a
+                            matchmaking tool built for the eFootball community.
+                        </p>
+                    </AboutSection>
+
+                    <AboutSection label="Built by">
+                        <div className="flex items-center gap-2.5">
+                            <span className="grid h-6 w-6 shrink-0 place-items-center rounded-md bg-[#5CA8FF]/10 text-[10px] font-bold text-[#5CA8FF]">
+                                H
+                            </span>
+                            <div>
+                                <p className="text-[13px] font-medium text-white">
+                                    HazyPixelStudios
+                                </p>
+                                <p className="text-[11px] text-gray-500">
+                                    Design &amp; development
+                                </p>
+                            </div>
+                        </div>
+                    </AboutSection>
+
+                    <AboutSection label="Registered to">
+                        <p className="text-[13px] text-gray-300">
+                            <span className="font-medium text-white">HBOOKS</span>
+                            <span className="text-gray-500"> · Registered business and funding entity</span>
+                        </p>
+                    </AboutSection>
+
+                    <AboutSection label="Legal">
+                        <div className="space-y-1.5">
+                            <Link
+                                to="/terms"
+                                onClick={onClose}
+                                className={`flex items-center justify-between rounded-lg px-3 py-2 text-[13px] text-gray-300 transition hover:bg-white/[0.04] hover:text-white ${FOCUS_RING}`}
+                            >
+                                <span>Terms of Service</span>
+                                <ChevronRight className="h-3.5 w-3.5 text-gray-600" />
+                            </Link>
+                            <Link
+                                to="/privacy"
+                                onClick={onClose}
+                                className={`flex items-center justify-between rounded-lg px-3 py-2 text-[13px] text-gray-300 transition hover:bg-white/[0.04] hover:text-white ${FOCUS_RING}`}
+                            >
+                                <span>Privacy Policy</span>
+                                <ChevronRight className="h-3.5 w-3.5 text-gray-600" />
+                            </Link>
+                        </div>
+                    </AboutSection>
+
+                    <div className="px-5 py-4">
+                        <p className="text-[11px] leading-relaxed text-gray-600">
+                            Not affiliated with, endorsed by, or sponsored by Konami Group
+                            Corporation. All trademarks are the property of their respective
+                            owners and are used here only to describe the Service.
+                        </p>
+                    </div>
+                </div>
+
+                {/* Footer */}
+                <div className="flex items-center justify-between border-t border-white/[0.06] px-5 py-3.5">
+                    <span className="text-[11px] text-gray-600">
+                        Version {version}
+                    </span>
+                    <button
+                        onClick={onClose}
+                        className={`rounded-full border border-white/[0.08] px-4 py-1.5 text-[12px] font-medium text-gray-300 transition hover:bg-white/[0.04] ${FOCUS_RING}`}
+                    >
+                        Close
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function AboutSection({
+    label,
+    children,
+}: {
+    label: string;
+    children: React.ReactNode;
+}) {
+    return (
+        <div className="px-5 py-4">
+            <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-gray-500">
+                {label}
+            </p>
+            {children}
         </div>
     );
 }

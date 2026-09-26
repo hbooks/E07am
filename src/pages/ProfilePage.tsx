@@ -4,38 +4,41 @@ import { useKindeAuth } from '@kinde-oss/kinde-auth-react';
 import { PromptTypes } from '@kinde/js-utils';
 import { supabase } from '@/lib/supabaseClient';
 import {
-  Pencil, Lock, Info, ChevronRight, LogOut, Clock, FileWarning,
-  RefreshCw, SlidersHorizontal, Settings as SettingsIcon, X,
-  Trophy, Swords, Users, Zap, Gamepad2, Star,
+  Pencil, Lock, Info, ChevronRight, RefreshCw, Settings as SettingsIcon, X,
+  Zap, Star, Clock, FileWarning,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import UserBadges from '@/components/UserBadges';
 
 const BASE_URL = import.meta.env.VITE_SUPABASE_FUNCTIONS_URL;
 const UPDATE_AVATAR_URL = `${BASE_URL}/Update_Avatar`;
 
 const AVATAR_CATEGORIES = [
   {
-    name: 'Critters',
+    name: 'Itters',
     base: 'https://api.dicebear.com/10.x/critters/svg?seed=',
     seeds: Array.from({ length: 10 }, (_, i) => String(i).padStart(2, '0')).concat(
-      Array.from({ length: 10 }, (_, i) => String(95 + i))
+      Array.from({ length: 15 }, (_, i) => String(95 + i))
     ),
   },
   {
-    name: 'Croodles',
-    base: 'https://api.dicebear.com/10.x/croodles/svg?seed=',
+    name: 'mar',
+    base: 'https://api.dicebear.com/10.x/voxel-bot/svg?seed=',
     seeds: Array.from({ length: 20 }, (_, i) => String(85 + i)),
   },
   {
-    name: 'Dylan',
-    base: 'https://api.dicebear.com/10.x/dylan/svg?seed=',
-    seeds: Array.from({ length: 20 }, (_, i) => String(60 + i)),
+    name: 'aura',
+    base: 'https://api.dicebear.com/10.x/notionists-neutral/svg?seed=',
+    seeds: Array.from({ length: 35 }, (_, i) => String(60 + i)),
   },
   {
-    name: 'Clay',
+    name: 'lay',
     base: 'https://api.dicebear.com/10.x/clay/svg?seed=',
     seeds: Array.from({ length: 20 }, (_, i) => String(i).padStart(2, '0')),
+  },
+  {
+    name: 'Zion',
+    base: 'https://api.dicebear.com/10.x/adventurer-neutral/svg?seed=',
+    seeds: Array.from({ length: 25 }, (_, i) => String(i).padStart(12, '0')),
   },
 ];
 
@@ -43,20 +46,47 @@ const PULL_THRESHOLD = 64;
 const PULL_RESISTANCE = 0.45;
 const PULL_MAX = 80;
 
-// Shared focus + press affordance used on every interactive control.
 const FOCUS_RING =
-  'focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1E90FF] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0A0A0A]';
+  'focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1E90FF] focus-visible:ring-offset-2 focus-visible:ring-offset-[#08090b]';
 const PRESS = 'active:scale-[0.97]';
 
+// ---------- Badge asset maps ----------
+const PLAYER_RANK_BADGES: Record<string, string> = {
+  Tepid: 'https://res.cloudinary.com/ctr-cloud/image/upload/v1786380914/jpuxanxhxotl5asuoc5g.png',
+  Grinder: 'https://res.cloudinary.com/ctr-cloud/image/upload/v1786380918/s7rx3mwgezzfn0dtmjxk.png',
+  Conqueror: 'https://res.cloudinary.com/ctr-cloud/image/upload/v1786381381/k0rtr7rbyoimuvm0toxk.png',
+  'Global Best': 'https://res.cloudinary.com/ctr-cloud/image/upload/v1786380917/hx3cptpzolxigapujqin.png',
+  Ace: 'https://res.cloudinary.com/ctr-cloud/image/upload/v1786380917/sgjg1bwq4m20gyq60okq.png',
+  Admin: 'https://res.cloudinary.com/ctr-cloud/image/upload/v1786380918/op1kkxepisfkre1apdyt.png',
+};
+
+const SQUAD_RANK_BADGES: Record<string, string> = {
+  Academy: 'https://res.cloudinary.com/ctr-cloud/image/upload/v1786380918/hiew6m38ulz49klmrsxd.png',
+  Cadets: 'https://res.cloudinary.com/ctr-cloud/image/upload/v1786380918/oqweb7wxxqzgwpdkhuw1.png',
+  Wildcards: 'https://res.cloudinary.com/ctr-cloud/image/upload/v1786380918/e95rg0zppnficltnhhvf.png',
+  Generals: 'https://res.cloudinary.com/ctr-cloud/image/upload/v1786380919/h5byjrvrdsrtxpauyowl.png',
+  'Golden Eleven': 'https://res.cloudinary.com/ctr-cloud/image/upload/v1786380918/dwbweupxgs1fjkla3hzb.png',
+  Galacticos: 'https://res.cloudinary.com/ctr-cloud/image/upload/v1786380916/hjih4glyecynmxxmvr6h.png',
+  'Gen XI': 'https://res.cloudinary.com/ctr-cloud/image/upload/v1786380916/v2oomsnv2cb720pijvrw.png',
+};
+
+const STAFF_BADGE = 'https://res.cloudinary.com/ctr-cloud/image/upload/v1786380915/ff7rn60eiylq1x1oixsz.png';
+const VERIFIED_BADGE = 'https://res.cloudinary.com/ctr-cloud/image/upload/v1786380916/rsfa4dftmbz427k5cnmw.png';
+const TROLL_BADGE = 'https://res.cloudinary.com/ctr-cloud/image/upload/v1786380917/l1bl2nyhvmudc75z1nqc.png';
+
+const PLAYER_ORDER = ['Tepid', 'Grinder', 'Conqueror', 'Global Best', 'Ace', 'Admin'];
+const SQUAD_ORDER = ['Academy', 'Cadets', 'Wildcards', 'Generals', 'Golden Eleven', 'Galacticos', 'Gen XI'];
+
+type BadgeFocus = 'player' | 'squad' | null;
+
 export default function ProfilePage() {
-  const { user, isAuthenticated, login, logout } = useKindeAuth();
+  const { user, isAuthenticated, login } = useKindeAuth();
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [avatarModalOpen, setAvatarModalOpen] = useState(false);
-  const [isLoggingOut, setIsLoggingOut] = useState(false);
-  const [logoutStatus, setLogoutStatus] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'ranking' | 'tournaments' | 'achievements'>('ranking');
   const [badgeInfoOpen, setBadgeInfoOpen] = useState(false);
+  const [badgeFocus, setBadgeFocus] = useState<BadgeFocus>(null);
   const navigate = useNavigate();
 
   const [pullDistance, setPullDistance] = useState(0);
@@ -68,9 +98,7 @@ export default function ProfilePage() {
     if (!silent) setLoading(true);
     fetch(`${BASE_URL}/Get_Up?userId=${user.id}`)
       .then(res => res.json())
-      .then(data => {
-        setProfile(data);
-      })
+      .then(data => setProfile(data))
       .catch(() => toast.error('Failed to load profile'))
       .finally(() => {
         if (!silent) setLoading(false);
@@ -78,9 +106,7 @@ export default function ProfilePage() {
       });
   }, [user?.id]);
 
-  useEffect(() => {
-    fetchProfile();
-  }, [fetchProfile]);
+  useEffect(() => { fetchProfile(); }, [fetchProfile]);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -88,30 +114,20 @@ export default function ProfilePage() {
       .channel(`profile-${user.id}`)
       .on(
         'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'profiles',
-          filter: `id=eq.${user.id}`,
-        },
-        () => {
-          fetchProfile(true);
-        }
+        { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `id=eq.${user.id}` },
+        () => fetchProfile(true)
       )
       .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return () => { supabase.removeChannel(channel); };
   }, [user?.id, fetchProfile]);
 
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-[#0A0A0A] flex flex-col items-center justify-center text-white gap-4 px-6 text-center">
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-[#08090b] px-6 text-center text-white">
         <p className="text-gray-400">You're not signed in.</p>
         <button
           onClick={() => login({ prompt: PromptTypes.login })}
-          className={`bg-[#1E90FF] hover:bg-blue-600 text-white px-8 py-3 rounded-xl font-semibold transition ${PRESS} ${FOCUS_RING}`}
+          className={`rounded-xl bg-[#1E90FF] px-8 py-3 font-semibold text-white transition hover:bg-blue-600 ${PRESS} ${FOCUS_RING}`}
         >
           Sign in with Kinde
         </button>
@@ -119,9 +135,7 @@ export default function ProfilePage() {
     );
   }
 
-  if (!user) {
-    return <ProfileSkeleton />;
-  }
+  if (!user) return <ProfileSkeleton />;
 
   const handleAvatarUpdate = (newUrl: string) => {
     fetch(UPDATE_AVATAR_URL, {
@@ -142,22 +156,9 @@ export default function ProfilePage() {
       .catch(() => toast.error('Network error'));
   };
 
-  const handleLogout = () => {
-    setIsLoggingOut(true);
-    setLogoutStatus('Signing you out…');
-    try {
-      localStorage.clear();
-      sessionStorage.clear();
-    } catch {
-      // ignore
-    }
-    logout();
-  };
-
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStartY.current = window.scrollY <= 0 && !refreshing ? e.touches[0].clientY : null;
   };
-
   const handleTouchMove = (e: React.TouchEvent) => {
     if (touchStartY.current === null) return;
     const delta = e.touches[0].clientY - touchStartY.current;
@@ -167,7 +168,6 @@ export default function ProfilePage() {
       setPullDistance(0);
     }
   };
-
   const handleTouchEnd = () => {
     if (touchStartY.current === null) return;
     if (pullDistance > PULL_THRESHOLD) {
@@ -178,15 +178,20 @@ export default function ProfilePage() {
     touchStartY.current = null;
   };
 
+  const openBadgeInfo = (focus: BadgeFocus) => {
+    setBadgeFocus(focus);
+    setBadgeInfoOpen(true);
+  };
+
   if (loading) return <ProfileSkeleton />;
 
   if (!profile) {
     return (
-      <div className="min-h-screen bg-[#0A0A0A] flex flex-col items-center justify-center text-white px-6 text-center gap-4">
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-[#08090b] px-6 text-center text-white">
         <p className="text-gray-400">You haven't set up your profile yet.</p>
         <Link
           to="/onboarding"
-          className={`bg-[#1E90FF] hover:bg-blue-600 px-8 py-3 rounded-xl font-semibold transition ${PRESS} ${FOCUS_RING}`}
+          className={`rounded-xl bg-[#1E90FF] px-8 py-3 font-semibold transition hover:bg-blue-600 ${PRESS} ${FOCUS_RING}`}
         >
           Complete Setup
         </Link>
@@ -194,44 +199,26 @@ export default function ProfilePage() {
     );
   }
 
-  // Compute stats
+  // ---- Stats ----
   const oneVOne = Number(profile.one_v_one) || 0;
   const coOp = Number(profile.co_op) || 0;
   const tor = Number(profile.tor) || 0;
   const gamesPlayed = Number(profile.gp) || 0;
   const exp = Number(profile.exp) || 0;
 
-  let mostPlayed = null;
-  const maxGames = Math.max(oneVOne, coOp, tor);
-  if (maxGames > 0) {
-    if (maxGames === oneVOne) mostPlayed = { label: '1v1', icon: Swords, count: oneVOne };
-    else if (maxGames === coOp) mostPlayed = { label: 'Co-op', icon: Users, count: coOp };
-    else mostPlayed = { label: 'Tournament', icon: Trophy, count: tor };
-  }
-
-  // Determine XP level and progress
+  // ---- XP levels ----
   let xpLevel = 0;
   let xpNextThreshold = 240;
-  if (exp >= 240 && exp < 496) {
-    xpLevel = 1;
-    xpNextThreshold = 496;
-  } else if (exp >= 496 && exp < 1201) {
-    xpLevel = 2;
-    xpNextThreshold = 1201;
-  } else if (exp >= 1201 && exp < 5160) {
-    xpLevel = 3;
-    xpNextThreshold = 5160;
-  } else if (exp >= 5160) {
-    xpLevel = 4;
-    xpNextThreshold = 999999;
-  }
+  if (exp >= 240 && exp < 496) { xpLevel = 1; xpNextThreshold = 496; }
+  else if (exp >= 496 && exp < 1201) { xpLevel = 2; xpNextThreshold = 1201; }
+  else if (exp >= 1201 && exp < 5160) { xpLevel = 3; xpNextThreshold = 5160; }
+  else if (exp >= 5160) { xpLevel = 4; xpNextThreshold = 999999; }
 
   let xpRemaining = 0;
   if (xpLevel === 0) xpRemaining = 240 - exp;
   else if (xpLevel === 1) xpRemaining = 496 - exp;
   else if (xpLevel === 2) xpRemaining = 1201 - exp;
   else if (xpLevel === 3) xpRemaining = 5160 - exp;
-  else xpRemaining = 0;
 
   let xpProgress = 0;
   if (xpLevel === 0) xpProgress = (exp / 240) * 100;
@@ -239,33 +226,38 @@ export default function ProfilePage() {
   else if (xpLevel === 2) xpProgress = ((exp - 496) / (1201 - 496)) * 100;
   else if (xpLevel === 3) xpProgress = ((exp - 1201) / (5160 - 1201)) * 100;
   else xpProgress = 100;
-
   xpProgress = Math.max(0, Math.min(100, xpProgress));
 
+  // ---- Troll ----
   const trollPct = Math.max(0, Math.min(100, Number(profile.tc) || 0));
   const trollColor = trollPct < 20 ? '#22c55e' : trollPct < 30 ? '#eab308' : '#ef4444';
-  const trollLabel = trollPct < 20 ? 'Chill' : trollPct < 30 ? 'Cheeky' : 'Troll';
+  const isTroll = trollPct >= 100;
 
-  // Avatar ring intensifies with XP level — a quiet, continuous status signal.
-  const ringGlow = [0.16, 0.26, 0.36, 0.48, 0.62][xpLevel];
+  // ---- Rank info ----
+  const squadRank = profile.squad_rank || 'Unranked';
+  const playerRank = profile.player_rank || 'Unranked';
+  const squadBadgeUrl = profile.r_url || SQUAD_RANK_BADGES[squadRank] || null;
+  const playerBadgeUrl = profile.pr_url || PLAYER_RANK_BADGES[playerRank] || null;
+
   const isMaxLevel = xpLevel === 4;
 
   return (
     <div
-      className="relative min-h-screen w-full max-w-[100vw] overflow-x-hidden bg-[#0A0A0A] text-white cr-body"
+      className="relative min-h-screen w-full max-w-[100vw] overflow-x-hidden bg-[#08090b] text-white"
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
     >
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Inter:wght@400;500;600&display=swap');
-        .cr-display { font-family: 'Rajdhani', sans-serif; letter-spacing: 0.01em; }
-        .cr-body { font-family: 'Inter', sans-serif; }
-        .cr-card {
-          background: linear-gradient(180deg, #161616 0%, #121212 100%);
-          box-shadow: inset 0 1px 0 0 rgba(255,255,255,0.05);
+        .pr-display { font-family: 'Rajdhani', sans-serif; letter-spacing: 0.01em; }
+        .pr-body { font-family: 'Inter', sans-serif; }
+        .pr-card {
+          background: #0f0f11;
+          border: 1px solid rgba(255,255,255,0.06);
+          border-radius: 16px;
         }
-        .cr-avatar-ring {
+        .pr-avatar-ring {
           box-shadow: 0 0 0 2px #1E90FF, 0 0 0 6px rgba(30,144,255,0.08), 0 0 26px var(--ring-glow);
         }
         .tabular-nums { font-variant-numeric: tabular-nums; }
@@ -276,7 +268,7 @@ export default function ProfilePage() {
 
       {(pullDistance > 0 || refreshing) && (
         <div
-          className="absolute top-3 left-1/2 -translate-x-1/2 z-10 bg-[#141414] border border-white/10 rounded-full p-2.5 shadow-lg transition-opacity duration-150"
+          className="absolute left-1/2 top-3 z-10 -translate-x-1/2 rounded-full border border-white/10 bg-[#141414] p-2.5 shadow-lg transition-opacity duration-150"
           style={{ opacity: refreshing ? 1 : Math.min(pullDistance / PULL_THRESHOLD, 1) }}
         >
           <RefreshCw
@@ -286,248 +278,250 @@ export default function ProfilePage() {
         </div>
       )}
 
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6 space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
-        {/* 1. Player card */}
-        <div className="cr-card rounded-3xl p-5 sm:p-6 border border-white/5 relative overflow-hidden">
-          {/* faint radial spotlight behind the avatar, echoes a trading-card frame */}
-          <div
-            className="pointer-events-none absolute -top-16 -left-16 h-56 w-56 rounded-full blur-3xl"
-            style={{ background: 'radial-gradient(circle, rgba(30,144,255,0.14), transparent 70%)' }}
-          />
-
-          <div className="relative flex items-start gap-4 sm:gap-5">
-            <div className="relative flex-shrink-0">
-              <div
-                className="cr-avatar-ring w-24 h-24 sm:w-32 sm:h-32 rounded-full overflow-hidden bg-[#0A0A0A]"
-                style={{ '--ring-glow': `rgba(30,144,255,${ringGlow})` } as React.CSSProperties}
-              >
-                <img src={profile.p_url} alt="Profile" className="w-full h-full object-cover" />
-              </div>
-              {isMaxLevel && (
+      <div className="mx-auto max-w-2xl space-y-3 px-4 pb-24 pt-4 sm:px-6">
+        {/* ── HERO ─────────────────────────────────── */}
+        <div className="pr-card overflow-hidden">
+          <div className="p-4 sm:p-5">
+            <div className="flex items-start gap-4">
+              {/* Avatar */}
+              <div className="relative flex-shrink-0">
                 <div
-                  className="absolute -top-1.5 -left-1.5 bg-gradient-to-br from-yellow-400 to-amber-500 rounded-full p-1 ring-2 ring-[#0A0A0A]"
-                  title="Max XP level"
+                  className="pr-avatar-ring h-20 w-20 overflow-hidden rounded-full bg-[#08090b] sm:h-24 sm:w-24"
+                  style={{ '--ring-glow': `rgba(30,144,255,0.3)` } as React.CSSProperties}
                 >
-                  <Star className="h-3 w-3 text-black" fill="black" />
+                  <img src={profile.p_url} alt="Profile" className="h-full w-full object-cover" />
                 </div>
-              )}
-              <button
-                onClick={() => setAvatarModalOpen(true)}
-                aria-label="Change profile picture"
-                className={`absolute bottom-0 right-0 bg-[#1E90FF] p-2 rounded-full shadow-lg hover:bg-blue-600 transition ring-2 ring-[#0A0A0A] ${PRESS} ${FOCUS_RING}`}
-              >
-                <Pencil className="h-4 w-4 text-white" />
-              </button>
-            </div>
-
-            <div className="flex-1 min-w-0 pt-1">
-              <div className="flex items-center gap-2 flex-wrap">
-                <h1 className="cr-display text-2xl sm:text-4xl font-bold tracking-tight truncate">{profile.username}</h1>
-                <UserBadges isStaff={!!profile.iss} isVerified={!!profile.isv} size="md" />
-              </div>
-
-              <div className="flex items-center gap-1.5 mt-1.5 text-xs sm:text-sm text-gray-500">
-                <Lock className="h-3.5 w-3.5 flex-shrink-0" />
-                <span className="truncate">{user.email}</span>
-                <div className="relative group flex-shrink-0">
-                  <Info className={`h-3.5 w-3.5 cursor-help rounded-full ${FOCUS_RING}`} tabIndex={0} />
-                  <div className="absolute bottom-full left-0 mb-2 w-48 bg-[#1F1F1F] text-xs p-2 rounded-lg opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition pointer-events-none z-10 border border-white/10">
-                    Your sign‑in credentials are securely managed and cannot be changed here.
+                {isMaxLevel && (
+                  <div
+                    className="absolute -left-1 -top-1 rounded-full bg-gradient-to-br from-yellow-400 to-amber-500 p-0.5 ring-2 ring-[#0f0f11]"
+                    title="Max XP level"
+                  >
+                    <Star className="h-2.5 w-2.5 text-black" fill="black" />
                   </div>
+                )}
+                <button
+                  onClick={() => setAvatarModalOpen(true)}
+                  aria-label="Change profile picture"
+                  className={`absolute -bottom-0.5 -right-0.5 rounded-full bg-[#1E90FF] p-1.5 shadow-lg ring-2 ring-[#0f0f11] transition hover:bg-blue-600 ${PRESS} ${FOCUS_RING}`}
+                >
+                  <Pencil className="h-3 w-3 text-white" />
+                </button>
+              </div>
+
+              {/* Identity */}
+              <div className="min-w-0 flex-1 pt-0.5">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <h1 className="pr-display truncate text-xl font-bold tracking-tight sm:text-2xl">
+                    {profile.username}
+                  </h1>
+                  {profile.iss && (
+                    <img
+                      src={STAFF_BADGE}
+                      alt="Staff"
+                      className="h-5 w-5 shrink-0 rounded-full object-cover"
+                      title="Staff"
+                    />
+                  )}
+                  {profile.isv && (
+                    <img
+                      src={VERIFIED_BADGE}
+                      alt="Verified"
+                      className="h-5 w-5 shrink-0 rounded-full object-cover"
+                      title="Verified"
+                    />
+                  )}
+                  {isTroll && (
+                    <img
+                      src={TROLL_BADGE}
+                      alt="Troll"
+                      className="h-5 w-5 shrink-0 rounded-full object-cover"
+                      title="Troll"
+                    />
+                  )}
+                </div>
+
+                <div className="mt-0.5 flex items-center gap-1.5 text-[11px] text-gray-500">
+                  <Lock className="h-3 w-3 flex-shrink-0" />
+                  <span className="truncate">{user.email}</span>
+                </div>
+
+                {/* Rank chips */}
+                <div className="mt-3 flex items-center gap-2">
+                  <button
+                    onClick={() => openBadgeInfo('squad')}
+                    className={`flex items-center gap-2 rounded-full border border-white/[0.06] bg-white/[0.02] py-1 pl-1 pr-2.5 transition hover:border-white/[0.12] hover:bg-white/[0.04] ${FOCUS_RING}`}
+                    title="Squad rank"
+                  >
+                    {squadBadgeUrl ? (
+                      <img src={squadBadgeUrl} alt={squadRank} className="h-6 w-6 rounded-full object-contain" />
+                    ) : (
+                      <span className="grid h-6 w-6 place-items-center rounded-full border border-dashed border-white/15 text-[9px] text-gray-600">
+                        ?
+                      </span>
+                    )}
+                    <span className="text-[11px] font-medium text-gray-400">{squadRank}</span>
+                  </button>
+
+                  <button
+                    onClick={() => openBadgeInfo('player')}
+                    className={`flex items-center gap-2 rounded-full border border-white/[0.06] bg-white/[0.02] py-1 pl-1 pr-2.5 transition hover:border-white/[0.12] hover:bg-white/[0.04] ${FOCUS_RING}`}
+                    title="Player rank"
+                  >
+                    {playerBadgeUrl ? (
+                      <img src={playerBadgeUrl} alt={playerRank} className="h-6 w-6 rounded-full object-contain" />
+                    ) : (
+                      <span className="grid h-6 w-6 place-items-center rounded-full border border-dashed border-white/15 text-[9px] text-gray-600">
+                        ?
+                      </span>
+                    )}
+                    <span className="text-[11px] font-medium text-gray-400">{playerRank}</span>
+                  </button>
                 </div>
               </div>
-
-              <div className="mt-4 flex items-center gap-5">
-                <RankBadgeTile imageUrl={profile.r_url} label="Squad" size="md" />
-                <RankBadgeTile imageUrl={profile.pr_url} label="Player" size="md" />
-              </div>
             </div>
+          </div>
+
+          {/* Slim stat row */}
+          <div className="grid grid-cols-3 divide-x divide-white/[0.06] border-t border-white/[0.06]">
+            <StatCell label="Games" value={gamesPlayed.toString()} />
+            <StatCell label="Troll" value={`${trollPct}%`} valueColor={trollColor} />
+            <StatCell
+              label="Most Played"
+              value={
+                gamesPlayed === 0
+                  ? '—'
+                  : oneVOne >= coOp && oneVOne >= tor
+                    ? '1v1'
+                    : coOp >= tor
+                      ? 'Co-op'
+                      : 'Tournament'
+              }
+            />
           </div>
         </div>
 
-        {/* 2. Unified stat strip — Squad Rank & Troll %, sharing one frame like a card's rating row */}
-        <div className="cr-card rounded-2xl border border-white/5 grid grid-cols-2 divide-x divide-white/5">
-          <div className="p-4 text-center">
-            <p className="text-[11px] uppercase tracking-wide text-gray-500 mb-1">Squad Rank</p>
-            <p className="cr-display text-xl font-bold tabular-nums">{profile.squad_strength || 'N/A'}</p>
-          </div>
-          <div className="p-4 text-center">
-            <p className="text-[11px] uppercase tracking-wide text-gray-500 mb-1">Troll %</p>
-            <p className="cr-display text-xl font-bold tabular-nums" style={{ color: trollColor }}>
-              {trollPct}%
-            </p>
-            <div className="h-1 w-16 mx-auto mt-1.5 rounded-full bg-white/5 overflow-hidden">
-              <div
-                className="h-full rounded-full transition-all duration-500"
-                style={{ width: `${trollPct}%`, backgroundColor: trollColor }}
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* 3. Experience card — dual-scale progression: fine progress within the level, plus the overall ladder */}
-        <div className="cr-card rounded-2xl p-5 border border-white/5">
-          <div className="flex items-center justify-between mb-3">
+        {/* ── XP ─────────────────────────────────────── */}
+        <div className="pr-card p-4 sm:p-5">
+          <div className="mb-3 flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Zap className="h-5 w-5 text-yellow-500" />
-              <span className="cr-display text-base font-bold text-white">XP Level {xpLevel}</span>
+              <Zap className="h-4 w-4 text-yellow-500" />
+              <span className="pr-display text-sm font-semibold text-white">
+                XP Level {xpLevel}
+              </span>
             </div>
-            <span className="text-xs text-gray-400 tabular-nums">
-              {xpLevel === 4 ? 'Maxed out' : `${xpRemaining} XP to next`}
+            <span className="text-[11px] tabular-nums text-gray-500">
+              {xpLevel === 4 ? 'Maxed out' : `${xpRemaining.toLocaleString()} XP to next`}
             </span>
           </div>
 
-          <div className="h-3 rounded-full bg-[#0A0A0A] overflow-hidden">
+          <div className="h-1.5 overflow-hidden rounded-full bg-white/[0.05]">
             <div
               className="h-full rounded-full bg-gradient-to-r from-yellow-500 to-amber-400 transition-all duration-500"
               style={{ width: `${xpProgress}%` }}
             />
           </div>
-          <div className="flex justify-between text-xs text-gray-500 mt-1.5 tabular-nums">
-            <span>Current: {exp} XP</span>
-            <span>{xpLevel === 4 ? 'MAX' : `Next: ${xpNextThreshold} XP`}</span>
+
+          <div className="mt-2 flex items-center justify-between text-[11px] tabular-nums text-gray-500">
+            <span>{exp.toLocaleString()} XP</span>
+            <span>{xpLevel === 4 ? 'MAX' : `Next: ${xpNextThreshold.toLocaleString()} XP`}</span>
           </div>
 
-          {/* Level ladder — makes the long-term climb visible, not just the current step */}
-          <div className="flex items-center gap-1.5 mt-3" aria-hidden="true">
+          <div className="mt-3 flex items-center gap-1">
             {[0, 1, 2, 3, 4].map(lvl => (
               <div
                 key={lvl}
-                className={`h-1.5 flex-1 rounded-full transition-all duration-500 ${lvl <= xpLevel ? 'bg-gradient-to-r from-yellow-500 to-amber-400' : 'bg-white/5'
+                className={`h-0.5 flex-1 rounded-full transition-all duration-500 ${lvl <= xpLevel ? 'bg-gradient-to-r from-yellow-500 to-amber-400' : 'bg-white/[0.06]'
                   }`}
               />
             ))}
           </div>
-
-          <div className="grid grid-cols-2 gap-3 mt-4 pt-4 border-t border-white/5">
-            <div className="flex items-center gap-2">
-              <Gamepad2 className="h-4 w-4 text-gray-400" />
-              <div>
-                <p className="text-[11px] uppercase tracking-wide text-gray-500">Games Played</p>
-                <p className="text-sm font-semibold text-white tabular-nums">{gamesPlayed}</p>
-              </div>
-            </div>
-            {mostPlayed && (
-              <div className="flex items-center gap-2">
-                <mostPlayed.icon className="h-4 w-4 text-[#1E90FF]" />
-                <div>
-                  <p className="text-[11px] uppercase tracking-wide text-gray-500">Most Played</p>
-                  <p className="text-sm font-semibold text-white">
-                    {mostPlayed.label}
-                  </p>
-                </div>
-              </div>
-            )}
-          </div>
         </div>
 
-        {/* Pending / Rejected banners */}
+        {/* ── PENDING / REJECTED banners ─────────────── */}
         {profile.squad_strength === 'Pending' && (
-          <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-2xl p-5 flex items-center gap-3">
-            <div className="bg-yellow-500/15 rounded-full p-1.5 flex-shrink-0">
-              <Clock className="h-4 w-4 text-yellow-500" />
-            </div>
-            <p className="text-sm text-yellow-300">Your squad evaluation is in progress. You'll be notified when it's complete.</p>
+          <div className="flex items-center gap-3 rounded-2xl border border-yellow-500/20 bg-yellow-500/[0.06] p-4">
+            <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-yellow-500/10">
+              <Clock className="h-3.5 w-3.5 text-yellow-500" />
+            </span>
+            <p className="text-[13px] leading-relaxed text-yellow-200">
+              Your squad evaluation is in progress. You'll be notified when it's complete.
+            </p>
           </div>
         )}
 
         {profile.squad_strength === 'Rejected' && (
-          <div className="bg-red-500/10 border border-red-500/30 rounded-2xl p-5 flex items-center gap-3">
-            <div className="bg-red-500/15 rounded-full p-1.5 flex-shrink-0">
-              <FileWarning className="h-4 w-4 text-red-400" />
-            </div>
-            <p className="text-sm text-red-300">Your last squad screenshot was rejected. Upload a new one to get re-evaluated.</p>
+          <div className="flex items-center gap-3 rounded-2xl border border-red-500/20 bg-red-500/[0.06] p-4">
+            <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-red-500/10">
+              <FileWarning className="h-3.5 w-3.5 text-red-400" />
+            </span>
+            <p className="text-[13px] leading-relaxed text-red-200">
+              Your last squad screenshot was rejected. Upload a new one to get re-evaluated.
+            </p>
           </div>
         )}
 
-        {/* Conditional Update Squad button */}
         {(!profile.squad_strength || profile.squad_strength === 'N/A' || profile.squad_strength === 'Rejected') && (
-          <div className="cr-card rounded-2xl p-5 border border-white/5">
-            <div className="flex items-start gap-3 mb-4">
-              <Info className="h-5 w-5 text-yellow-500 flex-shrink-0 mt-0.5" />
-              <p className="text-sm text-gray-300">
-                Your squad strength is currently <strong>NOT VERIFIED</strong>. To get evaluated, upload a <strong>screenshot of your best squad lineup</strong>. We manually verify these to ensure fair play. Tampered or doctored screenshots will result in account restriction.
+          <div className="pr-card p-4 sm:p-5">
+            <div className="mb-3 flex items-start gap-3">
+              <Info className="mt-0.5 h-4 w-4 shrink-0 text-yellow-500" />
+              <p className="text-[13px] leading-relaxed text-gray-400">
+                Your squad strength is <strong className="text-white">not verified</strong>. Upload a
+                screenshot of your best squad lineup to get evaluated. Tampered screenshots result in account restriction.
               </p>
             </div>
             <button
               onClick={() => navigate('/update-squad')}
-              className={`w-full bg-yellow-600 hover:bg-yellow-700 text-white py-3 rounded-xl font-semibold transition ${PRESS} ${FOCUS_RING}`}
+              className={`w-full rounded-xl bg-yellow-600 py-2.5 text-sm font-semibold text-white transition hover:bg-yellow-700 ${PRESS} ${FOCUS_RING}`}
             >
-              Update Squad For Evaluation
+              Update squad for evaluation
             </button>
           </div>
         )}
 
-        {/* Ranking / Tournaments / Achievements tabs */}
-        <div className="cr-card rounded-2xl border border-white/5 overflow-hidden">
-          <div className="flex border-b border-white/5">
+        {/* ── TABS ──────────────────────────────────── */}
+        <div className="pr-card overflow-hidden">
+          <div className="flex border-b border-white/[0.06]">
             {(['ranking', 'tournaments', 'achievements'] as const).map(tab => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
-                className={`flex-1 py-3 text-sm font-medium capitalize transition ${FOCUS_RING} ${activeTab === tab
-                  ? 'text-[#1E90FF] border-b-2 border-[#1E90FF] bg-[#1E90FF]/5'
-                  : 'text-gray-500 hover:text-gray-300'
+                className={`relative flex-1 py-3 text-[13px] font-medium capitalize transition ${FOCUS_RING} ${activeTab === tab ? 'text-white' : 'text-gray-500 hover:text-gray-300'
                   }`}
               >
                 {tab}
+                {activeTab === tab && (
+                  <span className="absolute inset-x-4 bottom-0 h-[2px] rounded-full bg-[#1E90FF]" />
+                )}
               </button>
             ))}
           </div>
 
-          <div className="p-5">
+          <div className="p-4 sm:p-5">
             {activeTab === 'ranking' && (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="cr-display text-sm font-semibold text-gray-400">Your Ranks</span>
-                  <button
-                    onClick={() => setBadgeInfoOpen(true)}
-                    className={`text-gray-500 hover:text-white transition p-1 rounded-full hover:bg-white/5 ${FOCUS_RING}`}
-                    aria-label="Learn about badges"
-                    title="Learn about badges"
-                  >
-                    <Info className="h-5 w-5" />
-                  </button>
-                </div>
-                <RankBadgeTile imageUrl={profile.r_url} label="Squad Rank" value={profile.squad_rank || 'Unranked'} size="lg" />
-                <RankBadgeTile imageUrl={profile.pr_url} label="Player Rank" value={profile.player_rank || 'Unranked'} size="lg" />
-                <p className="text-xs text-gray-600 text-center pt-2">More rankings coming soon</p>
-              </div>
+              <RankingTab
+                squadRank={squadRank}
+                playerRank={playerRank}
+                squadBadgeUrl={squadBadgeUrl}
+                playerBadgeUrl={playerBadgeUrl}
+                onOpenBadge={openBadgeInfo}
+              />
             )}
             {activeTab === 'tournaments' && <ComingSoon label="Tournaments" />}
             {activeTab === 'achievements' && <ComingSoon label="Achievements" />}
           </div>
         </div>
 
-        {/* Menu items */}
-        <div className="space-y-2">
-          <button
-            onClick={() => navigate('/settings')}
-            className={`w-full cr-card rounded-xl p-4 flex items-center justify-between hover:bg-white/[0.03] transition border border-white/5 group ${FOCUS_RING}`}
-          >
-            <span className="flex items-center gap-3 font-medium">
-              <SettingsIcon className="h-4 w-4 text-gray-500" />
-              Settings
-            </span>
-            <ChevronRight className="h-5 w-5 text-gray-600 transition-transform group-hover:translate-x-0.5" />
-          </button>
-        </div>
-
-        {/* Logout */}
-        <div>
-          <button
-            onClick={handleLogout}
-            disabled={isLoggingOut}
-            className={`w-full rounded-xl p-4 flex items-center justify-between transition text-red-400 border ${FOCUS_RING} ${PRESS} ${isLoggingOut ? 'bg-red-500/10 border-red-500/20 cursor-not-allowed' : 'bg-red-600/10 border-red-500/30 hover:bg-red-600/20'
-              }`}
-          >
-            <span className="font-medium">{isLoggingOut ? 'Logging out...' : 'Log Out'}</span>
-            <LogOut className="h-5 w-5" />
-          </button>
-          {logoutStatus && (
-            <p className="mt-3 text-sm text-gray-500 text-center">{logoutStatus}</p>
-          )}
-        </div>
+        {/* ── SETTINGS ─────────────────────────────── */}
+        <button
+          onClick={() => navigate('/settings')}
+          className={`group flex w-full items-center justify-between rounded-2xl border border-white/[0.06] bg-[#0f0f11] p-4 transition hover:border-white/[0.1] hover:bg-white/[0.02] ${FOCUS_RING}`}
+        >
+          <span className="flex items-center gap-3 text-sm font-medium">
+            <SettingsIcon className="h-4 w-4 text-gray-500" />
+            Settings
+          </span>
+          <ChevronRight className="h-4 w-4 text-gray-600 transition-transform group-hover:translate-x-0.5" />
+        </button>
       </div>
 
       {avatarModalOpen && (
@@ -535,87 +529,245 @@ export default function ProfilePage() {
       )}
 
       {badgeInfoOpen && (
-        <BadgeInfoModal onClose={() => setBadgeInfoOpen(false)} />
+        <BadgeInfoModal
+          focus={badgeFocus}
+          currentSquadRank={squadRank}
+          currentPlayerRank={playerRank}
+          onClose={() => { setBadgeInfoOpen(false); setBadgeFocus(null); }}
+        />
       )}
     </div>
   );
 }
 
-// ---------- Helper Components ----------
+/* ────────────── Small pieces ────────────── */
 
-function RankBadgeTile({
-  imageUrl,
+function StatCell({ label, value, valueColor }: { label: string; value: string; valueColor?: string }) {
+  return (
+    <div className="px-3 py-3 text-center">
+      <p className="pr-display text-base font-bold tabular-nums sm:text-lg" style={valueColor ? { color: valueColor } : undefined}>
+        {value}
+      </p>
+      <p className="mt-0.5 text-[10px] uppercase tracking-wide text-gray-500">{label}</p>
+    </div>
+  );
+}
+
+function RankingTab({
+  squadRank,
+  playerRank,
+  squadBadgeUrl,
+  playerBadgeUrl,
+  onOpenBadge,
+}: {
+  squadRank: string;
+  playerRank: string;
+  squadBadgeUrl: string | null;
+  playerBadgeUrl: string | null;
+  onOpenBadge: (focus: BadgeFocus) => void;
+}) {
+  const squadIdx = SQUAD_ORDER.indexOf(squadRank);
+  const playerIdx = PLAYER_ORDER.indexOf(playerRank);
+
+  return (
+    <div className="space-y-4">
+      <p className="text-[11px] uppercase tracking-wide text-gray-500">Your Ranks</p>
+
+      <RankRow
+        badgeUrl={squadBadgeUrl}
+        label="Squad Rank"
+        value={squadRank}
+        tiers={SQUAD_ORDER}
+        currentIdx={squadIdx}
+        onTap={() => onOpenBadge('squad')}
+      />
+      <RankRow
+        badgeUrl={playerBadgeUrl}
+        label="Player Rank"
+        value={playerRank}
+        tiers={PLAYER_ORDER}
+        currentIdx={playerIdx}
+        onTap={() => onOpenBadge('player')}
+      />
+
+      <p className="pt-1 text-center text-[11px] text-gray-600">
+        More rankings coming soon
+      </p>
+    </div>
+  );
+}
+
+function RankRow({
+  badgeUrl,
   label,
   value,
-  size = 'md',
+  tiers,
+  currentIdx,
+  onTap,
 }: {
-  imageUrl?: string | null;
+  badgeUrl: string | null;
   label: string;
-  value?: string;
-  size?: 'md' | 'lg';
+  value: string;
+  tiers: string[];
+  currentIdx: number;
+  onTap: () => void;
 }) {
-  const dim = size === 'lg' ? 'h-16 w-16 sm:h-20 sm:w-20' : 'h-10 w-10 sm:h-11 sm:w-11';
   return (
-    <div className="flex items-center gap-3 min-w-0">
-      {imageUrl ? (
-        <img
-          src={imageUrl}
-          alt={`${label} badge`}
-          className={`${dim} object-contain flex-shrink-0 rounded-lg bg-[#0A0A0A] p-1 border border-white/10`}
-        />
+    <button
+      onClick={onTap}
+      className={`group flex w-full items-start gap-3 rounded-xl border border-white/[0.06] bg-white/[0.02] p-3.5 text-left transition hover:border-white/[0.12] hover:bg-white/[0.04] ${FOCUS_RING}`}
+    >
+      {badgeUrl ? (
+        <img src={badgeUrl} alt={value} className="h-11 w-11 shrink-0 rounded-lg bg-[#08090b] object-contain p-1" />
       ) : (
-        <div className={`${dim} rounded-full bg-[#0A0A0A] border border-white/10 flex items-center justify-center flex-shrink-0`}>
-          <span className="text-gray-700 text-xs">—</span>
-        </div>
+        <span className="grid h-11 w-11 shrink-0 place-items-center rounded-lg border border-dashed border-white/15 text-[10px] text-gray-600">
+          ?
+        </span>
       )}
-      <div className="min-w-0">
-        <p className="text-[11px] uppercase tracking-wide text-gray-500">{label}</p>
-        <p className="cr-display text-sm sm:text-base font-semibold text-white truncate">
-          {value ?? (imageUrl ? '' : 'Not ranked yet')}
-        </p>
+      <div className="min-w-0 flex-1">
+        <p className="text-[10px] uppercase tracking-wide text-gray-500">{label}</p>
+        <p className="pr-display truncate text-sm font-semibold text-white">{value}</p>
+        <div className="mt-2 flex items-center gap-1">
+          {tiers.map((_, i) => (
+            <span
+              key={i}
+              className={`h-1 flex-1 rounded-full transition-colors ${currentIdx >= 0 && i <= currentIdx ? 'bg-[#1E90FF]' : 'bg-white/[0.06]'
+                }`}
+            />
+          ))}
+        </div>
       </div>
-    </div>
+      <ChevronRight className="mt-3 h-4 w-4 shrink-0 text-gray-600 transition-transform group-hover:translate-x-0.5" />
+    </button>
   );
 }
 
 function ComingSoon({ label }: { label: string }) {
   return (
-    <div className="text-center py-10">
-      <p className="cr-display text-lg font-semibold text-gray-400 mb-1">{label}</p>
-      <p className="text-sm text-gray-600">Coming soon.</p>
+    <div className="py-10 text-center">
+      <p className="pr-display text-sm font-semibold text-gray-400">{label}</p>
+      <p className="mt-1 text-xs text-gray-600">Coming soon.</p>
     </div>
   );
 }
 
+/* ────────────── Skeleton (matches real layout) ────────────── */
+
+function SkeletonBar({ className = '' }: { className?: string }) {
+  return <div className={`animate-pulse rounded bg-white/[0.04] ${className}`} />;
+}
+
 function ProfileSkeleton() {
   return (
-    <div className="min-h-screen bg-[#0A0A0A] p-4 sm:p-6 max-w-3xl mx-auto space-y-3">
-      <div className="bg-[#141414] rounded-3xl p-5 sm:p-6">
-        <div className="flex items-start gap-5">
-          <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-full bg-[#1F1F1F] animate-pulse" />
-          <div className="flex-1 space-y-3 pt-1">
-            <div className="w-1/2 h-6 bg-[#1F1F1F] rounded animate-pulse" />
-            <div className="w-3/4 h-4 bg-[#1F1F1F] rounded animate-pulse" />
-            <div className="w-2/3 h-10 bg-[#1F1F1F] rounded animate-pulse mt-2" />
+    <div className="relative min-h-screen w-full max-w-[100vw] overflow-x-hidden bg-[#08090b] text-white">
+      <div className="mx-auto max-w-2xl space-y-3 px-4 pb-24 pt-4 sm:px-6">
+        {/* HERO skeleton */}
+        <div className="overflow-hidden rounded-2xl border border-white/[0.06] bg-[#0f0f11]">
+          <div className="p-4 sm:p-5">
+            <div className="flex items-start gap-4">
+              {/* Avatar */}
+              <div className="h-20 w-20 shrink-0 animate-pulse rounded-full bg-white/[0.04] sm:h-24 sm:w-24" />
+
+              {/* Identity */}
+              <div className="min-w-0 flex-1 pt-0.5">
+                {/* Name + badges row */}
+                <div className="flex items-center gap-1.5">
+                  <SkeletonBar className="h-6 w-28" />
+                  <SkeletonBar className="h-4 w-4 !rounded-full" />
+                </div>
+                {/* Email */}
+                <div className="mt-2 flex items-center gap-1.5">
+                  <SkeletonBar className="h-3 w-3 !rounded-full" />
+                  <SkeletonBar className="h-3 w-40" />
+                </div>
+                {/* Rank chips */}
+                <div className="mt-3 flex items-center gap-2">
+                  <SkeletonBar className="h-8 w-28 !rounded-full" />
+                  <SkeletonBar className="h-8 w-28 !rounded-full" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Stat row skeleton */}
+          <div className="grid grid-cols-3 divide-x divide-white/[0.06] border-t border-white/[0.06]">
+            {[0, 1, 2].map(i => (
+              <div key={i} className="px-3 py-3 text-center">
+                <SkeletonBar className="mx-auto h-5 w-12" />
+                <SkeletonBar className="mx-auto mt-2 h-2.5 w-16" />
+              </div>
+            ))}
           </div>
         </div>
+
+        {/* XP skeleton */}
+        <div className="rounded-2xl border border-white/[0.06] bg-[#0f0f11] p-4 sm:p-5">
+          <div className="mb-3 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <SkeletonBar className="h-4 w-4 !rounded-full" />
+              <SkeletonBar className="h-4 w-20" />
+            </div>
+            <SkeletonBar className="h-3 w-24" />
+          </div>
+          <SkeletonBar className="h-1.5 w-full !rounded-full" />
+          <div className="mt-2 flex items-center justify-between">
+            <SkeletonBar className="h-3 w-16" />
+            <SkeletonBar className="h-3 w-24" />
+          </div>
+          <div className="mt-3 flex items-center gap-1">
+            {[0, 1, 2, 3, 4].map(i => (
+              <SkeletonBar key={i} className="h-0.5 flex-1 !rounded-full" />
+            ))}
+          </div>
+        </div>
+
+        {/* Tabs skeleton */}
+        <div className="overflow-hidden rounded-2xl border border-white/[0.06] bg-[#0f0f11]">
+          <div className="flex border-b border-white/[0.06]">
+            {[0, 1, 2].map(i => (
+              <div key={i} className="flex-1 py-3">
+                <SkeletonBar className="mx-auto h-3 w-20" />
+              </div>
+            ))}
+          </div>
+          <div className="space-y-4 p-4 sm:p-5">
+            <SkeletonBar className="h-3 w-20" />
+            {/* Two rank rows */}
+            {[0, 1].map(i => (
+              <div
+                key={i}
+                className="flex items-start gap-3 rounded-xl border border-white/[0.06] bg-white/[0.02] p-3.5"
+              >
+                <SkeletonBar className="h-11 w-11 shrink-0 !rounded-lg" />
+                <div className="min-w-0 flex-1">
+                  <SkeletonBar className="h-2.5 w-16" />
+                  <SkeletonBar className="mt-2 h-4 w-24" />
+                  <div className="mt-2 flex items-center gap-1">
+                    {[0, 1, 2, 3, 4, 5, 6].map(j => (
+                      <SkeletonBar key={j} className="h-1 flex-1 !rounded-full" />
+                    ))}
+                  </div>
+                </div>
+                <SkeletonBar className="mt-3 h-4 w-4 !rounded-full" />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Settings skeleton */}
+        <div className="flex items-center justify-between rounded-2xl border border-white/[0.06] bg-[#0f0f11] p-4">
+          <div className="flex items-center gap-3">
+            <SkeletonBar className="h-4 w-4 !rounded-full" />
+            <SkeletonBar className="h-3.5 w-20" />
+          </div>
+          <SkeletonBar className="h-4 w-4 !rounded-full" />
+        </div>
       </div>
-      <div className="h-16 bg-[#141414] rounded-2xl animate-pulse" />
-      <div className="grid grid-cols-2 gap-3">
-        {[1, 2].map(i => (
-          <div key={i} className="h-20 bg-[#141414] rounded-2xl animate-pulse" />
-        ))}
-      </div>
-      <div className="h-48 bg-[#141414] rounded-2xl animate-pulse" />
-      <div className="space-y-2">
-        {[1, 2].map(i => (
-          <div key={i} className="w-full h-14 bg-[#141414] rounded-xl animate-pulse" />
-        ))}
-      </div>
-      <div className="w-full h-14 bg-[#141414] rounded-xl animate-pulse" />
     </div>
   );
 }
+
+/* ────────────── Avatar Modal ────────────── */
 
 function AvatarModal({ onSelect, onClose }: { onSelect: (url: string) => void; onClose: () => void }) {
   const [activeTab, setActiveTab] = useState(0);
@@ -623,34 +775,38 @@ function AvatarModal({ onSelect, onClose }: { onSelect: (url: string) => void; o
   const category = AVATAR_CATEGORIES[activeTab];
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
-      <div className="cr-card rounded-2xl w-full max-w-lg max-h-[85vh] flex flex-col shadow-2xl border border-white/10 overflow-hidden">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-white/10 shrink-0">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-3 backdrop-blur-sm sm:p-4">
+      <div className="flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-white/[0.08] bg-[#0f0f11] shadow-2xl">
+        <div className="flex shrink-0 items-center justify-between border-b border-white/[0.06] px-5 py-4">
           <div className="flex items-center gap-3">
-            <h2 className="cr-display text-base font-bold">Choose Your Avatar</h2>
+            <h2 className="pr-display text-base font-bold">Choose Your Avatar</h2>
             {selectedSeed && (
-              <img src={selectedSeed} alt="Selected avatar" className="h-7 w-7 rounded-full border border-[#1E90FF] object-cover" />
+              <img src={selectedSeed} alt="Selected" className="h-7 w-7 rounded-full border border-[#1E90FF] object-cover" />
             )}
           </div>
-          <button onClick={onClose} className={`text-gray-400 hover:text-white transition p-1 rounded-full hover:bg-white/10 ${FOCUS_RING}`}>
+          <button
+            onClick={onClose}
+            className={`rounded-full p-1 text-gray-400 transition hover:bg-white/[0.06] hover:text-white ${FOCUS_RING}`}
+          >
             <X className="h-4 w-4" />
           </button>
         </div>
 
-        <div className="flex border-b border-white/10 px-3 overflow-x-auto py-2 gap-1 shrink-0">
+        <div className="flex shrink-0 gap-1 overflow-x-auto border-b border-white/[0.06] px-3 py-2">
           {AVATAR_CATEGORIES.map((cat, idx) => (
             <button
               key={cat.name}
               onClick={() => { setActiveTab(idx); setSelectedSeed(null); }}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-full transition whitespace-nowrap ${FOCUS_RING} ${idx === activeTab ? 'bg-[#1E90FF] text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
+              className={`rounded-full px-3 py-1.5 text-xs font-semibold transition whitespace-nowrap ${FOCUS_RING} ${idx === activeTab ? 'bg-[#1E90FF] text-white' : 'text-gray-400 hover:bg-white/[0.05] hover:text-white'
+                }`}
             >
               {cat.name}
             </button>
           ))}
         </div>
 
-        <div className="p-4 overflow-y-auto flex-1">
-          <div className="grid grid-cols-4 sm:grid-cols-5 gap-3">
+        <div className="flex-1 overflow-y-auto p-4">
+          <div className="grid grid-cols-4 gap-3 sm:grid-cols-5">
             {category.seeds.map(seed => {
               const url = `${category.base}${seed}`;
               const isSelected = selectedSeed === url;
@@ -658,28 +814,26 @@ function AvatarModal({ onSelect, onClose }: { onSelect: (url: string) => void; o
                 <button
                   key={seed}
                   onClick={() => setSelectedSeed(url)}
-                  className={`aspect-square rounded-xl overflow-hidden border-2 transition-all bg-[#0A0A0A] ${FOCUS_RING} ${isSelected ? 'border-[#1E90FF] ring-2 ring-[#1E90FF]/40' : 'border-white/10 hover:border-gray-400'}`}
+                  className={`aspect-square overflow-hidden rounded-xl border-2 bg-[#08090b] transition-all ${FOCUS_RING} ${isSelected ? 'border-[#1E90FF] ring-2 ring-[#1E90FF]/40' : 'border-white/[0.08] hover:border-gray-400'
+                    }`}
                 >
-                  <img src={url} alt={`Avatar option ${seed}`} className="w-full h-full object-cover" loading="lazy" />
+                  <img src={url} alt={`Avatar ${seed}`} className="h-full w-full object-cover" loading="lazy" />
                 </button>
               );
             })}
           </div>
         </div>
 
-        <div className="p-4 border-t border-white/10 flex gap-2 shrink-0">
-          <button onClick={onClose} className={`flex-1 bg-transparent border border-white/10 text-gray-300 py-2 rounded-lg text-sm hover:bg-white/5 transition ${FOCUS_RING} ${PRESS}`}>
+        <div className="flex shrink-0 gap-2 border-t border-white/[0.06] p-4">
+          <button
+            onClick={onClose}
+            className={`flex-1 rounded-lg border border-white/[0.08] py-2 text-sm text-gray-300 transition hover:bg-white/[0.03] ${FOCUS_RING} ${PRESS}`}
+          >
             Cancel
           </button>
           <button
-            onClick={() => {
-              if (selectedSeed) {
-                onSelect(selectedSeed);
-              } else {
-                toast.error('Please select an avatar');
-              }
-            }}
-            className={`flex-1 bg-[#1E90FF] hover:bg-blue-600 text-white py-2 rounded-lg text-sm font-semibold transition ${FOCUS_RING} ${PRESS}`}
+            onClick={() => selectedSeed ? onSelect(selectedSeed) : toast.error('Please select an avatar')}
+            className={`flex-1 rounded-lg bg-[#1E90FF] py-2 text-sm font-semibold text-white transition hover:bg-blue-600 ${FOCUS_RING} ${PRESS}`}
           >
             Save Avatar
           </button>
@@ -689,67 +843,113 @@ function AvatarModal({ onSelect, onClose }: { onSelect: (url: string) => void; o
   );
 }
 
-function BadgeInfoModal({ onClose }: { onClose: () => void }) {
+/* ────────────── Badge Info Modal ────────────── */
+
+function BadgeInfoModal({
+  focus,
+  currentSquadRank,
+  currentPlayerRank,
+  onClose,
+}: {
+  focus: BadgeFocus;
+  currentSquadRank: string;
+  currentPlayerRank: string;
+  onClose: () => void;
+}) {
   const playerLevels = [
-    { name: 'Tepid', url: 'https://res.cloudinary.com/ctr-cloud/image/upload/v1786380914/jpuxanxhxotl5asuoc5g.png', desc: 'Just getting started.' },
-    { name: 'Grinder', url: 'https://res.cloudinary.com/ctr-cloud/image/upload/v1786380918/s7rx3mwgezzfn0dtmjxk.png', desc: 'Consistent and putting in the work.' },
-    { name: 'Conqueror', url: 'https://res.cloudinary.com/ctr-cloud/image/upload/v1786381381/k0rtr7rbyoimuvm0toxk.png', desc: 'A skilled, proven competitor.' },
-    { name: 'Global Best', url: 'https://res.cloudinary.com/ctr-cloud/image/upload/v1786380917/hx3cptpzolxigapujqin.png', desc: 'Ranked among the elite worldwide.' },
-    { name: 'Ace', url: 'https://res.cloudinary.com/ctr-cloud/image/upload/v1786380917/sgjg1bwq4m20gyq60okq.png', desc: 'The top tier. A true ace.' },
+    { name: 'Tepid', url: PLAYER_RANK_BADGES['Tepid'], desc: 'Just getting started.' },
+    { name: 'Grinder', url: PLAYER_RANK_BADGES['Grinder'], desc: 'Consistent and putting in the work.' },
+    { name: 'Conqueror', url: PLAYER_RANK_BADGES['Conqueror'], desc: 'A skilled, proven competitor.' },
+    { name: 'Global Best', url: PLAYER_RANK_BADGES['Global Best'], desc: 'Ranked among the elite worldwide.' },
+    { name: 'Ace', url: PLAYER_RANK_BADGES['Ace'], desc: 'The top tier. A true ace.' },
+    { name: 'Admin', url: PLAYER_RANK_BADGES['Admin'], desc: 'Site administrator.' },
   ];
 
   const squadLevels = [
-    { name: 'Academy', url: 'https://res.cloudinary.com/ctr-cloud/image/upload/v1786380918/hiew6m38ulz49klmrsxd.png', desc: 'Young prospects learning the game. Raw potential waiting to break through.' },
-    { name: 'Cadets', url: 'https://res.cloudinary.com/ctr-cloud/image/upload/v1786380918/oqweb7wxxqzgwpdkhuw1.png', desc: 'Rising stars sharpening their edge. One step away from the big leagues.' },
-    { name: 'Wildcard', url: 'https://res.cloudinary.com/ctr-cloud/image/upload/v1786380918/e95rg0zppnficltnhhvf.png', desc: 'Unpredictable and dangerous. No formation is safe against this chaos.' },
-    { name: 'Generals', url: 'https://res.cloudinary.com/ctr-cloud/image/upload/v1786380919/h5byjrvrdsrtxpauyowl.png', desc: 'Leaders on the pitch. Tactical masterminds who dictate the tempo.' },
-    { name: 'Golden Eleven', url: 'https://res.cloudinary.com/ctr-cloud/image/upload/v1786380918/dwbweupxgs1fjkla3hzb.png', desc: 'An elite starting XI – precision, chemistry, and pure class.' },
-    { name: 'Galacticos', url: 'https://res.cloudinary.com/ctr-cloud/image/upload/v1786380916/hjih4glyecynmxxmvr6h.png', desc: 'A star-studded squad of generational talent. The envy of the world.' },
-    { name: 'Gen XI', url: 'https://res.cloudinary.com/ctr-cloud/image/upload/v1786380916/v2oomsnv2cb720pijvrw.png', desc: 'The ultimate eleven. Legends forged in glory, unstoppable.' },
+    { name: 'Academy', url: SQUAD_RANK_BADGES['Academy'], desc: 'Young prospects learning the game.' },
+    { name: 'Cadets', url: SQUAD_RANK_BADGES['Cadets'], desc: 'Rising stars sharpening their edge.' },
+    { name: 'Wildcards', url: SQUAD_RANK_BADGES['Wildcards'], desc: 'Unpredictable and dangerous.' },
+    { name: 'Generals', url: SQUAD_RANK_BADGES['Generals'], desc: 'Leaders on the pitch.' },
+    { name: 'Golden Eleven', url: SQUAD_RANK_BADGES['Golden Eleven'], desc: 'An elite starting XI.' },
+    { name: 'Galacticos', url: SQUAD_RANK_BADGES['Galacticos'], desc: 'A star-studded squad.' },
+    { name: 'Gen XI', url: SQUAD_RANK_BADGES['Gen XI'], desc: 'The ultimate eleven.' },
   ];
 
   const specialBadges = [
-    { name: 'Verified', url: 'https://res.cloudinary.com/ctr-cloud/image/upload/v1786380916/rsfa4dftmbz427k5cnmw.png', desc: 'Identity confirmed.' },
-    { name: 'Staff', url: 'https://res.cloudinary.com/ctr-cloud/image/upload/v1786380915/ff7rn60eiylq1x1oixsz.png', desc: 'Keeps the community running.' },
-    { name: 'Admin', url: 'https://res.cloudinary.com/ctr-cloud/image/upload/v1786380918/op1kkxepisfkre1apdyt.png', desc: 'Top-level management.' },
-    { name: 'Troll', url: 'https://res.cloudinary.com/ctr-cloud/image/upload/v1786380917/l1bl2nyhvmudc75z1nqc.png', desc: 'Notorious mischief-maker.' },
+    { name: 'Verified', url: VERIFIED_BADGE, desc: 'Identity confirmed.' },
+    { name: 'Staff', url: STAFF_BADGE, desc: 'Keeps the community running.' },
+    { name: 'Troll', url: TROLL_BADGE, desc: 'Notorious mischief-maker.' },
   ];
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="cr-card rounded-3xl w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl border border-white/10">
-        <div className="flex items-center justify-between px-6 py-5 border-b border-white/10 shrink-0">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
+      <div className="flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-3xl border border-white/[0.08] bg-[#0f0f11] shadow-2xl">
+        <div className="flex shrink-0 items-center justify-between border-b border-white/[0.06] px-6 py-5">
           <div>
-            <h2 className="cr-display text-lg font-bold">Badges guide</h2>
-            <p className="text-xs text-gray-500 mt-0.5">What each badge means and how you earn it</p>
+            <h2 className="pr-display text-lg font-bold">Badges guide</h2>
+            <p className="mt-0.5 text-xs text-gray-500">What each badge means and how you earn it</p>
           </div>
-          <button onClick={onClose} className={`text-gray-400 hover:text-white transition p-1.5 rounded-full hover:bg-white/10 ${FOCUS_RING}`}>
+          <button
+            onClick={onClose}
+            className={`rounded-full p-1.5 text-gray-400 transition hover:bg-white/[0.06] hover:text-white ${FOCUS_RING}`}
+          >
             <X className="h-5 w-5" />
           </button>
         </div>
 
-        <div className="px-6 py-5 overflow-y-auto flex-1 space-y-7">
-          <BadgeSection title="Player levels" subtitle="Your individual rank, based on performance">
-            {playerLevels.map(b => (
-              <BadgeItem key={b.name} name={b.name} url={b.url} desc={b.desc} shape="square" />
-            ))}
-          </BadgeSection>
+        <div className="flex-1 space-y-7 overflow-y-auto px-6 py-5">
+          {(focus === null || focus === 'player') && (
+            <BadgeSection
+              title="Player levels"
+              subtitle="Your individual rank, based on performance"
+              highlight={focus === 'player' ? currentPlayerRank : null}
+            >
+              {playerLevels.map(b => (
+                <BadgeItem
+                  key={b.name}
+                  name={b.name}
+                  url={b.url}
+                  desc={b.desc}
+                  shape="square"
+                  isCurrent={b.name === currentPlayerRank}
+                />
+              ))}
+            </BadgeSection>
+          )}
 
-          <BadgeSection title="Squad levels" subtitle="Your squad's rank, based on combined performance">
-            {squadLevels.map(b => (
-              <BadgeItem key={b.name} name={b.name} url={b.url} desc={b.desc} shape="square" />
-            ))}
-          </BadgeSection>
+          {(focus === null || focus === 'squad') && (
+            <BadgeSection
+              title="Squad levels"
+              subtitle="Your squad's rank, based on combined performance"
+              highlight={focus === 'squad' ? currentSquadRank : null}
+            >
+              {squadLevels.map(b => (
+                <BadgeItem
+                  key={b.name}
+                  name={b.name}
+                  url={b.url}
+                  desc={b.desc}
+                  shape="square"
+                  isCurrent={b.name === currentSquadRank}
+                />
+              ))}
+            </BadgeSection>
+          )}
 
-          <BadgeSection title="Special badges" subtitle="Roles and status, assigned rather than earned by rank">
-            {specialBadges.map(b => (
-              <BadgeItem key={b.name} name={b.name} url={b.url} desc={b.desc} shape="round" />
-            ))}
-          </BadgeSection>
+          {focus === null && (
+            <BadgeSection title="Special badges" subtitle="Roles and status">
+              {specialBadges.map(b => (
+                <BadgeItem key={b.name} name={b.name} url={b.url} desc={b.desc} shape="round" />
+              ))}
+            </BadgeSection>
+          )}
         </div>
 
-        <div className="px-6 py-4 border-t border-white/10 shrink-0">
-          <button onClick={onClose} className={`w-full bg-transparent border border-white/10 text-gray-300 py-2.5 rounded-xl hover:bg-white/5 transition text-sm font-medium ${FOCUS_RING} ${PRESS}`}>
+        <div className="shrink-0 border-t border-white/[0.06] px-6 py-4">
+          <button
+            onClick={onClose}
+            className={`w-full rounded-xl border border-white/[0.08] py-2.5 text-sm font-medium text-gray-300 transition hover:bg-white/[0.03] ${FOCUS_RING} ${PRESS}`}
+          >
             Close
           </button>
         </div>
@@ -758,14 +958,29 @@ function BadgeInfoModal({ onClose }: { onClose: () => void }) {
   );
 }
 
-function BadgeSection({ title, subtitle, children }: { title: string; subtitle: string; children: React.ReactNode }) {
+function BadgeSection({
+  title,
+  subtitle,
+  highlight,
+  children,
+}: {
+  title: string;
+  subtitle: string;
+  highlight?: string | null;
+  children: React.ReactNode;
+}) {
   return (
     <div>
-      <h3 className="cr-display text-sm font-semibold text-white mb-0.5">{title}</h3>
-      <p className="text-xs text-gray-500 mb-3">{subtitle}</p>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-        {children}
+      <div className="mb-3 flex items-baseline gap-2">
+        <h3 className="pr-display text-sm font-semibold text-white">{title}</h3>
+        {highlight && (
+          <span className="rounded-full bg-[#1E90FF]/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[#5CA8FF]">
+            You are here
+          </span>
+        )}
       </div>
+      <p className="mb-3 text-xs text-gray-500">{subtitle}</p>
+      <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">{children}</div>
     </div>
   );
 }
@@ -775,22 +990,36 @@ function BadgeItem({
   url,
   desc,
   shape,
+  isCurrent,
 }: {
   name: string;
   url: string;
   desc: string;
   shape: 'square' | 'round';
+  isCurrent?: boolean;
 }) {
   return (
-    <div className="flex items-center gap-3 bg-white/[0.03] rounded-xl p-3 border border-white/5 hover:border-white/10 hover:bg-white/[0.05] transition">
+    <div
+      className={`flex items-center gap-3 rounded-xl border p-3 transition ${isCurrent
+          ? 'border-[#1E90FF]/40 bg-[#1E90FF]/[0.06]'
+          : 'border-white/[0.06] bg-white/[0.02] hover:border-white/[0.12] hover:bg-white/[0.04]'
+        }`}
+    >
       <img
         src={url}
         alt={name}
-        className={`h-14 w-14 object-contain shrink-0 ${shape === 'round' ? 'rounded-full' : 'rounded-lg'}`}
+        className={`h-12 w-12 shrink-0 object-contain ${shape === 'round' ? 'rounded-full' : 'rounded-lg'}`}
       />
       <div className="min-w-0">
-        <p className="text-sm font-semibold text-white truncate">{name}</p>
-        <p className="text-xs text-gray-400 leading-snug">{desc}</p>
+        <div className="flex items-center gap-2">
+          <p className="truncate text-sm font-semibold text-white">{name}</p>
+          {isCurrent && (
+            <span className="rounded-full bg-[#1E90FF] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white">
+              Current
+            </span>
+          )}
+        </div>
+        <p className="text-xs leading-snug text-gray-400">{desc}</p>
       </div>
     </div>
   );

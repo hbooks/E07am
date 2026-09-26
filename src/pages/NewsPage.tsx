@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useMemo } from "react";
 import {
   BadgeCheck, ChevronDown, Heart, Send, RefreshCw, Loader2,
   ShieldCheck, Gamepad2, Users, AlertTriangle, Sparkles, Search, X, Plus,
-  MessageSquare, Repeat2, BarChart3, Share, Calendar, Clock, Copy,
+  MessageSquare, Repeat2, BarChart3, Share, Calendar, Clock, Copy, LogIn,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useKindeAuth } from "@kinde-oss/kinde-auth-react";
@@ -31,7 +31,7 @@ const MENTION_TAGS = ["admin", "issue", "bug", "moderator"];
 const PAGE_SIZE = 20;
 
 // ============================================================
-// Global shimmer style (injected once)
+// Global shimmer style
 // ============================================================
 const SHIMMER_STYLE = `
   @keyframes np-shimmer {
@@ -181,10 +181,9 @@ function LoadMore({ onClick, remaining }: { onClick: () => void; remaining: numb
 }
 
 // ============================================================
-// SKELETONS — tab-aware, match actual layout
+// SKELETONS
 // ============================================================
 
-// Admin: timeline rail + expanded featured + collapsed rows
 function AdminSkeleton() {
   return (
     <div className="relative pl-5">
@@ -192,8 +191,6 @@ function AdminSkeleton() {
         className="pointer-events-none absolute left-[6px] top-3 bottom-3 w-px bg-white/[0.06]"
         aria-hidden
       />
-
-      {/* Featured (expanded) skeleton */}
       <div className="relative pb-3">
         <span
           className="absolute -left-[19px] top-3 h-2.5 w-2.5 rounded-full bg-[#1E90FF]/40 ring-4 ring-[#08090b]"
@@ -216,7 +213,6 @@ function AdminSkeleton() {
         </div>
       </div>
 
-      {/* Collapsed rows */}
       {[0, 1, 2].map((i) => (
         <div key={i} className="relative pb-3 last:pb-0">
           <span
@@ -236,11 +232,9 @@ function AdminSkeleton() {
   );
 }
 
-// Game: latest card + toggle pill + intro note
 function GameSkeleton() {
   return (
     <div className="space-y-3">
-      {/* Latest */}
       <div className="rounded-2xl border border-white/[0.06] bg-[#111113] p-4">
         <div className="flex items-start gap-3">
           <div className="np-shimmer mt-0.5 h-10 w-10 flex-shrink-0 rounded-xl" />
@@ -250,11 +244,7 @@ function GameSkeleton() {
           </div>
         </div>
       </div>
-
-      {/* Toggle pill */}
       <div className="np-shimmer h-11 w-full rounded-full" />
-
-      {/* Intro note */}
       <div className="rounded-xl border border-white/[0.05] bg-[#0f0f11] px-4 py-3">
         <div className="space-y-1.5">
           <div className="np-shimmer h-2.5 w-full rounded" />
@@ -265,17 +255,13 @@ function GameSkeleton() {
   );
 }
 
-// Community: search bar + composer + Twitter rows
 function CommunitySkeleton() {
   return (
     <div className="space-y-3">
-      {/* Search bar */}
       <div className="flex items-center gap-2">
         <div className="np-shimmer h-10 flex-1 rounded-full" />
         <div className="np-shimmer h-10 w-10 flex-shrink-0 rounded-full" />
       </div>
-
-      {/* Composer */}
       <div className="rounded-2xl border border-white/[0.06] bg-[#111113] p-4">
         <div className="flex gap-3">
           <div className="np-shimmer h-9 w-9 flex-shrink-0 rounded-full" />
@@ -288,8 +274,6 @@ function CommunitySkeleton() {
           </div>
         </div>
       </div>
-
-      {/* Twitter-shape rows */}
       <div className="overflow-hidden rounded-2xl border border-white/[0.06] bg-[#0d0d0f]">
         {[0, 1, 2].map((i) => (
           <div
@@ -554,7 +538,6 @@ export default function NewsPage() {
     <div className="min-h-screen bg-[#08090b] text-white">
       <style>{SHIMMER_STYLE}</style>
       <div className="mx-auto w-full max-w-xl px-4 pb-24 pt-4">
-        {/* Tab bar */}
         <div
           role="tablist"
           aria-label="News categories"
@@ -591,7 +574,6 @@ export default function NewsPage() {
           })}
         </div>
 
-        {/* Content */}
         <div onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
           {tab === "Admin Updates" && (
             <div
@@ -787,7 +769,7 @@ function AdminUpdatesTab() {
 }
 
 // ============================================================
-// GAME UPDATES — latest + toggle + intro note
+// GAME UPDATES
 // ============================================================
 function GameUpdatesTab() {
   const [posts, setPosts] = useState<NewsItem[]>([]);
@@ -834,7 +816,6 @@ function GameUpdatesTab() {
 
   return (
     <div className="space-y-3">
-      {/* Latest patch */}
       <article className="rounded-2xl border border-white/[0.06] bg-[#111113] p-4">
         <div className="flex items-start gap-3">
           <img
@@ -856,7 +837,6 @@ function GameUpdatesTab() {
         </div>
       </article>
 
-      {/* Toggle */}
       {rest.length > 0 && (
         <button
           type="button"
@@ -876,7 +856,6 @@ function GameUpdatesTab() {
         </button>
       )}
 
-      {/* Intro note — only when collapsed, below toggle */}
       {!expanded && rest.length > 0 && (
         <div className="rounded-xl border border-white/[0.05] bg-[#0f0f11] px-4 py-3">
           <p className="text-[12.5px] leading-relaxed text-gray-500">
@@ -887,7 +866,6 @@ function GameUpdatesTab() {
         </div>
       )}
 
-      {/* Older list */}
       {expanded && rest.length > 0 && (
         <div className="space-y-2 animate-in fade-in duration-200">
           {rest.map((post) => (
@@ -923,7 +901,7 @@ function GameUpdatesTab() {
 // COMMUNITY FEED
 // ============================================================
 function CommunityFeed() {
-  const { user } = useKindeAuth();
+  const { user, isLoading: authLoading, login } = useKindeAuth();
   const [posts, setPosts] = useState<CommunityPostItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -1186,6 +1164,36 @@ function CommunityFeed() {
       return false;
     });
   }, [posts, searchQuery]);
+
+  // ---- AUTH GATE ----
+  // Show skeleton only while Kinde is still resolving auth.
+  if (authLoading) return <CommunitySkeleton />;
+
+  // Not signed in → prompt to sign in. No fetch has run (guards above).
+  if (!user) {
+    return (
+      <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-white/[0.08] px-6 py-16 text-center">
+        <div className="grid h-12 w-12 place-items-center rounded-full border border-white/5 bg-[#161616]">
+          <Users className="h-5 w-5 text-gray-500" />
+        </div>
+        <p className="mt-4 text-base font-semibold text-white">
+          Sign in to join the community
+        </p>
+        <p className="mt-1.5 max-w-xs text-sm leading-relaxed text-gray-500">
+          You need an account to post, view, comment, and react to community content.
+        </p>
+        {login && (
+          <button
+            onClick={() => login()}
+            className="mt-5 inline-flex items-center gap-2 rounded-full bg-[#1E90FF] px-5 py-2.5 text-sm font-semibold text-white transition hover:brightness-110"
+          >
+            <LogIn className="h-3.5 w-3.5" />
+            Sign in
+          </button>
+        )}
+      </div>
+    );
+  }
 
   if (loading) return <CommunitySkeleton />;
   if (error) return <ErrorState onRetry={() => fetchPosts()} message={error} />;

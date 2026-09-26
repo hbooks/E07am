@@ -25,7 +25,7 @@ const SECTIONS = [
 
 export default function TermsPage() {
     return (
-        <LegalLayout title="Terms of Service" lastUpdated="9th August 2026" sections={SECTIONS}>
+        <LegalLayout title="Terms of Service" lastUpdated="20th September 2026" sections={SECTIONS}>
             <Section id="acceptance" title="1. Acceptance of Terms">
                 <p>
                     CTR – Claim The Room ("CTR", "the Service", "we", "us") is a product operated
@@ -42,16 +42,18 @@ export default function TermsPage() {
                     read and agree to these Terms on your behalf. Because a person under 18 may not be
                     able to enter into a fully binding contract under English law, where you are under 18
                     your parent or guardian is treated as accepting these Terms and is responsible for
-                    your compliance with them. By using CTR, you (or your parent/guardian, if you're
-                    under 18) represent that you meet these requirements.
+                    your compliance with them.
+                </p>
+                <p className="mt-2">
+                    In line with our safety duties under the Online Safety Act 2023, we take steps to prevent children under 13 from accessing the Service. These steps include requiring a declaration of age at sign-up, monitoring for indicators of underage use, and terminating accounts where we have reason to believe the user is under 13.
                 </p>
             </Section>
 
             <Section id="platform" title="3. Independent Platform">
                 <p>
-                    CTR is an independent, fan‑made matchmaking tool for eFootball™ players. We are{' '}
+                    CTR is an independent, fan-made matchmaking tool for eFootball™ players. We are{' '}
                     <strong>not affiliated, endorsed, or sponsored by Konami Group Corporation</strong>. All
-                    game‑related trademarks, names, and logos are the property of their respective owners and are
+                    game-related trademarks, names, and logos are the property of their respective owners and are
                     used here only to describe the Service. You may not use CTR's name, logo, or branding to imply
                     an affiliation with Konami or any official eFootball product.
                 </p>
@@ -59,7 +61,7 @@ export default function TermsPage() {
 
             <Section id="availability" title="4. Availability, Maintenance & Changes">
                 <p>
-                    CTR is provided free of charge and on a best‑efforts basis. We reserve the right to
+                    CTR is provided free of charge and on a best-efforts basis. We reserve the right to
                     temporarily suspend access to all or part of the Service for maintenance, updates, or
                     technical reasons ("Maintenance Mode"), and to modify, add, or remove features at our
                     discretion. We'll try to keep disruption to a minimum but don't guarantee uninterrupted
@@ -71,7 +73,7 @@ export default function TermsPage() {
             <Section id="matchmaking" title="5. Matchmaking, Room Posting & Claims">
                 <p>
                     CTR lets you post match rooms and claim rooms posted by other users. Claims are
-                    handled on a <strong>first‑come, first‑served</strong> basis: once a room is
+                    handled on a <strong>first-come, first-served</strong> basis: once a room is
                     claimed, it's locked to that user for the duration of the match. Unclaimed or
                     unresolved claims and locks <strong>expire automatically</strong> after a set period
                     (see Section 8, Data Retention, in our Privacy Policy for current timings), after
@@ -88,7 +90,7 @@ export default function TermsPage() {
                 <ul className="list-disc pl-5 space-y-1 mt-1">
                     <li>Use your <strong>real eFootball username</strong> – not an ID, not someone else's name.</li>
                     <li>Never share your Konami/eFootball ID, password, or other account credentials with CTR or with other users — we will never ask for it.</li>
-                    <li>Keep your CTR sign‑in credentials confidential and secure, and tell us promptly at legal@hpbooks.uk if you suspect unauthorized access to your account.</li>
+                    <li>Keep your CTR sign-in credentials confidential and secure, and tell us promptly at legal@hpbooks.uk if you suspect unauthorized access to your account.</li>
                     <li>Not impersonate another player, a CTR team member, or any official entity.</li>
                     <li>Not use offensive, hateful, obscene, or otherwise inappropriate language in your username, posts, or comments.</li>
                     <li>Not upload tampered, doctored, or misleading screenshots for squad evaluation or match results.</li>
@@ -105,7 +107,7 @@ export default function TermsPage() {
             <Section id="community" title="7. Community Content & Moderation">
                 <p>
                     CTR includes features that let users post and comment (the "Community Features"). As
-                    a provider of a user‑to‑user service with links to the UK, we have duties under the
+                    a provider of a user-to-user service with links to the UK, we have duties under the
                     Online Safety Act 2023 to assess and manage the risk of illegal content, and to
                     protect users — including children — from harm. In line with this, we:
                 </p>
@@ -113,8 +115,12 @@ export default function TermsPage() {
                     <li>Prohibit illegal content and content that promotes harm, harassment, hate speech, or exploitation of minors on the Community Features.</li>
                     <li>Let you flag content or behaviour you believe is illegal, harmful, or breaches these Terms via the Contact Us form on your Profile, or by emailing legal@hpbooks.uk.</li>
                     <li>Operate a complaints procedure: if you report content, or if content you've posted is removed or actioned, you can use the same channel to ask us to review that decision.</li>
+                    <li>Maintain records of all content reports, moderation decisions, and complaint outcomes for a minimum of 6 months.</li>
                     <li>May review, moderate, remove, or restrict access to content, and may suspend or terminate accounts, where we reasonably believe this is necessary to comply with the law or these Terms.</li>
                 </ul>
+                <p className="mt-2">
+                    The individual responsible for overseeing CTR's compliance with its safety duties under the Online Safety Act 2023 is our <strong>Safety Lead</strong>, contactable at legal@hpbooks.uk.
+                </p>
                 <p className="mt-2">
                     This section doesn't limit your right to freedom of expression; we aim to take
                     moderation action that is proportionate to the harm involved.
@@ -124,9 +130,9 @@ export default function TermsPage() {
             <Section id="content-license" title="8. Your Content & License to Us">
                 <p>
                     "Your Content" means anything you submit to CTR, including your username, chosen
-                    avatar, squad‑evaluation screenshots, and any community posts or comments. You retain
-                    ownership of Your Content. By submitting it, you grant CTR a non‑exclusive, worldwide,
-                    royalty‑free license to host, store, display, and reproduce Your Content solely for
+                    avatar, squad-evaluation screenshots, and any community posts or comments. You retain
+                    ownership of Your Content. By submitting it, you grant CTR a non-exclusive, worldwide,
+                    royalty-free license to host, store, display, and reproduce Your Content solely for
                     the purpose of operating and displaying the Service (for example, showing your profile
                     and avatar to other users, displaying your community posts, or reviewing a submitted
                     screenshot for evaluation). To the extent permitted by the Copyright, Designs and
@@ -146,13 +152,12 @@ export default function TermsPage() {
                     When you submit a screenshot for squad evaluation, you guarantee that it is{' '}
                     <strong>authentic and unedited</strong>. We reserve the right to reject, flag, or ban
                     accounts that submit false information. Squad strength, rank, and other metrics are
-                    evaluated manually by our team (assisted by automated image‑analysis tools) based on
-                    the provided screenshot, and results are given at our reasonable discretion.
+                    evaluated based on the provided screenshot using a combination of automated image-analysis tools and manual review by our team. Results are given at our reasonable discretion.
                 </p>
                 <p className="mt-2">
                     Your <strong>EXP and player rank</strong> are updated automatically based on your
-                    match results and our anti‑fraud heuristics. The exact formula is proprietary and may
-                    include a random or variable component as part of our anti‑manipulation measures.
+                    match results and our anti-fraud heuristics. The exact formula is proprietary and may
+                    include a random or variable component as part of our anti-manipulation measures.
                 </p>
                 <p className="mt-2">
                     Repeated fake, tampered, or otherwise inappropriate submissions or claims will increase
@@ -165,13 +170,13 @@ export default function TermsPage() {
             <Section id="username-policy" title="10. Username Policy">
                 <p>Your username must comply with our content policy. We reserve the right to reject any username that:</p>
                 <ul className="list-disc pl-5 space-y-1 mt-1">
-                    <li>Contains offensive or hate‑speech terms.</li>
+                    <li>Contains offensive or hate-speech terms.</li>
                     <li>Attempts to impersonate CTR staff or official game representatives.</li>
                     <li>Is deliberately misleading or harmful to the community.</li>
                 </ul>
                 <p className="mt-2">
                     Changing your username after initial setup is a manual process – you must submit a request and
-                    provide proof that your in‑game name has changed.
+                    provide proof that your in-game name has changed.
                 </p>
             </Section>
 
@@ -180,7 +185,7 @@ export default function TermsPage() {
                     We collect the data described in our{' '}
                     <a href="/privacy" className="text-[#1E90FF] underline underline-offset-2 hover:text-blue-400 transition">Privacy Policy</a>,
                     including your eFootball username, avatar, game stats, and any community content you
-                    submit. Your sign‑in credentials (email) are managed entirely by our authentication
+                    submit. Your sign-in credentials (email) are managed entirely by our authentication
                     provider and are never stored on our servers. Please see our{' '}
                     <a href="/privacy" className="text-[#1E90FF] underline underline-offset-2 hover:text-blue-400 transition">Privacy Policy</a> for full details.
                 </p>
@@ -203,7 +208,7 @@ export default function TermsPage() {
                     The Service is provided <strong>"as is"</strong> and <strong>"as available"</strong>.
                     To the extent permitted by law, we exclude all warranties, whether express or implied,
                     other than those which cannot lawfully be excluded. We do not guarantee uninterrupted
-                    access, error‑free operation, or that squad evaluations will be free of human error.
+                    access, error-free operation, or that squad evaluations will be free of human error.
                 </p>
             </Section>
 

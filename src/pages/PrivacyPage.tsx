@@ -5,54 +5,56 @@ const SECTIONS = [
     { id: 'information-we-collect', title: '2. Information We Collect' },
     { id: 'legal-basis', title: '3. Our Legal Basis for Processing' },
     { id: 'how-we-use', title: '4. How We Use Your Information' },
-    { id: 'cookies', title: '5. Cookies & Local Storage' },
+    { id: 'cookies', title: '5. Cookies & Similar Technologies' },
     { id: 'sharing', title: '6. How We Share Your Information' },
-    { id: 'third-party', title: '7. Third‑Party Services' },
+    { id: 'third-party', title: '7. Third-Party Services' },
     { id: 'retention', title: '8. Data Retention' },
     { id: 'your-rights', title: '9. Your Rights' },
     { id: 'international', title: '10. International Data Transfers' },
     { id: 'security', title: '11. Security' },
-    { id: 'children', title: '12. Children\u2019s Privacy' },
+    { id: 'children', title: '12. Children\'s Privacy' },
     { id: 'changes', title: '13. Changes to This Policy' },
     { id: 'contact', title: '14. Contact & Complaints' },
 ];
 
 export default function PrivacyPage() {
     return (
-        <LegalLayout title="Privacy Policy" lastUpdated="9th August 2026" sections={SECTIONS}>
+        <LegalLayout title="Privacy Policy" lastUpdated="21st September 2026" sections={SECTIONS}>
             <Section id="who-we-are" title="1. Who We Are">
                 <p>
                     CTR – Claim The Room ("CTR", "we", "us", "our") is a product operated under{' '}
                     <strong>HBOOKS</strong> ("HBOOKS", trading name of the business that also
-                    develops other creative software) For the purposes of the UK
+                    develops other creative software). For the purposes of the UK
                     General Data Protection Regulation ("UK GDPR") and the Data Protection Act 2018, HBOOKS is the{' '}
                     <strong>data controller</strong> for the personal data described in this policy.
                 </p>
                 <Callout>
-                    Fill in the correspondence address above. If HBOOKS is registered as a limited
-                    company, add its company number and keep the registered‑office wording; if it's
-                    trading as a sole trader/partnership under a business name, drop the "company
-                    number" fragment and just give the correspondence address the business is
-                    licensed/registered to.
+                    <strong>Data Controller:</strong> HOOMAN BOOKSTORE (trading as HBOOKS) <br />
+                    <strong>Correspondence Address:</strong> Slade Baker Way, Stoke Gifford, Bristol, WC2B 6UN <br />
+                    <strong>Data Protection Contact:</strong> <a href="mailto:legal@hpbooks.uk" className="text-[#1E90FF] underline underline-offset-2">legal@hpbooks.uk</a>
                 </Callout>
+                <p className="mt-2">
+                    We are a sole trader business registered under the name HOOMAN BOOKSTORE. We do not have a company registration number.
+                </p>
             </Section>
 
             <Section id="information-we-collect" title="2. Information We Collect">
                 <p>When you create and use a CTR profile, we collect and store:</p>
                 <ul className="list-disc pl-5 space-y-1 mt-1">
                     <li>Your <strong>eFootball username</strong> (as provided by you).</li>
-                    <li>Your chosen <strong>avatar</strong> (a DiceBear‑generated image, or a Cloudinary‑hosted image URL if you upload a custom picture).</li>
-                    <li>Game‑related statistics you voluntarily submit (squad strength, squad rank, player rank).</li>
-                    <li><strong>Squad‑evaluation screenshots</strong> — held temporarily on our image CDN while your submission is reviewed (see Section 8, Data Retention).</li>
-                    <li><strong>Match‑result screenshots</strong> — used only at the point of submission to update your stats; these are <strong>not stored</strong>, only the resulting stat change is saved.</li>
+                    <li>Your chosen <strong>avatar</strong>.</li>
+                    <li>Game-related statistics you voluntarily submit (squad strength, squad rank, player rank).</li>
+                    <li><strong>Squad-evaluation screenshots</strong> — held temporarily on our image CDN while your submission is reviewed (see Section 8, Data Retention).</li>
+                    <li><strong>Match-result screenshots</strong> — used only at the point of submission to update your stats; these are <strong>not stored</strong>, only the resulting stat change is saved.</li>
                     <li>Match, room and claim details you create or interact with (for matchmaking and claim history).</li>
                     <li>Notifications sent to you within the app.</li>
                     <li>Community posts and comments you choose to submit.</li>
-                    <li>Basic technical/service logs (e.g. timestamps, error and admin‑status logs) generated automatically to keep the Service running securely.</li>
+                    <li><strong>Location Data (Analytics):</strong> We automatically collect an approximate geographic location (country, city) from your IP address using a third-party service (ipwho.is) solely for internal analytics (understanding our user base and debugging). This data is stored on our analytics database and is not publicly visible.</li>
+                    <li>Basic technical/service logs (e.g. timestamps, error and admin-status logs) generated automatically to keep the Service running securely.</li>
                 </ul>
                 <p className="mt-2">
                     We <strong>do not</strong> collect your eFootball ID, your password, or any personal
-                    information beyond what's listed above. Sign‑in is handled entirely by Kinde (our
+                    information beyond what's listed above. Sign-in is handled entirely by Kinde (our
                     authentication provider), which stores your email address and authentication tokens
                     on our behalf as our <strong>data processor</strong> – please refer to Kinde's own
                     privacy policy for details of how it handles that data.
@@ -63,7 +65,7 @@ export default function PrivacyPage() {
                 <p>Under the UK GDPR, we only process your personal data where we have a valid legal basis. In summary:</p>
                 <ul className="list-disc pl-5 space-y-1 mt-1">
                     <li><strong>Performance of a contract</strong> – processing your username, avatar, match and claim data to provide the core matchmaking Service you've signed up for.</li>
-                    <li><strong>Legitimate interests</strong> – processing screenshots and related metadata for anti‑fraud checks (the Troll Counter and squad verification), and keeping technical logs to secure and maintain the Service, provided this doesn't override your own rights and interests.</li>
+                    <li><strong>Legitimate interests</strong> – processing screenshots and related metadata for anti-fraud checks (the Troll Counter and squad verification), keeping technical logs to secure and maintain the Service, and processing approximate location data for analytics and debugging. We have balanced these interests against your rights and concluded that they do not override your fundamental rights and freedoms.</li>
                     <li><strong>Legal obligation</strong> – where we need to retain or disclose information to comply with the law.</li>
                     <li><strong>Consent</strong> – for anything not covered above (for example, optional communications), we'll ask for your consent and you can withdraw it at any time.</li>
                 </ul>
@@ -74,26 +76,33 @@ export default function PrivacyPage() {
                 <ul className="list-disc pl-5 space-y-1 mt-1">
                     <li>Display your public profile (username, avatar, game stats) to other users.</li>
                     <li>Facilitate matchmaking, room posting, and room claims.</li>
-                    <li>Evaluate squad strength based on submitted screenshots — this review is carried out manually by our team, not by a fully automated decision‑making system, and does not produce a decision with legal or similarly significant effects on you within the meaning of Article 22 UK GDPR.</li>
+                    <li><strong>AI-Assisted Squad Evaluation:</strong> Evaluate squad strength based on submitted screenshots. This review uses an automated image-analysis provider (VLM) to read text and metrics from the screenshot. <strong>This is not a fully automated decision-making system</strong>; it assists our manual review process, and the final decision is made by our team. It does not produce a decision with legal or similarly significant effects on you within the meaning of Article 22 UK GDPR.</li>
                     <li>Operate community features such as posts and comments.</li>
-                    <li>Maintain, secure, and troubleshoot the Service (including via service logs).</li>
+                    <li>Maintain, secure, and troubleshoot the Service (including via service logs and analytics).</li>
                 </ul>
             </Section>
 
-            <Section id="cookies" title="5. Cookies & Local Storage">
+            <Section id="cookies" title="5. Cookies & Similar Technologies">
                 <p>
-                    CTR itself does not use advertising or tracking cookies. Our authentication provider,
-                    Kinde, sets a session cookie and may use browser storage to keep you signed in and to
-                    detect and prevent fraudulent sign‑ins; this is <strong>strictly necessary</strong> to
-                    how sign‑in works and isn't used for advertising, so under the Privacy and Electronic
-                    Communications Regulations (PECR) it does not require separate cookie consent. Some
-                    app‑level preferences and a Redis‑backed session/performance cache may also be kept to
-                    support the app and its offline/PWA functionality. You can clear cookies and local
-                    storage at any time through your browser settings, though doing so will sign you out.
+                    We use cookies and local storage technologies to operate the Service. Under the Privacy and Electronic Communications Regulations (PECR), we must inform you about these technologies and, in some cases, obtain your consent.
+                </p>
+                <p className="mt-2"><strong>Strictly Necessary Technologies</strong></p>
+                <p>
+                    These are essential to provide the Service you have requested. Under PECR, they do not require your consent. These include:
+                </p>
+                <ul className="list-disc pl-5 space-y-1 mt-1">
+                    <li><strong>Authentication (Kinde):</strong> A session cookie to keep you signed in and detect fraudulent sign-ins.</li>
+                    <li><strong>Security & Fraud Prevention:</strong> Cookies or local storage used to secure the Service and prevent abuse.</li>
+                    <li><strong>User Preferences:</strong> Local storage to remember your settings (e.g., Dark Mode, tab preferences).</li>
+                    <li><strong>Performance:</strong> A Redis-backed cache to ensure the app loads quickly.</li>
+                </ul>
+                <p className="mt-2"><strong>Technologies Requiring Consent (or Opt-Out)</strong></p>
+                <p>
+                    We do not currently use advertising or tracking cookies. However, we may use analytics technologies to understand how the Service is used. Under the Data (Use and Access) Act, statistical and appearance-related cookies may be set on an opt-out basis, rather than requiring prior consent. You can manage your cookie preferences through your browser settings. Clearing cookies or local storage will sign you out of the Service.
                 </p>
                 <p className="mt-2 text-gray-400">
                     We do not currently respond to "Do Not Track" browser signals, as there is no accepted
-                    industry standard for how sites should respond to them.
+                    industry standard for how sites should respond to them. We will honor Global Privacy Control (GPC) signals where required by applicable law.
                 </p>
             </Section>
 
@@ -111,28 +120,32 @@ export default function PrivacyPage() {
                 </p>
             </Section>
 
-            <Section id="third-party" title="7. Third‑Party Services">
-                <p>CTR uses the following third‑party services, each acting as a data processor on our behalf (or, where noted, as an independent controller) and governed by their own privacy policies:</p>
+            <Section id="third-party" title="7. Third-Party Services">
+                <p>CTR uses the following categories of third-party services, each acting as a data processor on our behalf (or, where noted, as an independent controller) and governed by their own privacy policies:</p>
                 <ul className="list-disc pl-5 space-y-1 mt-1">
-                    <li><strong>Kinde</strong> – authentication and user management (stores your email and auth tokens).</li>
-                    <li><strong>Supabase, Neon & Upstash</strong> – our database and Cache storage, storage, and serverless‑function backend (stores account, match, claim, notification and log data).</li>
-                    <li><strong>DiceBear</strong> – generates default avatar images from a non‑identifying seed value.</li>
-                    <li><strong>Cloudinary</strong> – hosts custom‑uploaded profile images and squad‑evaluation screenshots.</li>
-                    <li><strong>Vision/AI image‑analysis service</strong> – squad‑evaluation screenshots may be sent to an automated image‑analysis provider to assist our manual review and anti‑fraud checks. Screenshots are used only for this purpose.</li>
-                    <li><strong>Scheduling/task service</strong> – triggers scheduled background jobs on our servers; it does not itself receive your personal data.</li>
-                    <li><strong>Hosting/CDN provider</strong> – serves the CTR website and app.</li>
+                    <li><strong>Authentication Provider</strong> – handles sign-in and user management (stores your email address and authentication tokens on our behalf).</li>
+                    <li><strong>Database, Storage & Cache Providers</strong> – host our backend infrastructure (stores account, match, claim, notification, log, and analytics data).</li>
+                    <li><strong>Avatar Generation Service</strong> – generates default avatar images from a non-identifying seed value.</li>
+                    <li><strong>Image Hosting/CDN Provider</strong> – hosts custom-uploaded profile images and squad-evaluation screenshots.</li>
+                    <li><strong>Vision/AI Image-Analysis Provider</strong> – squad-evaluation screenshots are sent to a third-party automated image-analysis service to assist our manual review. Screenshots are used only for this purpose and are not retained by the provider beyond immediate processing. This provider is located in the United States and is covered by the UK Extension to the EU-US Data Privacy Framework.</li>
+                    <li><strong>Approximate Location Provider</strong> – we use a third-party service to derive approximate geographic location (country, city) from your IP address for internal analytics only.</li>
+                    <li><strong>Hosting/CDN Provider</strong> – serves the CTR website and application.</li>
                 </ul>
+                <p className="mt-2">
+                    A current list of the specific providers in each category is available on request by contacting us at <strong>legal@hpbooks.uk</strong>. We review our providers periodically to ensure they maintain appropriate data protection standards.
+                </p>
             </Section>
 
             <Section id="retention" title="8. Data Retention">
                 <p>We keep personal data only for as long as it's needed for the purposes above:</p>
                 <ul className="list-disc pl-5 space-y-1 mt-1">
-                    <li><strong>Squad‑evaluation screenshots</strong> are deleted from storage once verification is complete.</li>
-                    <li><strong>Match‑result screenshots</strong> are never stored — we process them at submission only to increment your stats, then discard the image.</li>
+                    <li><strong>Squad-evaluation screenshots</strong> are deleted from storage once verification is complete.</li>
+                    <li><strong>Match-result screenshots</strong> are never stored — we process them at submission only to increment your stats, then discard the image.</li>
                     <li><strong>Notifications and room claims</strong> are deleted approximately 24 hours after they're created or resolved.</li>
                     <li><strong>Match/room locks</strong> are released automatically once a match is completed or the claim expires.</li>
+                    <li><strong>Analytics data</strong> (including approximate location data) is retained for a maximum of 6 days, after which it is automatically deleted by our weekly maintenance cleaner.</li>
                     <li><strong>Profile data</strong> (username, avatar, stats, community posts) is kept for as long as your account exists.</li>
-                    <li><strong>Service and admin logs</strong> are kept for a limited period for security and troubleshooting purposes before routine deletion.</li>
+                    <li><strong>Service and admin logs</strong> are kept for a limited period (up to 6 days) for security and troubleshooting purposes before routine deletion.</li>
                 </ul>
                 <p className="mt-2">
                     If you ask us to delete your account via the Settings page, we aim to remove your
@@ -165,13 +178,18 @@ export default function PrivacyPage() {
 
             <Section id="international" title="10. International Data Transfers">
                 <p>
-                    Some of our service providers (including Kinde, Supabase, our image‑hosting and
-                    vision‑analysis providers) may process and store data outside the UK, including in the
-                    United States. Where this happens, we ensure an appropriate safeguard is in place
-                    before the transfer occurs — such as the provider being covered by UK adequacy
-                    regulations, or the transfer being subject to the UK International Data Transfer
-                    Agreement (IDTA) or the UK Addendum to the EU Standard Contractual Clauses. You can
-                    request more detail on the safeguards used for a specific provider by contacting us.
+                    Some of our service providers (including Kinde, Supabase, Google, and Cloudinary) may process and store data outside the UK, including in the United States.
+                </p>
+                <p className="mt-2">
+                    Where we transfer data to a country not covered by UK adequacy regulations, we ensure an appropriate safeguard is in place:
+                </p>
+                <ul className="list-disc pl-5 space-y-1 mt-1">
+                    <li><strong>UK Extension to the EU-US Data Privacy Framework (Data Bridge):</strong> For US-based providers that are certified under this framework (such as Google and Cloudinary), we rely on the UK Extension as our transfer mechanism. This means the provider has committed to a level of data protection that meets UK standards.</li>
+                    <li><strong>International Data Transfer Agreement (IDTA) or UK Addendum:</strong> For providers not covered by the Data Bridge, we enter into the ICO's IDTA or the UK Addendum to the EU Standard Contractual Clauses.</li>
+                    <li><strong>Transfer Risk Assessment (TRA):</strong> Before relying on the IDTA or Addendum, we complete a Transfer Risk Assessment to ensure the data will not be subject to a lower level of protection in the destination country. We document this assessment and review it periodically.</li>
+                </ul>
+                <p className="mt-2">
+                    You can request more detail on the safeguards used for a specific provider by contacting us at legal@hpbooks.uk.
                 </p>
             </Section>
 
@@ -195,14 +213,18 @@ export default function PrivacyPage() {
                     The Service is not intended for users under 13 years of age. Under the Data Protection
                     Act 2018, a child in the UK can generally consent to information society services from
                     age 13; users between 13 and the age of majority should only use CTR with a parent or
-                    guardian's involvement, and by using CTR you (or, if you're under 18, your parent or
-                    guardian on your behalf) confirm you meet this requirement. We do not knowingly collect
-                    data from children under 13, and where community or matchmaking features are used by
-                    younger teenage users, we apply the content‑moderation and reporting safeguards
-                    described in our Terms of Service in line with the Online Safety Act 2023. If we learn
-                    that we've inadvertently collected data from a child under 13, we will delete it
-                    promptly. <strong>Contact us at support@hpbooks.uk</strong> if you believe this has
-                    happened.
+                    guardian's involvement.
+                </p>
+                <p className="mt-2">
+                    In line with our obligations under the Online Safety Act 2023, we take steps to prevent children under 13 from accessing the Service. We do this through a combination of:
+                </p>
+                <ul className="list-disc pl-5 space-y-1 mt-1">
+                    <li>Contractual declarations at sign-up (users must confirm they are 13 or older).</li>
+                    <li>Spot-checks and monitoring for indicators of underage use.</li>
+                    <li>Rapid account termination if we become aware that a user is under 13.</li>
+                </ul>
+                <p className="mt-2">
+                    We do not knowingly collect data from children under 13. If we learn that we've inadvertently collected data from a child under 13, we will delete it promptly. <strong>Contact us at support@hpbooks.uk</strong> if you believe this has happened.
                 </p>
             </Section>
 
