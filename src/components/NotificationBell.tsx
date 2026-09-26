@@ -36,6 +36,7 @@ export function NotificationBell() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [ring, setRing] = useState(false);
+  const [expandedId, setExpandedId] = useState<number | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const prevUnreadRef = useRef<number | null>(null);
 
@@ -123,6 +124,9 @@ export function NotificationBell() {
       if (!res.ok) {
         setNotifs(prev);
         toast.error(data.error || 'Failed to mark as read');
+      } else {
+        // Tell NavRail to refresh its badge immediately
+        window.dispatchEvent(new CustomEvent('ctr:notifications-updated'));
       }
     } catch {
       setNotifs(prev);
@@ -262,6 +266,8 @@ export function NotificationBell() {
                     n={n}
                     onNavigate={() => setOpen(false)}
                     index={i}
+                    expandedId={expandedId}
+                    onToggleExpand={setExpandedId}
                   />
                 ))}
               </ul>
@@ -285,16 +291,20 @@ export function NotificationBell() {
 }
 
 /* ============================================================
-   NotificationRow — classic and clean
+   NotificationRow — classic, tap-to-expand if clamped
    ============================================================ */
 export function NotificationRow({
   n,
   onNavigate,
   index,
+  expandedId,
+  onToggleExpand,
 }: {
   n: NotifItem;
   onNavigate?: () => void;
   index?: number;
+  expandedId?: number | null;
+  onToggleExpand?: (id: number | null) => void;
 }) {
   const msg = MESSAGE_MAP[n.mes] || {
     title: 'New notification',
@@ -307,6 +317,19 @@ export function NotificationRow({
 
   const delay = index !== undefined ? Math.min(index, 8) * 25 : 0;
 
+  // Controlled when the parent passes expandedId; otherwise self-managed.
+  const [localExpanded, setLocalExpanded] = useState(false);
+  const isControlled = expandedId !== undefined;
+  const expanded = isControlled ? expandedId === n.id : localExpanded;
+
+  const toggle = () => {
+    if (isControlled && onToggleExpand) {
+      onToggleExpand(expanded ? null : n.id);
+    } else {
+      setLocalExpanded((v) => !v);
+    }
+  };
+
   return (
     <li
       className="border-b border-white/[0.04] last:border-b-0"
@@ -314,11 +337,12 @@ export function NotificationRow({
         animation: `nb-row-in .2s ease-out ${delay}ms both`,
       }}
     >
-      <Link
-        to="/notifications"
-        onClick={onNavigate}
+      <button
+        type="button"
+        onClick={toggle}
         className={cn(
-          'group flex items-start gap-3 px-4 py-3 transition-colors hover:bg-white/[0.03]',
+          'group flex w-full items-start gap-3 px-4 py-3 text-left transition-colors',
+          'hover:bg-white/[0.03]',
           !n.read && 'bg-white/[0.015]',
         )}
       >
@@ -330,7 +354,7 @@ export function NotificationRow({
           <div className="flex items-start gap-2">
             <p
               className={cn(
-                'flex-1 truncate text-[13px] leading-snug',
+                'flex-1 text-[13px] leading-snug',
                 n.read ? 'font-medium text-gray-400' : 'font-semibold text-white',
               )}
             >
@@ -340,14 +364,19 @@ export function NotificationRow({
               <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[#1E90FF]" />
             )}
           </div>
-          <p className="mt-0.5 line-clamp-2 text-[12px] leading-relaxed text-gray-500">
+
+          <p
+            className={cn(
+              'mt-0.5 text-[12px] leading-relaxed text-gray-500 transition-all duration-200',
+              !expanded && 'line-clamp-2',
+            )}
+          >
             {msg.detail}
           </p>
+
           <p className="mt-1 text-[11px] text-gray-600">{timeAgo}</p>
         </div>
-
-        <ChevronRight className="mt-2.5 h-4 w-4 shrink-0 text-gray-700 opacity-0 transition-opacity group-hover:opacity-100" />
-      </Link>
+      </button>
     </li>
   );
 }

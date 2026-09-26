@@ -50,6 +50,7 @@ function NotificationsPage() {
   const [notifs, setNotifs] = useState<NotifItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [expandedId, setExpandedId] = useState<number | null>(null);
 
   const fetchNotifications = useCallback(async () => {
     if (!user) return;
@@ -117,7 +118,6 @@ function NotificationsPage() {
 
       if (res.ok) {
         toast.success('All caught up');
-        // Sync the NavRail bell badge immediately
         window.dispatchEvent(new CustomEvent('ctr:notifications-updated'));
       } else {
         setNotifs(prev);
@@ -268,8 +268,14 @@ function NotificationsPage() {
                     <span className="h-px flex-1 bg-white/[0.06]" />
                   </div>
                   <ul className="divide-y divide-white/[0.05] overflow-hidden rounded-2xl border border-white/[0.06] bg-[#111113]">
-                    {group.items.map((n) => (
-                      <NotificationRow key={n.id} n={n} />
+                    {group.items.map((n, idx) => (
+                      <NotificationRow
+                        key={n.id}
+                        n={n}
+                        index={idx}
+                        expandedId={expandedId}
+                        onToggleExpand={setExpandedId}
+                      />
                     ))}
                   </ul>
                 </div>
