@@ -1,6 +1,6 @@
 {
     "id": "/",
-    "name": "ClaimTheRoom",
+    "name": "Claim The Room",
     "short_name": "CTR",
     "start_url": "/",
     "scope": "/",
@@ -29,6 +29,36 @@
             "sizes": "512x512",
             "type": "image/png",
             "purpose": "maskable"
+        }
+    ],
+    "screenshots": [
+        {
+            "src": "https://res.cloudinary.com/ctr-cloud/image/upload/v1790515244/nqegqbhbdqscgetnpkkn.png",
+            "sizes": "1080x1920",
+            "type": "image/png",
+            "form_factor": "narrow",
+            "label": "Find a match"
+        },
+        {
+            "src": "https://res.cloudinary.com/ctr-cloud/image/upload/v1790515244/ul6owzqvekij2b5dxan5.png",
+            "sizes": "1080x1920",
+            "type": "image/png",
+            "form_factor": "narrow",
+            "label": "Create a match"
+        },
+        {
+            "src": "https://res.cloudinary.com/ctr-cloud/image/upload/v1790515244/afhyk7vdavbw9rgllw0y.png",
+            "sizes": "1080x1920",
+            "type": "image/png",
+            "form_factor": "narrow",
+            "label": "Your profile"
+        },
+        {
+            "src": "https://res.cloudinary.com/ctr-cloud/image/upload/v1790515244/vqqxpxy4vgxkcz6kkc1d.png",
+            "sizes": "1080x1920",
+            "type": "image/png",
+            "form_factor": "narrow",
+            "label": "Community"
         }
     ],
     "categories": [
