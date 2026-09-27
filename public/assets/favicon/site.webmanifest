@@ -1,6 +1,6 @@
 {
-  "name": "Claim The Room",
-  "short_name": "CTRoom",
+  "name": "ClaimTheRoom",
+  "short_name": "CTR",
   "icons": [
     {
       "src": "/assets/favicon/web-app-manifest-192x192.png?v=20260927",
