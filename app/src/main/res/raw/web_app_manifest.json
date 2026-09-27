@@ -1,0 +1,63 @@
+{
+    "name": "Claim The Room",
+    "short_name": "CTR",
+    "start_url": "/",
+    "display": "standalone",
+    "description": "eFootball matchmaking platform. Create a room, claim it, play, repeat.",
+    "lang": "en",
+    "dir": "ltr",
+    "theme_color": "#08090B",
+    "background_color": "#08090B",
+    "orientation": "any",
+    "icons": [
+        {
+            "src": "https://res.cloudinary.com/ctr-cloud/image/upload/v1787052822/pal7liypfiweywj8vekq.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "any"
+        },
+        {
+            "src": "https://res.cloudinary.com/ctr-cloud/image/upload/v1787052822/pal7liypfiweywj8vekq.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any"
+        },
+        {
+            "src": "https://res.cloudinary.com/ctr-cloud/image/upload/v1790499503/w6vzv9xag033geouilxo.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "maskable"
+        }
+    ],
+    "screenshots": [
+        {
+            "src": "https://res.cloudinary.com/ctr-cloud/image/upload/v1790515244/nqegqbhbdqscgetnpkkn.png",
+            "sizes": "1080x1920",
+            "type": "image/png",
+            "form_factor": "narrow",
+            "label": "Find a match"
+        },
+        {
+            "src": "https://res.cloudinary.com/ctr-cloud/image/upload/v1790515244/ul6owzqvekij2b5dxan5.png",
+            "sizes": "1080x1920",
+            "type": "image/png",
+            "form_factor": "narrow",
+            "label": "Create a match"
+        },
+        {
+            "src": "https://res.cloudinary.com/ctr-cloud/image/upload/v1790515244/afhyk7vdavbw9rgllw0y.png",
+            "sizes": "1080x1920",
+            "type": "image/png",
+            "form_factor": "narrow",
+            "label": "Your profile"
+        },
+        {
+            "src": "https://res.cloudinary.com/ctr-cloud/image/upload/v1790515244/vqqxpxy4vgxkcz6kkc1d.png",
+            "sizes": "1080x1920",
+            "type": "image/png",
+            "form_factor": "narrow",
+            "label": "Community"
+        }
+    ],
+    "prefer_related_applications": false
+}

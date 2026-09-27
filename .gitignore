@@ -1,4 +1,4 @@
-# Logs
+# ---------- Logs ----------
 logs
 *.log
 npm-debug.log*
@@ -7,27 +7,51 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# ---------- Node ----------
 node_modules
 dist
 dist-ssr
 *.local
 
-# Editor directories and files
+# ---------- Editor ----------
 .vscode/*
 !.vscode/extensions.json
-.idea
+.idea/
 .DS_Store
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
+*.iml
 
-# Variables
+# ---------- Environment ----------
 .env
+.env.local
+.env.*.local
 
-# Bubblewrap / Android signing
-android.keystore
-app/
+# ---------- Android / Gradle ----------
+.gradle/
+build/
+local.properties
+
+# Only ignore the Android module's BUILD output, not its source
+app/build/
+app/.gradle/
+app/release/
+.gradle/
+# APK / AAB artifacts
 *.apk
+*.aab
+*.idsig
+
+# Signing keys — NEVER commit these
+android.keystore
 keystore.properties
+*.keystore
+*.jks
+
+# Android Studio
+.cxx/
+captures/
+.externalNativeBuild/
