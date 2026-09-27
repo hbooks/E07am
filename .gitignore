@@ -30,4 +30,4 @@ dist-ssr
 android.keystore
 app/
 *.apk
-app/keystore.properties
+keystore.properties
