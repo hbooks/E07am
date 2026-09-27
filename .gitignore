@@ -50,6 +50,7 @@ android.keystore
 keystore.properties
 *.keystore
 *.jks
+build/
 
 # Android Studio
 .cxx/

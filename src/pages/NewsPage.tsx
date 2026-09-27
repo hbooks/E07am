@@ -117,18 +117,70 @@ function formatFullDate(iso: string): { date: string; time: string } {
 }
 
 function MentionText({ text }: { text: string }) {
-  const parts = text.split(/(@\w+)/g);
+  // Match URLs (with or without protocol), bare domains, and @mentions.
+  // Order matters — URLs first so we don't accidentally split them.
+  const parts = text.split(
+    /([\w.+-]+@[\w-]+\.[\w.-]+|https?:\/\/[^\s]+|(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}(?:\/[^\s]*)?|@\w+)/g
+  );
+
   return (
     <>
-      {parts.map((part, i) =>
-        part.startsWith("@") ? (
-          <span key={i} className="font-medium text-[#5CA8FF] hover:underline">
-            {part}
-          </span>
-        ) : (
-          <span key={i}>{part}</span>
-        ),
-      )}
+      {parts.map((part, i) => {
+        // Full URL with protocol
+        if (/^https?:\/\//.test(part)) {
+          return (
+            <a
+              key={i}
+              href={part}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-medium text-[#5CA8FF] underline underline-offset-2 transition-colors hover:text-[#7BB8FF]"
+            >
+              {part}
+            </a>
+          );
+        }
+
+        // Bare domain like app.hpbooks.uk or app.hpbooks.uk/install.html
+        if (/^(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}/.test(part)) {
+          return (
+            <a
+              key={i}
+              href={`https://${part}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-medium text-[#5CA8FF] underline underline-offset-2 transition-colors hover:text-[#7BB8FF]"
+            >
+              {part}
+            </a>
+          );
+        }
+
+        // Email
+        if (/^[\w.+-]+@[\w-]+\.[\w.-]+$/.test(part)) {
+          return (
+            <a
+              key={i}
+              href={`mailto:${part}`}
+              className="font-medium text-[#5CA8FF] underline underline-offset-2 transition-colors hover:text-[#7BB8FF]"
+            >
+              {part}
+            </a>
+          );
+        }
+
+        // @mention
+        if (part.startsWith("@")) {
+          return (
+            <span key={i} className="font-medium text-[#5CA8FF] hover:underline">
+              {part}
+            </span>
+          );
+        }
+
+        // Plain text
+        return <span key={i}>{part}</span>;
+      })}
     </>
   );
 }
