@@ -1,9 +1,7 @@
 import { Clock, Swords, Users, Trophy, Bot, UserPlus, Flame, CheckCircle2, XCircle, Loader2 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
-import { useKindeAuth } from '@kinde-oss/kinde-auth-react';
 import type { MatchWithHost } from '@/types';
-import { ClaimModal } from '@/components/ClaimModal';
 
 const STAFF_BADGE = 'https://res.cloudinary.com/ctr-cloud/image/upload/v1786380915/ff7rn60eiylq1x1oixsz.png';
 const VERIFIED_BADGE = 'https://res.cloudinary.com/ctr-cloud/image/upload/v1786380916/rsfa4dftmbz427k5cnmw.png';
@@ -36,9 +34,14 @@ function hexToRgba(hex: string, alpha: number): string {
 const EXPIRY_MINUTES = 5;
 const EXPIRY_MS = EXPIRY_MINUTES * 60 * 1000;
 
-export function FeedCard({ match, currentUserId }: { match: MatchWithHost; currentUserId?: string }) {
+interface FeedCardProps {
+  match: MatchWithHost;
+  currentUserId?: string;
+  onClaimed: (roomNumber: string, password: string | null) => void;
+}
+
+export function FeedCard({ match, currentUserId, onClaimed }: FeedCardProps) {
   const [claiming, setClaiming] = useState(false);
-  const [claimedData, setClaimedData] = useState<{ room_number: string; password: string | null } | null>(null);
   const [remainingMs, setRemainingMs] = useState<number>(() => {
     const expiry = new Date(match.created_at).getTime() + EXPIRY_MS;
     return Math.max(0, expiry - Date.now());
@@ -126,7 +129,7 @@ export function FeedCard({ match, currentUserId }: { match: MatchWithHost; curre
           toast.error(data.message || 'Failed to claim room');
         }
       } else {
-        setClaimedData(data);
+        onClaimed(data.room_number, data.password);
       }
     } catch {
       toast.error('Network error – please try again.');
@@ -364,14 +367,6 @@ export function FeedCard({ match, currentUserId }: { match: MatchWithHost; curre
         </div>
       </div>
 
-      {/* Claim modal */}
-      {claimedData && (
-        <ClaimModal
-          roomNumber={claimedData.room_number}
-          password={claimedData.password}
-          onExpire={() => setClaimedData(null)}
-        />
-      )}
     </>
   );
 }

@@ -6,6 +6,7 @@ import { FeedCard, FeedCardSkeleton } from '@/components/FeedCard';
 import { useIsMobile } from '@/hooks/use-mobile';
 import type { MatchWithHost } from '@/types';
 import { supabase } from '@/lib/supabaseClient';
+import { ClaimModal } from '@/components/ClaimModal';
 
 const PULL_THRESHOLD = 64;
 const PULL_RESISTANCE = 0.45;
@@ -80,6 +81,11 @@ export default function IndexPage() {
   const [matches, setMatches] = useState<MatchWithHost[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [lastFetched, setLastFetched] = useState<number>(Date.now());
+  const [claimResult, setClaimResult] = useState<{
+    roomNumber: string;
+    password: string | null;
+  } | null>(null);
+
 
   const [filter, setFilter] = useState<FilterType>(() => {
     try {
@@ -680,12 +686,24 @@ export default function IndexPage() {
                   animationFillMode: 'backwards',
                 }}
               >
-                <FeedCard match={match} currentUserId={user?.id} />
+                <FeedCard
+                  match={match}
+                  currentUserId={user?.id}
+                  onClaimed={(roomNumber, password) => setClaimResult({ roomNumber, password })}
+                />
               </div>
             ))}
           </div>
         )}
       </div>
+      {claimResult && (
+        <ClaimModal
+          roomNumber={claimResult.roomNumber}
+          password={claimResult.password}
+          onExpire={() => setClaimResult(null)}
+        />
+      )}
+
     </div>
   );
 }
