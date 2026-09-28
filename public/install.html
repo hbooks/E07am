@@ -8,6 +8,20 @@
     <meta name="description"
         content="Install Claim The Room on your phone or desktop. Fast, lightweight, works offline." />
     <meta name="theme-color" content="#08090b" />
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Claim The Room" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <script>
+        // Capture the install prompt as early as possible, before the page finishes loading.
+        window.__deferredPrompt = null;
+        window.addEventListener('beforeinstallprompt', function (e) {
+            e.preventDefault();
+            window.__deferredPrompt = e;
+            window.dispatchEvent(new Event('ctr:installready'));
+        });
+    </script>
     <link rel="icon" type="image/png"
         href="https://res.cloudinary.com/ctr-cloud/image/upload/v1787052822/pal7liypfiweywj8vekq.png" />
     <link rel="apple-touch-icon"
@@ -109,6 +123,14 @@
             margin: 0 auto 20px;
             display: block;
             box-shadow: 0 8px 32px rgba(30, 144, 255, 0.15);
+        }
+
+        .logo-link {
+           display: block;
+           width: fit-content;
+           margin: 0 auto;
+          -webkit-tap-highlight-color: transparent;
+          
         }
 
         .hero h1 {
@@ -589,18 +611,19 @@
 
         <!-- ── HERO ─────────────────────────────── -->
         <section class="hero">
-            <img class="logo"
-                src="https://res.cloudinary.com/ctr-cloud/image/upload/v1790499503/w6vzv9xag033geouilxo.png"
-                alt="Claim The Room" width="104" height="104" />
+            <a href="/" class="logo-link" aria-label="Go to Claim The Room">
+                <img class="logo" src="https://res.cloudinary.com/ctr-cloud/image/upload/v1790499503/w6vzv9xag033geouilxo.png"
+                    alt="Claim The Room" width="104" height="104" />
+            </a>
             <h1 class="display">Claim The Room<sup>TM</sup></h1>
-            <p>Install the app for the best experience. Opens full screen, loads instantly, works offline.</p>
+            <p>Install the app for the best experience.</p>
         </section>
 
         <!-- ── INSTALL CARD ────────────────────── -->
         <section class="install-card">
             <h2>Install the app</h2>
             <p class="install-desc">
-                Tap the button below to add Claim The Room to your device. Your browser will show a confirmation — the
+                Tap the button below to add Claim The Room to your device. Your browser will show a confirmation the
                 app will appear on your home screen like any other app.
             </p>
 
@@ -623,9 +646,9 @@
 
         <!-- ── NOTICE ───────────────────────────── -->
         <div class="notice">
-            <strong>Why does the button sometimes not work?</strong> Only Chrome, Edge, and a few Chromium-based
-            browsers support the one-tap install. If you're on Safari (iOS), Firefox, or an older browser, follow the
-            manual steps below instead — they work on every device.
+            <strong>Button says "Show me how"?</strong> One-tap install only works in Chrome, Edge and other
+            Chromium browsers. On iPhone/iPad, Firefox, or inside in-app browsers (Telegram, Instagram, Facebook),
+            the button will guide you through the manual steps below instead. They work on every device.
         </div>
 
         <!-- ── WHY INSTALL ──────────────────────── -->
@@ -696,7 +719,7 @@
         </section>
 
         <!-- ── MANUAL STEPS ────────────────────── -->
-        <section class="section">
+        <section class="section" id="manual">
             <h2 class="display section-heading">Install manually</h2>
             <p class="section-sub">Follow the steps for your device if the button above didn't work</p>
 
@@ -765,8 +788,8 @@
                     <div class="step-num">1</div>
                     <div class="step-body">
                         <h4>Open in Safari</h4>
-                        <p>Go to <strong>app.hpbooks.uk</strong> in Safari. Chrome and other browsers on iOS do not
-                            support this.</p>
+                        <p>Go to <strong>app.hpbooks.uk</strong> in Safari. Chrome and Edge also work on iOS 16.4 or
+                            newer, but older iOS versions need Safari.</p>
                     </div>
                 </div>
                 <div class="step">
@@ -828,7 +851,7 @@
                     <p>Download the native Android app. Same experience, installed directly.</p>
                     <span class="beta-badge">Beta</span>
                 </div>
-                <a href="https://kuujhnetnzugpfvicidt.supabase.co/storage/v1/object/public/app/ctr_v1.0.1.apk"
+                <a href="/download/ctr.apk"
                     class="btn-secondary" download>
                     Download APK
                 </a>
@@ -846,9 +869,9 @@
 
         <!-- ── FOOTER ───────────────────────────── -->
         <footer class="footer">
-            <p class="brand">Claim The Room TM · A HazyPixelStudios build, registered to HBOOKS</p>
-            <p>Currently in beta. Not affiliated with Konami or eFootball.</p>
-            <p>© 2026 HBOOKS</p>
+            <p class="brand">Claim The Room · A HazyPixelStudios build, registered to HBOOKS</p>
+            <p>Not affiliated with Konami or eFootball.</p>
+            <p>© 2026 CTR.</p>
         </footer>
 
     </div>
@@ -857,141 +880,159 @@
         (function () {
             'use strict';
 
+            // ── Service worker (needed for reliable install + offline) ──
+            if ('serviceWorker' in navigator) {
+                window.addEventListener('load', function () {
+                    navigator.serviceWorker.register('/sw.js').catch(function () { });
+                });
+            }
+
             // ── Platform detection ─────────────────────────
+            var ua = navigator.userAgent || '';
+
             function detectPlatform() {
-                const ua = navigator.userAgent || '';
-                const isIPad = /iPad/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+                var isIPad = /iPad/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
                 if (/iPhone|iPod/.test(ua) || isIPad) return 'ios';
                 if (/Android/i.test(ua)) return 'android';
                 return 'desktop';
             }
+            var platform = detectPlatform();
+
+            // In-app browsers / WebViews can't install PWAs
+            var isInApp = /FBAN|FBAV|Instagram|Line\/|TikTok|Snapchat|MicroMessenger|Telegram|; wv\)/i.test(ua);
 
             // ── Tab switching ──────────────────────────────
-            const tabs = document.querySelectorAll('.tab');
-            const steps = document.querySelectorAll('.steps');
+            var tabs = document.querySelectorAll('.tab');
+            var steps = document.querySelectorAll('.steps');
 
-            function setActivePlatform(platform) {
-                tabs.forEach(t => {
-                    const active = t.dataset.platform === platform;
+            function setActivePlatform(p) {
+                tabs.forEach(function (t) {
+                    var active = t.dataset.platform === p;
                     t.classList.toggle('active', active);
                     t.setAttribute('aria-selected', active ? 'true' : 'false');
                 });
-                steps.forEach(s => s.classList.toggle('active', s.dataset.platform === platform));
-                try { localStorage.setItem('ctr-install-platform', platform); } catch (e) { }
+                steps.forEach(function (s) { s.classList.toggle('active', s.dataset.platform === p); });
+                try { localStorage.setItem('ctr-install-platform', p); } catch (e) { }
             }
 
-            tabs.forEach(tab => {
-                tab.addEventListener('click', () => setActivePlatform(tab.dataset.platform));
+            tabs.forEach(function (tab) {
+                tab.addEventListener('click', function () { setActivePlatform(tab.dataset.platform); });
             });
 
-            const saved = (function () {
-                try { return localStorage.getItem('ctr-install-platform'); } catch (e) { return null; }
-            })();
-            setActivePlatform(saved || detectPlatform());
+            // Always open the tab for the device the person is actually on
+            setActivePlatform(platform);
 
-            // ── Install button state machine ───────────────
-            const installBtn = document.getElementById('install-btn');
-            const installBtnText = document.getElementById('install-btn-text');
-            const installHint = document.getElementById('install-hint');
+            // ── Install button ─────────────────────────────
+            var btn = document.getElementById('install-btn');
+            var hint = document.getElementById('install-hint');
 
-            let deferredPrompt = null;
+            var ICON_DOWNLOAD = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>';
+            var ICON_CHECK = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
 
-            const ICON_DOWNLOAD = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>';
-            const ICON_CHECK = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+            var mode = 'none';   // what a click does: install | steps | chrome | none
+            var installed = false;
 
-            function setState(state) {
-                // States: 'checking', 'ready', 'installing', 'installed', 'unsupported'
-                installBtn.classList.remove('fallback', 'installed');
-
-                if (state === 'checking') {
-                    installBtn.disabled = true;
-                    installBtn.innerHTML = ICON_DOWNLOAD + '<span id="install-btn-text">Checking availability…</span>';
-                    installHint.className = 'install-hint';
-                    installHint.textContent = 'Checking whether your browser supports one-tap installation…';
-                }
-
-                else if (state === 'ready') {
-                    installBtn.disabled = false;
-                    installBtn.innerHTML = ICON_DOWNLOAD + '<span id="install-btn-text">Install App</span>';
-                    installHint.className = 'install-hint';
-                    installHint.textContent = 'Your browser supports one-tap install. The app will be added to your home screen and works offline.';
-                }
-
-                else if (state === 'installing') {
-                    installBtn.disabled = true;
-                    installBtn.innerHTML = ICON_DOWNLOAD + '<span id="install-btn-text">Installing…</span>';
-                    installHint.className = 'install-hint';
-                    installHint.textContent = 'Confirm the installation in your browser\'s dialog.';
-                }
-
-                else if (state === 'installed') {
-                    installBtn.disabled = true;
-                    installBtn.classList.add('installed');
-                    installBtn.innerHTML = ICON_CHECK + '<span id="install-btn-text">App Installed</span>';
-                    installHint.className = 'install-hint success';
-                    installHint.textContent = 'Claim The Room is installed on your device. Open it from your home screen.';
-                }
-
-                else if (state === 'unsupported') {
-                    installBtn.disabled = true;
-                    installBtn.classList.add('fallback');
-                    installBtn.innerHTML = ICON_DOWNLOAD + '<span id="install-btn-text">One-tap install unavailable</span>';
-                    installHint.className = 'install-hint warn';
-                    installHint.textContent = 'Your browser does not support one-tap installation. Use the manual steps below — they work on every device.';
-                }
+            function show(o) {
+                mode = o.mode || 'none';
+                btn.disabled = !!o.disabled;
+                btn.className = 'install-btn' + (o.cls ? ' ' + o.cls : '');
+                btn.innerHTML = (o.icon || ICON_DOWNLOAD) + '<span>' + o.label + '</span>';
+                hint.className = 'install-hint' + (o.hintCls ? ' ' + o.hintCls : '');
+                hint.textContent = o.hint;
             }
 
-            // Start in checking state
-            setState('checking');
+            var STATES = {
+                checking: function () {
+                    show({ disabled: true, label: 'Checking availability…', hint: 'Checking whether your browser supports one-tap installation…' });
+                },
+                ready: function () {
+                    show({ mode: 'install', label: 'Install App', hint: 'One tap, then confirm in your browser. The app is added to your home screen and works offline.' });
+                },
+                installing: function () {
+                    show({ disabled: true, label: 'Installing…', hint: 'Confirm the installation in your browser\'s dialog.' });
+                },
+                installed: function () {
+                    installed = true;
+                    show({ disabled: true, cls: 'installed', icon: ICON_CHECK, label: 'App Installed', hintCls: 'success', hint: 'Claim The Room is installed on your device. Open it from your home screen or app list.' });
+                },
+                steps: function (why) {
+                    var hintText = platform === 'ios'
+                        ? 'Apple does not allow one-tap install. It takes three taps with the Share button. We will show you exactly where.'
+                        : (why === 'dismissed'
+                            ? 'No problem. You can still install any time from your browser menu. Tap the button for the steps.'
+                            : 'Your browser did not offer one-tap install. If the app is already installed, open it from your app list. Otherwise tap the button for the quick steps.');
+                    show({ mode: 'steps', cls: 'fallback', label: 'Show me how to install', hint: hintText });
+                },
+                inapp: function () {
+                    if (platform === 'android') {
+                        show({ mode: 'chrome', label: 'Open in Chrome to install', hint: 'You are in an in-app browser, which cannot install apps. Tap to continue in Chrome.' });
+                    } else {
+                        show({ mode: 'steps', cls: 'fallback', label: 'Show me how to install', hintCls: 'warn', hint: 'You are in an in-app browser. Open this page in Safari or Chrome first, then follow the steps.' });
+                    }
+                }
+            };
 
-            // Already installed?
-            const isStandalone =
+            function go(state, arg) { if (!installed) STATES[state](arg); }
+
+            // Already running as an installed app?
+            var isStandalone =
                 window.matchMedia('(display-mode: standalone)').matches ||
                 window.navigator.standalone === true;
 
             if (isStandalone) {
-                setState('installed');
+                go('installed');
+            } else if (isInApp) {
+                go('inapp');
+            } else if (window.__deferredPrompt) {
+                go('ready');
+            } else if (platform === 'ios') {
+                go('steps');          // iOS never fires beforeinstallprompt, so don't make people wait
+            } else {
+                go('checking');
+                // Chromium can take a couple of seconds to decide the page is installable
+                setTimeout(function () {
+                    if (!window.__deferredPrompt) go('steps');
+                }, 4000);
             }
 
-            // Native install prompt fires on supported browsers
-            window.addEventListener('beforeinstallprompt', (e) => {
-                e.preventDefault();
-                deferredPrompt = e;
-                setState('ready');
-            });
-
-            // Not fired after a short delay → assume unsupported
-            if (!isStandalone) {
-                setTimeout(() => {
-                    if (!deferredPrompt) {
-                        setState('unsupported');
-                    }
-                }, 1500);
-            }
-
-            // Button click → trigger native prompt
-            installBtn.addEventListener('click', async () => {
-                if (!deferredPrompt) return;
-                setState('installing');
-                deferredPrompt.prompt();
-                let outcome = 'dismissed';
-                try {
-                    const result = await deferredPrompt.userChoice;
-                    outcome = result.outcome;
-                } catch (e) { }
-                deferredPrompt = null;
-
-                if (outcome === 'accepted') {
-                    setState('installed');
-                } else {
-                    setState('unsupported');
-                }
+            // Prompt arrives (now or later): switch to the real install button
+            window.addEventListener('ctr:installready', function () {
+                if (!isInApp) go('ready');
             });
 
             // Fires when install completes from anywhere
-            window.addEventListener('appinstalled', () => {
-                setState('installed');
-                deferredPrompt = null;
+            window.addEventListener('appinstalled', function () {
+                window.__deferredPrompt = null;
+                go('installed');
+            });
+
+            // ── Click handler ──────────────────────────────
+            btn.addEventListener('click', function () {
+                if (mode === 'install') {
+                    var promptEvent = window.__deferredPrompt;
+                    if (!promptEvent) return go('steps');
+                    window.__deferredPrompt = null;
+
+                    // prompt() must be called directly inside the click, so do it first
+                    promptEvent.prompt();
+                    go('installing');
+                    promptEvent.userChoice.then(function (r) {
+                        if (r.outcome === 'accepted') go('installed');
+                        else go('steps', 'dismissed');
+                    }).catch(function () { go('steps'); });
+                    return;
+                }
+
+                if (mode === 'steps') {
+                    setActivePlatform(platform);
+                    document.getElementById('manual').scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    return;
+                }
+
+                if (mode === 'chrome') {
+                    window.location.href = 'intent://' + location.host + location.pathname + location.search +
+                        '#Intent;scheme=https;package=com.android.chrome;end';
+                }
             });
         })();
     </script>
