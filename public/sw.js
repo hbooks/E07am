@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ctr-cache-v2';
+const CACHE_NAME = 'ctr-cache-v3';
 const CACHE_PREFIX = 'ctr-cache-';   // used to identify our caches for cleanup
 
 const PRECACHE = [
@@ -56,6 +56,13 @@ self.addEventListener('fetch', (event) => {
 
     // Never touch API / edge functions
     if (url.pathname.startsWith('/functions/')) return;
+
+    // Never touch downloads (the APK is large) or range requests
+    if (req.headers.has('range')) return;
+    if (url.pathname.startsWith('/download/') || url.pathname.endsWith('.apk')) return;
+
+    // Never touch the install page. Otherwise it overwrites the cached app shell ('/') below
+    if (url.pathname === '/install' || url.pathname.startsWith('/install/')) return;
 
     // ---- 1. Navigation (SPA routes) → NETWORK FIRST ----
     if (req.mode === 'navigate') {
