@@ -1,10 +1,10 @@
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { useKindeAuth } from "@kinde-oss/kinde-auth-react";
 import {
     Send, RefreshCw, Loader2, Pencil, Trash2, Check, X, CheckCircle, XCircle, AlertTriangle,
     Newspaper, Activity, Construction, KeyRound, LogOut, ShieldAlert, BarChart3, Globe,
     MonitorSmartphone, Bug, Inbox, Eye, MapPin, Clock, Smartphone, Laptop, User,
-    FileText, Terminal,
+    FileText, Terminal, Music2,
 } from "lucide-react";
 import {
     ResponsiveContainer, LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabaseClient";
 
 const BASE_URL = import.meta.env.VITE_SUPABASE_FUNCTIONS_URL;
+const R2_PUBLIC_BASE = 'https://rmc.hpbooks.uk';
 
 // ============================================================
 // TYPES
@@ -74,21 +75,33 @@ interface AnalyticsEvent {
     created_at: string;
 }
 
+interface PlaylistTrack {
+    id: number;
+    title: string;
+    url: string;
+    duration_seconds: number | null;
+    order_index: number;
+    active: boolean;
+    created_at: string;
+}
+
 interface AdworResponse {
     news: NewsPost[];
     workers: WorkerStat[];
     historyByWorker: Record<string, number[]>;
     maintenance: { enabled: boolean; message: string | null };
     requests: UserRequest[];
+    playlist: PlaylistTrack[];
     fetched_at: string;
 }
 
-type Section = "requests" | "news" | "workers" | "maintenance" | "analytics";
+type Section = "requests" | "news" | "music" | "workers" | "maintenance" | "analytics";
 type DateRange = '24h' | '7d' | '30d' | 'all';
 
 const NAV_ITEMS: { id: Section; label: string; icon: typeof Newspaper }[] = [
     { id: "requests", label: "Requests", icon: Inbox },
     { id: "news", label: "News", icon: Newspaper },
+    { id: "music", label: "Music", icon: Music2 },
     { id: "workers", label: "Workers", icon: Activity },
     { id: "maintenance", label: "Maintenance", icon: Construction },
     { id: "analytics", label: "Analytics", icon: BarChart3 },
@@ -151,6 +164,13 @@ function osIcon(os: string | null | undefined) {
     return MonitorSmartphone;
 }
 
+function formatDuration(seconds: number | null): string {
+    if (seconds == null || seconds <= 0) return '—';
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m}:${String(s).padStart(2, '0')}`;
+}
+
 function categorizeError(message: string | null): string {
     if (!message) return 'Other';
     const m = message.toLowerCase();
@@ -179,6 +199,7 @@ export default function AdminPage() {
     const [workers, setWorkers] = useState<WorkerStat[]>([]);
     const [historyByWorker, setHistoryByWorker] = useState<Record<string, number[]>>({});
     const [requests, setRequests] = useState<UserRequest[]>([]);
+    const [playlist, setPlaylist] = useState<PlaylistTrack[]>([]);
 
     const [maintenanceEnabled, setMaintenanceEnabled] = useState(false);
     const [maintenanceMessage, setMaintenanceMessage] = useState("");
@@ -208,6 +229,7 @@ export default function AdminPage() {
             setWorkers(data.workers ?? []);
             setHistoryByWorker(data.historyByWorker ?? {});
             setRequests(data.requests ?? []);
+            setPlaylist(data.playlist ?? []);
             setMaintenanceEnabled(!!data.maintenance?.enabled);
             setMaintenanceMessage(data.maintenance?.message ?? '');
             setLastFetched(data.fetched_at ?? new Date().toISOString());
@@ -345,8 +367,8 @@ export default function AdminPage() {
         setSavingMaintenance(true);
         try {
             const res = await fetch(`${BASE_URL}/Set_Maintenance`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     enabled: nextEnabled,
                     message: maintenanceMessage,
@@ -494,6 +516,13 @@ export default function AdminPage() {
                                     savingEdit={savingEdit}
                                     saveEdit={saveEdit}
                                     deleteNews={deleteNews}
+                                />
+                            )}
+                            {section === "music" && (
+                                <MusicSection
+                                    playlist={playlist}
+                                    onRefresh={() => fetchAdminData(true)}
+                                    getToken={getToken}
                                 />
                             )}
                             {section === "workers" && (
@@ -698,7 +727,6 @@ function RequestDetailModal({ request, onClose }: { request: UserRequest; onClos
             onKeyDown={(e) => e.key === 'Escape' && onClose()}
         >
             <div className="relative max-h-[88vh] w-full max-w-xl overflow-y-auto rounded-2xl border border-white/10 bg-[#141414] shadow-2xl">
-                {/* Header */}
                 <div className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-white/5 bg-[#141414] px-6 py-5">
                     <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
@@ -727,7 +755,6 @@ function RequestDetailModal({ request, onClose }: { request: UserRequest; onClos
                     </button>
                 </div>
 
-                {/* Body */}
                 <div className="space-y-5 px-6 py-5">
                     <section>
                         <div className="mb-2 flex items-center gap-2 text-gray-400">
@@ -961,6 +988,362 @@ function NewsSection({
                                         </div>
                                     </div>
                                 )}
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}
+
+// ============================================================
+// MUSIC SECTION
+// ============================================================
+function MusicSection({
+    playlist,
+    onRefresh,
+    getToken,
+}: {
+    playlist: PlaylistTrack[];
+    onRefresh: () => void;
+    getToken: () => Promise<string | null>;
+}) {
+    const [title, setTitle] = useState('');
+    const [url, setUrl] = useState('');
+    const [duration, setDuration] = useState('');
+    const [adding, setAdding] = useState(false);
+    const [busyId, setBusyId] = useState<number | null>(null);
+
+    const [uploading, setUploading] = useState(false);
+    const [dragOver, setDragOver] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const activeCount = playlist.filter((t) => t.active).length;
+
+    // ---- Manual add ----
+    const addTrack = async () => {
+        if (!title.trim() || !url.trim()) {
+            toast.error('Title and URL are required');
+            return;
+        }
+        setAdding(true);
+        try {
+            const token = await getToken();
+            const res = await fetch(`${BASE_URL}/Plmu`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${token}`,
+                },
+                body: JSON.stringify({
+                    action: 'add',
+                    title: title.trim(),
+                    url: url.trim(),
+                    duration_seconds: duration ? Number(duration) : null,
+                }),
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Failed to add track');
+            toast.success('Track added');
+            setTitle('');
+            setUrl('');
+            setDuration('');
+            onRefresh();
+        } catch (err: any) {
+            toast.error(err?.message ?? 'Failed to add track');
+        } finally {
+            setAdding(false);
+        }
+    };
+
+    // ---- File upload ----
+    const uploadFile = async (file: File) => {
+        if (!file) return;
+        if (!file.type.startsWith('audio/')) {
+            toast.error('Only audio files are allowed');
+            return;
+        }
+        if (file.size > 20 * 1024 * 1024) {
+            toast.error('File too large (max 20 MB)');
+            return;
+        }
+
+        setUploading(true);
+        try {
+            const token = await getToken();
+
+            const prep = await fetch(`${BASE_URL}/Rmup`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${token}`,
+                },
+                body: JSON.stringify({
+                    filename: file.name,
+                    contentType: file.type || 'audio/mpeg',
+                }),
+            });
+            const prepData = await prep.json();
+            if (!prep.ok) throw new Error(prepData.error || 'Failed to prepare upload');
+
+            const put = await fetch(prepData.uploadUrl, {
+                method: 'PUT',
+                headers: { 'Content-Type': file.type || 'audio/mpeg' },
+                body: file,
+            });
+            if (!put.ok) throw new Error(`R2 upload failed (${put.status})`);
+
+            const guessedTitle = file.name.replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ');
+
+            const insert = await fetch(`${BASE_URL}/Plmu`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${token}`,
+                },
+                body: JSON.stringify({
+                    action: 'add',
+                    title: guessedTitle,
+                    url: prepData.publicUrl,
+                    duration_seconds: null,
+                }),
+            });
+            const insertData = await insert.json();
+            if (!insert.ok) throw new Error(insertData.error || 'Failed to save track');
+
+            toast.success(`Uploaded: ${guessedTitle}`);
+            onRefresh();
+        } catch (err: any) {
+            toast.error(err?.message ?? 'Upload failed');
+        } finally {
+            setUploading(false);
+        }
+    };
+
+    const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) uploadFile(file);
+        e.target.value = '';
+    };
+
+    const onDrop = (e: React.DragEvent) => {
+        e.preventDefault();
+        setDragOver(false);
+        const file = e.dataTransfer.files?.[0];
+        if (file) uploadFile(file);
+    };
+
+    const toggleTrack = async (id: number) => {
+        setBusyId(id);
+        try {
+            const token = await getToken();
+            const res = await fetch(`${BASE_URL}/Plmu`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${token}`,
+                },
+                body: JSON.stringify({ action: 'toggle', id }),
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Failed to toggle');
+            toast.success('Updated');
+            onRefresh();
+        } catch (err: any) {
+            toast.error(err?.message ?? 'Failed to toggle');
+        } finally {
+            setBusyId(null);
+        }
+    };
+
+    const deleteTrack = async (id: number, trackTitle: string) => {
+        if (!confirm(`Delete "${trackTitle}" from the playlist?`)) return;
+        setBusyId(id);
+        try {
+            const token = await getToken();
+            const res = await fetch(`${BASE_URL}/Plmu`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${token}`,
+                },
+                body: JSON.stringify({ action: 'delete', id }),
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Failed to delete');
+            toast.success('Track deleted');
+            onRefresh();
+        } catch (err: any) {
+            toast.error(err?.message ?? 'Failed to delete');
+        } finally {
+            setBusyId(null);
+        }
+    };
+
+    return (
+        <div className="space-y-6">
+            <div>
+                <h1 className="cr-display text-xl font-bold">Music</h1>
+                <p className="mt-1 text-sm text-gray-500">
+                    Background music playlist · {activeCount} active · {playlist.length} total
+                </p>
+            </div>
+
+            {/* Upload */}
+            <div className="rounded-2xl border border-white/5 bg-[#141414] p-5">
+                <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-400">
+                    Upload Track
+                </h2>
+                <div
+                    onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+                    onDragLeave={() => setDragOver(false)}
+                    onDrop={onDrop}
+                    onClick={() => !uploading && fileInputRef.current?.click()}
+                    className={cn(
+                        'flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed py-10 text-center transition-colors',
+                        dragOver
+                            ? 'border-primary/50 bg-primary/5'
+                            : 'border-white/10 bg-[#0A0A0A] hover:border-white/20',
+                        uploading && 'pointer-events-none opacity-60',
+                    )}
+                >
+                    {uploading ? (
+                        <>
+                            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                            <p className="text-sm text-gray-400">Uploading…</p>
+                        </>
+                    ) : (
+                        <>
+                            <Music2 className="h-7 w-7 text-gray-500" />
+                            <p className="text-sm text-gray-300">
+                                Drop an MP3 here, or <span className="text-[#5CA8FF] underline">browse</span>
+                            </p>
+                            <p className="text-xs text-gray-500">Max 20 MB · audio/*</p>
+                        </>
+                    )}
+                </div>
+                <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="audio/*"
+                    onChange={onFileChange}
+                    className="hidden"
+                />
+            </div>
+
+            {/* Add by URL */}
+            <div className="rounded-2xl border border-white/5 bg-[#141414] p-5">
+                <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-400">
+                    Add by URL
+                </h2>
+                <div className="space-y-3">
+                    <input
+                        value={title}
+                        onChange={(e) => setTitle(e.target.value.slice(0, 120))}
+                        placeholder="Track title"
+                        className="w-full rounded-xl border border-white/10 bg-[#0A0A0A] px-4 py-2.5 text-sm outline-none focus:border-primary"
+                    />
+                    <input
+                        value={url}
+                        onChange={(e) => setUrl(e.target.value)}
+                        placeholder={`${R2_PUBLIC_BASE}/track.mp3`}
+                        className="w-full rounded-xl border border-white/10 bg-[#0A0A0A] px-4 py-2.5 text-sm outline-none focus:border-primary"
+                    />
+                    <input
+                        value={duration}
+                        onChange={(e) => setDuration(e.target.value.replace(/\D/g, '').slice(0, 5))}
+                        placeholder="Duration in seconds (optional)"
+                        className="w-full rounded-xl border border-white/10 bg-[#0A0A0A] px-4 py-2.5 text-sm outline-none focus:border-primary"
+                    />
+                    <div className="flex justify-end">
+                        <button
+                            onClick={addTrack}
+                            disabled={adding || !title.trim() || !url.trim()}
+                            className="inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2 text-sm font-semibold text-white transition hover:brightness-110 disabled:opacity-40"
+                        >
+                            {adding ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                            Add track
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            {/* Playlist */}
+            <div className="rounded-2xl border border-white/5 bg-[#141414] p-5">
+                <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-gray-400">
+                    Playlist <span className="text-gray-600">· {playlist.length}</span>
+                </h2>
+                {playlist.length === 0 ? (
+                    <div className="py-10 text-center">
+                        <Music2 className="mx-auto h-8 w-8 text-gray-600" />
+                        <p className="mt-3 text-sm text-gray-500">No tracks yet.</p>
+                        <p className="mt-1 text-xs text-gray-600">Upload a file or add a URL above.</p>
+                    </div>
+                ) : (
+                    <div className="space-y-2">
+                        {playlist.map((track) => (
+                            <div
+                                key={track.id}
+                                className={cn(
+                                    'flex items-center gap-3 rounded-xl border bg-[#0A0A0A] p-3.5 transition',
+                                    track.active
+                                        ? 'border-white/5 hover:border-white/10'
+                                        : 'border-white/5 opacity-55',
+                                )}
+                            >
+                                <div className="grid h-10 w-10 flex-shrink-0 place-items-center rounded-lg bg-white/[0.04]">
+                                    <Music2 className="h-4 w-4 text-gray-500" />
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <p className="truncate text-sm font-semibold text-white">
+                                            {track.title}
+                                        </p>
+                                        {!track.active && (
+                                            <span className="rounded-full border border-yellow-500/20 bg-yellow-500/10 px-2 py-0.5 text-[10px] font-semibold text-yellow-400">
+                                                Inactive
+                                            </span>
+                                        )}
+                                        {track.duration_seconds != null && (
+                                            <span className="text-[11px] text-gray-500">
+                                                {formatDuration(track.duration_seconds)}
+                                            </span>
+                                        )}
+                                    </div>
+                                    <p className="mt-0.5 truncate font-mono text-[11px] text-gray-500">
+                                        {track.url}
+                                    </p>
+                                </div>
+                                <div className="flex flex-shrink-0 gap-1">
+                                    <button
+                                        onClick={() => toggleTrack(track.id)}
+                                        disabled={busyId === track.id}
+                                        className={cn(
+                                            'rounded-full p-2 transition disabled:opacity-40',
+                                            track.active
+                                                ? 'text-green-400 hover:bg-green-500/20'
+                                                : 'text-gray-500 hover:bg-white/5 hover:text-white',
+                                        )}
+                                        title={track.active ? 'Deactivate' : 'Activate'}
+                                    >
+                                        {busyId === track.id ? (
+                                            <Loader2 className="h-4 w-4 animate-spin" />
+                                        ) : track.active ? (
+                                            <CheckCircle className="h-4 w-4" />
+                                        ) : (
+                                            <XCircle className="h-4 w-4" />
+                                        )}
+                                    </button>
+                                    <button
+                                        onClick={() => deleteTrack(track.id, track.title)}
+                                        disabled={busyId === track.id}
+                                        className="rounded-full p-2 text-red-400 transition hover:bg-red-500/20 disabled:opacity-40"
+                                        title="Delete"
+                                    >
+                                        <Trash2 className="h-4 w-4" />
+                                    </button>
+                                </div>
                             </div>
                         ))}
                     </div>
