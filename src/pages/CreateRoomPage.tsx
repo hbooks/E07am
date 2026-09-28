@@ -153,6 +153,9 @@ export default function CreateRoomPage() {
 
       if (res.ok) {
         toast.success('Match created successfully!');
+        window.dispatchEvent(
+          new CustomEvent('ctr:music:reshuffle', { detail: { reason: 'create' } })
+        );
         fetchActiveMatch();
         navigate('/');
       } else {

@@ -179,6 +179,45 @@ export default function SettingsPage() {
         }
         updateSetting('pushNotifications', checked);
     };
+    
+    const [musicEnabled, setMusicEnabled] = useState<boolean>(() => {
+        try {
+            return localStorage.getItem('cmued') !== '0';
+        } catch {
+            return true;
+        }
+    });
+
+    const [musicVolume, setMusicVolume] = useState<number>(() => {
+        try {
+            const v = localStorage.getItem('cmuvlme');
+            return v !== null ? Number(v) : 25;
+        } catch {
+            return 25;
+        }
+    });
+
+    const handleMusicToggle = (checked: boolean) => {
+        setMusicEnabled(checked);
+        try {
+            localStorage.setItem('cmued', checked ? '1' : '0');
+        } catch { /* ignore */ }
+        window.dispatchEvent(
+            new CustomEvent('ctr:music:enabled', { detail: { enabled: checked } })
+        );
+        toast.success(checked ? 'Background music on' : 'Background music off');
+    };
+
+    const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const v = Number(e.target.value);
+        setMusicVolume(v);
+        try {
+            localStorage.setItem('cmuvlme', String(v));
+        } catch { /* ignore */ }
+        window.dispatchEvent(
+            new CustomEvent('ctr:music:volume', { detail: { volume: v / 100 } })
+        );
+    };
 
     const copyToClipboard = (text: string, label: string) => {
         if (navigator.clipboard) {
@@ -373,6 +412,39 @@ export default function SettingsPage() {
                                 onChange={(checked) => updateSetting('darkMode', checked)}
                                 thumbIcon="theme"
                             />
+                        </div>
+                    </div>
+
+                    {/* MUSIC */}
+                    <div>
+                        <p className="sp-label">Music</p>
+                        <div className="sp-group">
+                            <ToggleRow
+                                label="Background music"
+                                description="Ambient tracks while you browse lobbies and matches"
+                                checked={musicEnabled}
+                                onChange={handleMusicToggle}
+                            />
+                            {musicEnabled && (
+                                <div className="sp-row">
+                                    <div className="min-w-0 flex-1">
+                                        <p className="text-sm font-medium text-white">Volume</p>
+                                        <p className="mt-0.5 text-[12px] leading-relaxed text-gray-500">
+                                            Adjust the background music volume to your preference.
+                                        </p>
+                                    </div>
+                                    <input
+                                        type="range"
+                                        min={0}
+                                        max={100}
+                                        step={1}
+                                        value={musicVolume}
+                                        onChange={handleVolumeChange}
+                                        className="w-32 accent-[#1E90FF]"
+                                        aria-label="Music volume"
+                                    />
+                                </div>
+                            )}
                         </div>
                     </div>
 

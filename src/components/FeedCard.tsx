@@ -130,6 +130,9 @@ export function FeedCard({ match, currentUserId, onClaimed }: FeedCardProps) {
         }
       } else {
         onClaimed(data.room_number, data.password);
+        window.dispatchEvent(
+          new CustomEvent('ctr:music:reshuffle', { detail: { reason: 'claim' } })
+        );
       }
     } catch {
       toast.error('Network error – please try again.');

@@ -10,6 +10,7 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 import VersionCheck from '@/components/VersionCheck';
 import MaintenanceGate from "@/components/MaintenanceGate";
 import AdminGate from "@/components/AdminGate";
+import { MusicProvider } from "@/components/MusicProvider";
 import { trackPageView, trackError } from '@/lib/analytics';
 import { useLocationCapture } from '@/hooks/useLocationCapture';
 
@@ -83,6 +84,7 @@ const App = () => (
     redirectUri={import.meta.env.VITE_KINDE_REDIRECT_URI}
     logoutUri={import.meta.env.VITE_KINDE_LOGOUT_REDIRECT_URI || import.meta.env.VITE_KINDE_REDIRECT_URI}
   >
+    <MusicProvider>
     <QueryClientProvider client={queryClient}>
       <VersionCheck />
       <TooltipProvider>
@@ -143,6 +145,7 @@ const App = () => (
         </BrowserRouter>
       </TooltipProvider>
     </QueryClientProvider>
+    </MusicProvider>
   </KindeProvider>
 );
 
