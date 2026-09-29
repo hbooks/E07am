@@ -126,11 +126,11 @@
         }
 
         .logo-link {
-           display: block;
-           width: fit-content;
-           margin: 0 auto;
-          -webkit-tap-highlight-color: transparent;
-          
+            display: block;
+            width: fit-content;
+            margin: 0 auto;
+            -webkit-tap-highlight-color: transparent;
+
         }
 
         .hero h1 {
@@ -565,6 +565,383 @@
             color: var(--text-dim);
         }
 
+        /* ── Back link ───────────────────────── */
+        .topbar {
+            margin-bottom: 4px;
+        }
+
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            color: var(--text-dim);
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 600;
+            padding: 8px 14px 8px 10px;
+            border-radius: 999px;
+            border: 1px solid var(--border);
+            background: var(--card);
+            transition: color 0.15s ease, border-color 0.15s ease;
+        }
+
+        .back-link:hover {
+            color: var(--text);
+            border-color: var(--border-strong);
+        }
+
+        .back-link svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        /* ── APK actions ─────────────────────── */
+        .apk-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            align-items: stretch;
+        }
+
+        /* Safety text link — replaces the old green pill */
+        .link-verify {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            background: transparent;
+            border: 0;
+            padding: 6px 4px;
+            color: var(--text-dim);
+            font-family: inherit;
+            font-size: 12.5px;
+            font-weight: 500;
+            text-decoration: underline;
+            text-underline-offset: 3px;
+            text-decoration-color: rgba(255, 255, 255, 0.18);
+            cursor: pointer;
+            transition: color 0.15s ease, text-decoration-color 0.15s ease;
+            white-space: nowrap;
+        }
+
+        .link-verify:hover {
+            color: var(--text);
+            text-decoration-color: rgba(255, 255, 255, 0.5);
+        }
+
+        .link-verify svg {
+            width: 14px;
+            height: 14px;
+            opacity: 0.85;
+            flex-shrink: 0;
+        }
+
+        /* ── Safety modal ────────────────────── */
+        .sm-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 1000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+            background: rgba(0, 0, 0, 0.72);
+        }
+
+        .sm-overlay.open {
+            display: flex;
+            animation: fadeIn 0.18s ease-out;
+        }
+
+        .sm-modal {
+            width: 100%;
+            max-width: 420px;
+            max-height: calc(100dvh - 32px);
+            display: flex;
+            flex-direction: column;
+            background: var(--card);
+            border: 1px solid var(--border-strong);
+            border-radius: 20px;
+            overflow: hidden;
+        }
+
+        .sm-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 16px 18px 12px;
+        }
+
+        .sm-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 20px;
+            line-height: 1.1;
+        }
+
+        .sm-shield {
+            width: 30px;
+            height: 30px;
+            border-radius: 9px;
+            background: var(--success-soft);
+            color: var(--success);
+            display: grid;
+            place-items: center;
+            flex-shrink: 0;
+        }
+
+        .sm-shield svg {
+            width: 17px;
+            height: 17px;
+        }
+
+        .sm-close {
+            border: 1px solid var(--border);
+            background: transparent;
+            color: var(--text-dim);
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px;
+            line-height: 1;
+            flex-shrink: 0;
+        }
+
+        .sm-close:hover {
+            color: var(--text);
+            border-color: var(--border-strong);
+        }
+
+        .sm-progress {
+            display: flex;
+            gap: 6px;
+            padding: 0 18px;
+        }
+
+        .sm-progress span {
+            flex: 1;
+            height: 4px;
+            border-radius: 2px;
+            background: var(--border-strong);
+            transition: background 0.25s ease;
+        }
+
+        .sm-progress span.done {
+            background: var(--success);
+        }
+
+        .sm-body {
+            padding: 16px 18px 6px;
+            overflow: auto;
+        }
+
+        .sm-step-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--success);
+            margin-bottom: 4px;
+        }
+
+        .sm-step-title {
+            font-size: 18px;
+            font-weight: 600;
+            line-height: 1.3;
+            margin-bottom: 6px;
+        }
+
+        .sm-step-text {
+            font-size: 13px;
+            color: var(--text-dim);
+            line-height: 1.55;
+            margin-bottom: 14px;
+        }
+
+        .sm-shot {
+            position: relative;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            min-height: 200px;
+            cursor: zoom-in;
+        }
+
+        .sm-shot.loading {
+            cursor: progress;
+        }
+
+        .sm-shot img {
+            display: block;
+            width: auto;
+            max-width: 100%;
+            max-height: min(46dvh, 420px);
+            object-fit: contain;
+        }
+
+        .sm-shot.loading::after {
+            content: "Loading screenshot";
+            position: absolute;
+            inset: 0;
+            display: grid;
+            place-items: center;
+            color: var(--text-dimmer);
+            font-size: 12px;
+        }
+
+        .sm-foot {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 14px 18px 18px;
+        }
+
+        .sm-dots {
+            display: flex;
+            gap: 8px;
+        }
+
+        .sm-dot {
+            width: 9px;
+            height: 9px;
+            padding: 0;
+            border: 0;
+            border-radius: 50%;
+            background: var(--border-strong);
+            cursor: pointer;
+        }
+
+        .sm-dot[aria-current="true"] {
+            background: var(--success);
+        }
+
+        .sm-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .sm-btn {
+            border: 0;
+            border-radius: 999px;
+            padding: 11px 22px;
+            font-family: inherit;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            background: var(--accent);
+            color: #ffffff;
+            transition: filter 0.15s ease;
+        }
+
+        .sm-btn:hover {
+            filter: brightness(1.1);
+        }
+
+        .sm-btn.ghost {
+            background: transparent;
+            color: var(--text);
+            border: 1px solid var(--border-strong);
+        }
+
+        .sm-btn[hidden] {
+            display: none;
+        }
+
+        .back-link:focus-visible,
+        .link-verify:focus-visible,
+        .sm-btn:focus-visible,
+        .sm-close:focus-visible,
+        .sm-dot:focus-visible {
+            outline: 2px solid var(--accent);
+            outline-offset: 2px;
+        }
+
+        @media (max-width: 380px) {
+            .sm-btn {
+                padding: 10px 16px;
+            }
+        }
+
+        /* ── Fullscreen image viewer ─────────── */
+        .iv-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 1100;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0, 0, 0, 0.92);
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 200ms ease;
+            padding: 16px;
+            cursor: zoom-out;
+        }
+
+        .iv-overlay.open {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .iv-img {
+            max-width: 100%;
+            max-height: 100%;
+            width: auto;
+            height: auto;
+            object-fit: contain;
+            border-radius: 12px;
+            box-shadow: 0 24px 64px -12px rgba(0, 0, 0, 0.9);
+            animation: iv-pop 240ms cubic-bezier(0.34, 1.56, 0.64, 1);
+            cursor: default;
+            user-select: none;
+            -webkit-user-drag: none;
+        }
+
+        @keyframes iv-pop {
+            from {
+                opacity: 0;
+                transform: scale(0.94);
+            }
+
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        .iv-close {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            width: 40px;
+            height: 40px;
+            display: grid;
+            place-items: center;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            background: rgba(20, 20, 20, 0.9);
+            color: #e5e7eb;
+            border-radius: 999px;
+            font-size: 22px;
+            line-height: 1;
+            cursor: pointer;
+            transition: background 150ms ease, border-color 150ms ease, color 150ms ease;
+            padding: 0;
+            font-family: inherit;
+        }
+
+        .iv-close:hover {
+            background: #1f1f1f;
+            border-color: rgba(255, 255, 255, 0.22);
+            color: #fff;
+        }
+
         /* ── Utility ─────────────────────────── */
         .hidden {
             display: none !important;
@@ -609,10 +986,22 @@
 
     <div class="container">
 
+        <!-- ── BACK ─────────────────────────────── -->
+        <nav class="topbar">
+            <a href="/news" class="back-link">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"
+                    stroke-linejoin="round" aria-hidden="true">
+                    <polyline points="15 18 9 12 15 6" />
+                </svg>
+                Back
+            </a>
+        </nav>
+
         <!-- ── HERO ─────────────────────────────── -->
         <section class="hero">
             <a href="/" class="logo-link" aria-label="Go to Claim The Room">
-                <img class="logo" src="https://res.cloudinary.com/ctr-cloud/image/upload/v1790499503/w6vzv9xag033geouilxo.png"
+                <img class="logo"
+                    src="https://res.cloudinary.com/ctr-cloud/image/upload/v1790499503/w6vzv9xag033geouilxo.png"
                     alt="Claim The Room" width="104" height="104" />
             </a>
             <h1 class="display">Claim The Room<sup>TM</sup></h1>
@@ -849,12 +1238,20 @@
                 <div class="apk-card-text">
                     <h3>Prefer the APK?</h3>
                     <p>Download the native Android app. Same experience, installed directly.</p>
-                    <span class="beta-badge">Beta</span>
                 </div>
-                <a href="/download/ctr.apk"
-                    class="btn-secondary" download>
-                    Download APK
-                </a>
+                <div class="apk-actions">
+                    <a href="/download/ctr.apk" class="btn-secondary" download>
+                        Download APK
+                    </a>
+                    <button type="button" class="link-verify" id="safe-btn" aria-haspopup="dialog">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+                            stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M12 3l7 3v5c0 4.5-3 8.2-7 10-4-1.8-7-5.5-7-10V6l7-3z" />
+                            <path d="M9 12l2 2 4-4" />
+                        </svg>
+                        Is it safe? See the scan
+                    </button>
+                </div>
             </div>
         </section>
 
@@ -1034,6 +1431,230 @@
                         '#Intent;scheme=https;package=com.android.chrome;end';
                 }
             });
+        })();
+    </script>
+
+    <!-- ── SAFETY MODAL ───────────────────────── -->
+    <div class="sm-overlay" id="safe-overlay" aria-hidden="true">
+        <div class="sm-modal" role="dialog" aria-modal="true" aria-labelledby="sm-title">
+            <div class="sm-head">
+                <h2 class="display sm-title" id="sm-title">
+                    <span class="sm-shield">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+                            stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M12 3l7 3v5c0 4.5-3 8.2-7 10-4-1.8-7-5.5-7-10V6l7-3z" />
+                            <path d="M9 12l2 2 4-4" />
+                        </svg>
+                    </span>
+                    Verified by Google Play Protect
+                </h2>
+                <button class="sm-close" id="sm-close" type="button" aria-label="Close">&times;</button>
+            </div>
+
+            <div class="sm-progress" id="sm-progress" aria-hidden="true"><span></span><span></span><span></span></div>
+
+            <div class="sm-body">
+                <p class="sm-step-label" id="sm-label"></p>
+                <h3 class="sm-step-title" id="sm-step-title"></h3>
+                <p class="sm-step-text" id="sm-text"></p>
+                <div class="sm-shot loading" id="sm-shot"><img id="sm-img" alt="" /></div>
+            </div>
+
+            <div class="sm-foot">
+                <div class="sm-dots" id="sm-dots"></div>
+                <div class="sm-actions">
+                    <button class="sm-btn ghost" id="sm-back" type="button">Back</button>
+                    <button class="sm-btn" id="sm-next" type="button">Next</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── FULLSCREEN IMAGE VIEWER ──────────────────── -->
+    <div class="iv-overlay" id="iv-overlay" aria-hidden="true" role="dialog" aria-modal="true"
+        aria-label="Enlarged screenshot">
+        <button class="iv-close" id="iv-close" type="button" aria-label="Close enlarged view">&times;</button>
+        <img class="iv-img" id="iv-img" alt="" />
+    </div>
+
+    <script>
+        (function () {
+            'use strict';
+            var STEPS = [
+                {
+                    img: 'https://res.cloudinary.com/ctr-cloud/image/upload/v1790693493/xxidk3rqipvsqnx9vfby.jpg',
+                    title: 'Android offers to scan the app',
+                    text: 'When you open the file, Google Play Protect asks to scan Claim The Room before it installs. Tap Scan app.',
+                    alt: 'Google Play Protect asking to scan the app before installing'
+                },
+                {
+                    img: 'https://res.cloudinary.com/ctr-cloud/image/upload/v1790693492/fckhuxjflhchsbrhs4pc.jpg',
+                    title: 'The scan runs on your phone',
+                    text: 'Play Protect checks the app for harmful behavior. It usually takes a few seconds.',
+                    alt: 'Google Play Protect scanning the app'
+                },
+                {
+                    img: 'https://res.cloudinary.com/ctr-cloud/image/upload/v1790693493/wejbh5qy9tnotodkp32y.jpg',
+                    title: 'Result: This app looks safe',
+                    text: 'Play Protect finds nothing harmful and lets you continue. Tap Install to finish.',
+                    alt: 'Google Play Protect showing that Claim The Room looks safe'
+                }
+            ];
+
+            var overlay = document.getElementById('safe-overlay');
+            var openBtn = document.getElementById('safe-btn');
+            var closeBtn = document.getElementById('sm-close');
+            var nextBtn = document.getElementById('sm-next');
+            var backBtn = document.getElementById('sm-back');
+            var label = document.getElementById('sm-label');
+            var title = document.getElementById('sm-step-title');
+            var text = document.getElementById('sm-text');
+            var shot = document.getElementById('sm-shot');
+            var img = document.getElementById('sm-img');
+            var dotsWrap = document.getElementById('sm-dots');
+            var bars = document.querySelectorAll('#sm-progress span');
+            var i = 0;
+
+            STEPS.forEach(function (_, n) {
+                var d = document.createElement('button');
+                d.type = 'button';
+                d.className = 'sm-dot';
+                d.setAttribute('aria-label', 'Go to step ' + (n + 1));
+                d.addEventListener('click', function () { go(n); });
+                dotsWrap.appendChild(d);
+            });
+            var dots = dotsWrap.children;
+
+            function go(n) {
+                i = Math.max(0, Math.min(STEPS.length - 1, n));
+                var s = STEPS[i];
+                label.textContent = 'Step ' + (i + 1) + ' of ' + STEPS.length;
+                title.textContent = s.title;
+                text.textContent = s.text;
+                shot.classList.add('loading');
+                img.onload = img.onerror = function () { shot.classList.remove('loading'); };
+                img.alt = s.alt;
+                img.src = s.img;
+                for (var k = 0; k < STEPS.length; k++) {
+                    bars[k].classList.toggle('done', k <= i);
+                    if (k === i) dots[k].setAttribute('aria-current', 'true');
+                    else dots[k].removeAttribute('aria-current');
+                }
+                backBtn.hidden = i === 0;
+                nextBtn.textContent = i === STEPS.length - 1 ? 'Done' : 'Next';
+            }
+
+            function open() {
+                go(0);
+                overlay.classList.add('open');
+                overlay.setAttribute('aria-hidden', 'false');
+                document.body.style.overflow = 'hidden';
+                nextBtn.focus();
+                STEPS.forEach(function (s) { new Image().src = s.img; });
+            }
+
+            function close() {
+                overlay.classList.remove('open');
+                overlay.setAttribute('aria-hidden', 'true');
+                document.body.style.overflow = '';
+                openBtn.focus();
+            }
+
+            openBtn.addEventListener('click', open);
+            closeBtn.addEventListener('click', close);
+            backBtn.addEventListener('click', function () { go(i - 1); });
+            nextBtn.addEventListener('click', function () { i === STEPS.length - 1 ? close() : go(i + 1); });
+            overlay.addEventListener('click', function (e) { if (e.target === overlay) close(); });
+            document.addEventListener('keydown', function (e) {
+                if (!overlay.classList.contains('open')) return;
+                if (e.key === 'Escape') close();
+                if (e.key === 'ArrowRight') go(i + 1);
+                if (e.key === 'ArrowLeft') go(i - 1);
+            });
+        })();
+    </script>
+
+    <script>
+        (function () {
+            'use strict';
+
+            var ivOverlay = document.getElementById('iv-overlay');
+            var ivImg = document.getElementById('iv-img');
+            var ivClose = document.getElementById('iv-close');
+            var shotWrap = document.getElementById('sm-shot');
+            var modalImg = document.getElementById('sm-img');
+            var safeOverlay = document.getElementById('safe-overlay');
+
+            if (!ivOverlay || !shotWrap || !modalImg) return;
+
+            function openViewer() {
+                // Don't open if the modal image is still loading or has no src
+                if (!modalImg.src || shotWrap.classList.contains('loading')) return;
+                ivImg.src = modalImg.src;
+                ivImg.alt = modalImg.alt || 'Enlarged screenshot';
+                ivOverlay.classList.add('open');
+                ivOverlay.setAttribute('aria-hidden', 'false');
+                document.body.style.overflow = 'hidden';
+                ivClose.focus();
+            }
+
+            function closeViewer() {
+                ivOverlay.classList.remove('open');
+                ivOverlay.setAttribute('aria-hidden', 'true');
+                ivClose.blur();
+            }
+
+            // Open on click / tap of the screenshot
+            shotWrap.addEventListener('click', function (e) {
+                e.stopPropagation();
+                openViewer();
+            });
+
+            // Keyboard activation for the shot
+            shotWrap.setAttribute('tabindex', '0');
+            shotWrap.setAttribute('role', 'button');
+            shotWrap.setAttribute('aria-label', 'View screenshot fullscreen');
+            shotWrap.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    openViewer();
+                }
+            });
+
+            // Close button
+            ivClose.addEventListener('click', function (e) {
+                e.stopPropagation();
+                closeViewer();
+            });
+
+            // Click backdrop (not image) closes
+            ivOverlay.addEventListener('click', function (e) {
+                if (e.target === ivOverlay) closeViewer();
+            });
+
+            // Escape closes viewer first, then modal. Capture phase ensures we
+            // run before the safety modal's own Escape handler.
+            document.addEventListener(
+                'keydown',
+                function (e) {
+                    if (!ivOverlay.classList.contains('open')) return;
+                    if (e.key === 'Escape') {
+                        e.stopImmediatePropagation();
+                        e.preventDefault();
+                        closeViewer();
+                    }
+                },
+                true
+            );
+
+            // If the safety modal closes while viewer is somehow open, close the viewer too
+            var observer = new MutationObserver(function () {
+                if (!safeOverlay.classList.contains('open') && ivOverlay.classList.contains('open')) {
+                    closeViewer();
+                }
+            });
+            observer.observe(safeOverlay, { attributes: true, attributeFilter: ['class'] });
+
         })();
     </script>
 
