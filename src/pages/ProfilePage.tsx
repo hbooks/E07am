@@ -280,7 +280,7 @@ export default function ProfilePage() {
 
       <div className="mx-auto max-w-2xl space-y-3 px-4 pb-24 pt-4 sm:px-6">
         {/* ── HERO ─────────────────────────────────── */}
-        <div className="pr-card overflow-hidden">
+        <div data-tour="profile-hero" className="pr-card overflow-hidden">
           <div className="p-4 sm:p-5">
             <div className="flex items-start gap-4">
               {/* Avatar */}
@@ -382,7 +382,7 @@ export default function ProfilePage() {
           </div>
 
           {/* Slim stat row */}
-          <div className="grid grid-cols-3 divide-x divide-white/[0.06] border-t border-white/[0.06]">
+          <div data-tour="profile-stats" className="grid grid-cols-3 divide-x divide-white/[0.06] border-t border-white/[0.06]">
             <StatCell label="Games" value={gamesPlayed.toString()} />
             <StatCell label="Troll" value={`${trollPct}%`} valueColor={trollColor} />
             <StatCell
@@ -401,7 +401,7 @@ export default function ProfilePage() {
         </div>
 
         {/* ── XP ─────────────────────────────────────── */}
-        <div className="pr-card p-4 sm:p-5">
+        <div data-tour="profile-xp" className="pr-card p-4 sm:p-5">
           <div className="mb-3 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Zap className="h-4 w-4 text-yellow-500" />
@@ -461,7 +461,7 @@ export default function ProfilePage() {
         )}
 
         {(!profile.squad_strength || profile.squad_strength === 'N/A' || profile.squad_strength === 'Rejected') && (
-          <div className="pr-card p-4 sm:p-5">
+          <div data-tour="profile-update-squad" className="pr-card p-4 sm:p-5">
             <div className="mb-3 flex items-start gap-3">
               <Info className="mt-0.5 h-4 w-4 shrink-0 text-yellow-500" />
               <p className="text-[13px] leading-relaxed text-gray-400">
@@ -514,6 +514,7 @@ export default function ProfilePage() {
         {/* ── SETTINGS ─────────────────────────────── */}
         <button
           onClick={() => navigate('/settings')}
+          data-tour="profile-settings"
           className={`group flex w-full items-center justify-between rounded-2xl border border-white/[0.06] bg-[#0f0f11] p-4 transition hover:border-white/[0.1] hover:bg-white/[0.02] ${FOCUS_RING}`}
         >
           <span className="flex items-center gap-3 text-sm font-medium">

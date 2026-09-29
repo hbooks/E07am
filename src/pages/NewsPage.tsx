@@ -593,6 +593,7 @@ export default function NewsPage() {
         <div
           role="tablist"
           aria-label="News categories"
+          data-tour="news-tabs"
           className="sticky top-3 z-20 mb-4 flex overflow-hidden rounded-2xl border border-white/[0.06] bg-[#0d0d0f]/95 backdrop-blur-xl"
         >
           {TABS.map((t, idx) => {

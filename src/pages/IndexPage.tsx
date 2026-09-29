@@ -559,6 +559,7 @@ export default function IndexPage() {
             </h1>
             <button
               onClick={handleRefresh}
+              data-tour="feed-refresh"
               disabled={loading || refreshing}
               title="Refresh"
               aria-label="Refresh matches"
@@ -570,7 +571,10 @@ export default function IndexPage() {
           </div>
 
           <div className="flex justify-center pb-3">
-            <div className="relative flex items-center rounded-full border border-white/5 bg-[#101010] p-1">
+            <div
+              data-tour="feed-filters"
+              className="relative flex items-center rounded-full border border-white/5 bg-[#101010] p-1"
+            >
               <div
                 className="pointer-events-none absolute inset-y-1 rounded-full transition-transform duration-300 [transition-timing-function:cubic-bezier(0.34,1.56,0.64,1)]"
                 style={{
@@ -635,7 +639,8 @@ export default function IndexPage() {
             <FeedCardSkeleton />
           </div>
         )}
-
+      
+        <div data-tour="feed-cards">
         {!loading && error && (
           <div className="rounded-3xl border border-red-500/15 bg-[#141414] p-8 text-center">
             <AlertTriangle className="mx-auto mb-3 h-7 w-7 text-red-400" />
@@ -676,7 +681,7 @@ export default function IndexPage() {
         )}
 
         {!loading && !error && filteredMatches.length > 0 && (
-          <div className="space-y-4">
+          <div className="space-y-4" data-tour="feed-cards">
             {filteredMatches.map((match, i) => (
               <div
                 key={match.id}
@@ -695,6 +700,7 @@ export default function IndexPage() {
             ))}
           </div>
         )}
+        </div>
       </div>
       {claimResult && (
         <ClaimModal

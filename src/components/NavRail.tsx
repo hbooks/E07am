@@ -145,6 +145,7 @@ export function NavRail() {
               <Link
                 key={item.to}
                 to={item.to}
+                data-tour="nav-create"
                 aria-label={item.label}
                 className="group relative translate-x-2 rounded-full bg-[#1E90FF] p-3.5 text-white transition-transform duration-200 hover:scale-110 glow-blue"
               >
@@ -156,10 +157,17 @@ export function NavRail() {
 
           const badge = item.to === "/notifications" && unreadCount > 0;
 
+          const tourKey =
+            item.to === "/" ? "nav-feed"
+              : item.to === "/news" ? "nav-news"
+                : item.to === "/notifications" ? "nav-notifications"
+                  : undefined;
+
           return (
             <Link
               key={item.to}
               to={item.to}
+              data-tour={tourKey}
               aria-label={item.label}
               className={cn(
                 "group relative rounded-xl p-2.5 transition-colors",
@@ -185,6 +193,7 @@ export function NavRail() {
         ) : isAuthenticated ? (
           <Link
             to="/onboarding"
+            data-tour="nav-profile"
             aria-label="Profile"
             className={cn(
               "group relative rounded-xl p-2.5 transition-colors",
@@ -199,6 +208,7 @@ export function NavRail() {
         ) : (
           <button
             onClick={() => login({ prompt: PromptTypes.login })}
+            data-tour="nav-profile"
             aria-label="Sign in"
             className={cn(
               "group relative rounded-xl p-2.5 transition-colors text-gray-500 hover:bg-white/[0.04] hover:text-gray-200",
@@ -224,6 +234,7 @@ export function NavRail() {
               <Link
                 key={item.to}
                 to={item.to}
+                data-tour="nav-create"
                 aria-label={item.label}
                 className="mx-auto grid h-14 w-14 -translate-y-4 place-items-center rounded-full bg-[#1E90FF] text-white transition-transform duration-200 active:scale-95 glow-blue"
               >
@@ -234,10 +245,17 @@ export function NavRail() {
 
           const badge = item.to === "/notifications" && unreadCount > 0;
 
+          const tourKey =
+            item.to === "/" ? "nav-feed"
+              : item.to === "/news" ? "nav-news"
+                : item.to === "/notifications" ? "nav-notifications"
+                  : undefined;
+
           return (
             <Link
               key={item.to}
               to={item.to}
+              data-tour={tourKey}
               aria-label={item.label}
               className={cn(
                 "mx-auto grid h-full w-full place-items-center transition-colors",
@@ -260,6 +278,7 @@ export function NavRail() {
         ) : isAuthenticated ? (
           <Link
             to="/onboarding"
+            data-tour="nav-profile"
             aria-label="Profile"
             className={cn(
               "mx-auto grid h-full w-full place-items-center transition-colors",
@@ -273,6 +292,7 @@ export function NavRail() {
         ) : (
           <button
             onClick={() => login({ prompt: PromptTypes.login })}
+            data-tour="nav-profile"
             className="mx-auto grid h-full w-full place-items-center text-gray-500"
           >
             <User className="h-6 w-6" />

@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { validateUsername } from '@/lib/usernameFilter';
 import TermsModal from '@/components/TermsModal';
+import { useTour } from '@/tour';
 
 const BASE_URL = import.meta.env.VITE_SUPABASE_FUNCTIONS_URL;
 const ONBOARDING_CHECK_URL = `${BASE_URL}/OnUse_exs`;
@@ -88,6 +89,7 @@ function OnboardingForm({ user }: { user: any }) {
     const [username, setUsername] = useState('');
     const [isSaving, setIsSaving] = useState(false);
     const navigate = useNavigate();
+    const { startTour } = useTour();
 
     // Manual validation state (triggered by button)
     const [checked, setChecked] = useState(false);
@@ -146,7 +148,11 @@ function OnboardingForm({ user }: { user: any }) {
             const result = await res.json();
             if (res.ok) {
                 toast.success('Profile created! Redirecting...');
-                setTimeout(() => navigate('/profile', { replace: true }), 1000);
+                // Option A: straight into the tour. The TourProvider will
+                // navigate the user to '/' (feed) if they aren't already there.
+                setTimeout(() => {
+                    startTour();
+                }, 1000);
             } else {
                 toast.error(result.error || 'Failed to save profile');
             }
@@ -167,14 +173,14 @@ function OnboardingForm({ user }: { user: any }) {
           40%, 60% { transform: translateX(4px); }
         }
         
-      `}</style>      
-                  <button
-                      onClick={() => navigate('/')}
-                      className="mb-6 flex items-center gap-2 text-sm text-gray-400 hover:text-white transition"
-                  >
-                      <ArrowLeft className="h-5 w-5" />
-                      <span>Back</span>
-                  </button>
+      `}</style>
+            <button
+                onClick={() => navigate('/')}
+                className="mb-6 flex items-center gap-2 text-sm text-gray-400 hover:text-white transition"
+            >
+                <ArrowLeft className="h-5 w-5" />
+                <span>Back</span>
+            </button>
             <h1 className="text-2xl font-bold mb-2">Complete Your Profile</h1>
             <p className="text-sm text-gray-400 mb-6">
                 Set your eFootball username wisely, it can’t be easily changed. You'll have to request a change if you make a mistake.
@@ -236,10 +242,10 @@ function OnboardingForm({ user }: { user: any }) {
                             }}
                             placeholder="Your exact in‑game username (not ID)"
                             className={`w-full bg-[#121212] border rounded-lg p-3 pr-12 outline-none transition-all duration-200 ${checked
-                                    ? validation.valid
-                                        ? 'border-green-500 focus:border-green-500 focus:ring-2 focus:ring-green-500/30'
-                                        : 'border-red-500 focus:border-red-500 focus:ring-2 focus:ring-red-500/30'
-                                    : 'border-gray-700 focus:border-[#1E90FF] focus:ring-2 focus:ring-[#1E90FF]/30'
+                                ? validation.valid
+                                    ? 'border-green-500 focus:border-green-500 focus:ring-2 focus:ring-green-500/30'
+                                    : 'border-red-500 focus:border-red-500 focus:ring-2 focus:ring-red-500/30'
+                                : 'border-gray-700 focus:border-[#1E90FF] focus:ring-2 focus:ring-[#1E90FF]/30'
                                 }`}
                             style={{
                                 animation: shake ? 'onboarding-shake 0.5s ease-in-out' : 'none',
@@ -305,8 +311,8 @@ function OnboardingForm({ user }: { user: any }) {
                     onClick={handleSave}
                     disabled={!canSave || isSaving}
                     className={`w-full py-3 rounded-xl font-semibold transition ${canSave
-                            ? 'bg-[#1E90FF] hover:bg-blue-600 text-white'
-                            : 'bg-[#1A1A1A] text-gray-500 cursor-not-allowed'
+                        ? 'bg-[#1E90FF] hover:bg-blue-600 text-white'
+                        : 'bg-[#1A1A1A] text-gray-500 cursor-not-allowed'
                         }`}
                 >
                     {isSaving ? 'Saving...' : 'Continue'}

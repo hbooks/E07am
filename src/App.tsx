@@ -13,6 +13,7 @@ import AdminGate from "@/components/AdminGate";
 import { MusicProvider } from "@/components/MusicProvider";
 import { trackPageView, trackError } from '@/lib/analytics';
 import { useLocationCapture } from '@/hooks/useLocationCapture';
+import { TourProvider, TourOverlay } from '@/tour';
 
 import IndexPage from "@/pages/IndexPage";
 import CreateRoomPage from "@/pages/CreateRoomPage";
@@ -91,6 +92,7 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter>
+            <TourProvider>
           <AnalyticsTracker />
           <Routes>
             {/* /admin: no nav rail, no notification bell, no maintenance gate
@@ -142,6 +144,8 @@ const App = () => (
               <Route path="*" element={<NotFoundPage />} />
             </Route>
           </Routes>
+              <TourOverlay />
+          </TourProvider>
         </BrowserRouter>
       </TooltipProvider>
     </QueryClientProvider>
