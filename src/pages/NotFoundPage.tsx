@@ -1,5 +1,4 @@
 import { Link } from 'react-router-dom';
-import { Flag } from 'lucide-react';
 
 const FOCUS_RING =
     'focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1E90FF] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0A0A0A]';
@@ -12,13 +11,9 @@ export default function NotFoundPage() {
                 @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&family=Inter:wght@400;500;600&display=swap');
                 .cr-display { font-family: 'Rajdhani', sans-serif; letter-spacing: 0.02em; }
                 .cr-body { font-family: 'Inter', sans-serif; }
-                .cr-card {
-                    background: linear-gradient(180deg, #161616 0%, #121212 100%);
-                    box-shadow: inset 0 1px 0 0 rgba(255,255,255,0.05);
-                }
             `}</style>
 
-            {/* faint pitch markings — ties the empty state back to the game rather than a generic error screen */}
+            {/* Faint pitch markings — keeps the empty state tied to the game */}
             <svg
                 className="pointer-events-none absolute inset-0 h-full w-full opacity-[0.04]"
                 viewBox="0 0 400 400"
@@ -31,32 +26,32 @@ export default function NotFoundPage() {
             </svg>
 
             <div
-                className="pointer-events-none absolute left-1/2 top-1/3 -translate-x-1/2 -translate-y-1/2 h-64 w-64 rounded-full blur-3xl"
-                style={{ background: 'radial-gradient(circle, rgba(30,144,255,0.14), transparent 70%)' }}
+                className="pointer-events-none absolute left-1/2 top-1/3 -translate-x-1/2 -translate-y-1/2 h-72 w-72 rounded-full blur-3xl"
+                style={{ background: 'radial-gradient(circle, rgba(30,144,255,0.16), transparent 70%)' }}
             />
 
-            <div className="relative text-center max-w-sm">
-                <div className="relative mx-auto mb-6 w-20 h-20 rounded-full cr-card border border-white/10 flex items-center justify-center">
-                    <Flag className="h-8 w-8 text-[#1E90FF]" strokeWidth={2} />
-                </div>
-
+            <div className="relative text-center max-w-md">
                 <p
-                    className="cr-display text-7xl font-bold tracking-wide text-white mb-2"
-                    style={{ textShadow: '0 0 40px rgba(30,144,255,0.25)' }}
+                    className="cr-display font-bold leading-[0.85] tracking-tight text-white"
+                    style={{
+                        fontSize: 'clamp(6rem, 22vw, 10rem)',
+                        textShadow: '0 0 60px rgba(30,144,255,0.22), 0 0 120px rgba(30,144,255,0.08)',
+                    }}
                 >
                     404
                 </p>
-                <h1 className="cr-display text-xl font-semibold text-white mb-2">Offside</h1>
-                <p className="text-sm text-gray-400 leading-relaxed mb-8">
-                    This page doesn't exist, never existed, why and how did you get here? You might want to check the URL or go back to the feed.
-                </p>
 
-                <Link
-                    to="/"
-                    className={`inline-flex items-center justify-center bg-[#1E90FF] hover:bg-blue-600 text-white px-6 py-3 rounded-xl font-semibold transition ${PRESS} ${FOCUS_RING}`}
-                >
-                    Back to Feed
-                </Link>
+                <h1 className="cr-display mt-2 text-2xl font-semibold text-white sm:text-3xl">
+                    Offside
+                </h1>
+
+                <p className="mx-auto mt-4 max-w-sm text-sm leading-relaxed text-gray-400 sm:text-[15px]">
+                    Last time I checked, wherever you are didn't exist.
+                    How did you end up here?
+                </p>
+                <p className="mt-8 text-xs text-gray-600">
+                    Use the navigation to find your way back.
+                </p>
             </div>
         </div>
     );
