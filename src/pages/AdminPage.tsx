@@ -155,6 +155,18 @@ const PIE_COLORS = ['#1E90FF', '#22c55e', '#f59e0b', '#ef4444', '#a855f7', '#06b
 
 const RANGE_OPTIONS: DateRange[] = ['15m', '30m', '1h', '24h', '7d', '30d', 'all'];
 
+const TOOLTIP_STYLE = {
+    background: '#0A0A0A',
+    border: '1px solid rgba(255,255,255,0.08)',
+    borderRadius: 8,
+    fontSize: 12,
+    padding: '6px 10px',
+} as const;
+
+const CHART_COLOR = '#5B8DEF';
+const AXIS_COLOR = '#6b7280';
+const SESSION_COLS = 'lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1.1fr)_minmax(0,1.3fr)_56px_72px_96px]';
+
 // ============================================================
 // HELPERS
 // ============================================================
@@ -519,12 +531,12 @@ export default function AdminPage() {
 
     return (
         <div className="flex min-h-screen bg-[#0A0A0A] text-white">
-            <aside className="hidden w-60 flex-shrink-0 flex-col border-r border-white/5 bg-[#0C0C0C] sm:flex">
+            <aside className="sticky top-0 hidden h-screen w-60 flex-shrink-0 flex-col border-r border-white/[0.06] bg-[#0C0C0C] sm:flex">
                 <div className="px-5 py-5">
-                    <p className="cr-display text-sm font-bold tracking-wide">Admin</p>
+                    <p className="cr-display text-sm font-semibold">Admin</p>
                     <p className="mt-0.5 text-xs text-gray-500">Claim The Room</p>
                 </div>
-                <nav className="flex-1 space-y-1 px-3">
+                <nav className="flex-1 space-y-0.5 px-3">
                     {NAV_ITEMS.map((item) => {
                         const Icon = item.icon;
                         const active = section === item.id;
@@ -534,14 +546,14 @@ export default function AdminPage() {
                                 key={item.id}
                                 onClick={() => setSection(item.id)}
                                 className={cn(
-                                    "flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-                                    active ? "bg-white/10 text-white" : "text-gray-400 hover:bg-white/5 hover:text-white",
+                                    "flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors",
+                                    active ? "bg-white/[0.07] font-medium text-white" : "text-gray-400 hover:bg-white/[0.04] hover:text-white",
                                 )}
                             >
                                 <Icon className="h-4 w-4" />
                                 {item.label}
                                 {badge !== null && (
-                                    <span className="ml-auto rounded-full bg-red-500/20 px-2 py-0.5 text-[10px] font-bold text-red-400">
+                                    <span className="ml-auto rounded-md bg-red-500/15 px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-red-400">
                                         {badge}
                                     </span>
                                 )}
@@ -552,12 +564,12 @@ export default function AdminPage() {
                         );
                     })}
                 </nav>
-                <div className="border-t border-white/5 px-5 py-4">
+                <div className="border-t border-white/[0.06] px-5 py-4">
                     <p className="truncate text-xs text-gray-500">{user?.email}</p>
                     {logout && (
                         <button
                             onClick={() => logout()}
-                            className="mt-1.5 flex items-center gap-1.5 text-xs text-gray-500 hover:text-white transition"
+                            className="mt-1.5 flex items-center gap-1.5 text-xs text-gray-500 transition hover:text-white"
                         >
                             <LogOut className="h-3 w-3" />
                             Sign out
@@ -566,7 +578,7 @@ export default function AdminPage() {
                 </div>
             </aside>
 
-            <div className="fixed inset-x-0 top-0 z-20 flex border-b border-white/5 bg-[#0A0A0A]/95 backdrop-blur sm:hidden">
+            <div className="fixed inset-x-0 top-0 z-20 flex border-b border-white/[0.06] bg-[#0A0A0A]/95 backdrop-blur sm:hidden">
                 {NAV_ITEMS.map((item) => {
                     const Icon = item.icon;
                     const active = section === item.id;
@@ -592,10 +604,10 @@ export default function AdminPage() {
                 })}
             </div>
 
-            <main className="min-w-0 flex-1 px-5 py-6 pt-16 sm:pt-6 sm:px-8 sm:py-8">
-                <div className="mx-auto max-w-5xl">
+            <main className="min-w-0 flex-1 px-5 py-6 pt-16 sm:px-8 sm:py-8">
+                <div className="mx-auto max-w-6xl">
                     {maintenanceEnabled && (
-                        <div className="mb-6 flex items-center gap-2 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-2.5 text-sm text-red-400">
+                        <div className="mb-6 flex items-center gap-2 rounded-lg border border-red-500/25 bg-red-500/[0.06] px-4 py-2.5 text-sm text-red-300">
                             <ShieldAlert className="h-4 w-4 flex-shrink-0" />
                             Maintenance mode is live — visitors can't reach the app right now.
                         </div>
@@ -608,7 +620,7 @@ export default function AdminPage() {
                         <button
                             onClick={() => fetchAdminData(true)}
                             disabled={refreshing || loading}
-                            className="rounded-full p-2 text-gray-400 transition hover:bg-white/5 hover:text-white disabled:opacity-40"
+                            className="rounded-lg p-2 text-gray-400 transition hover:bg-white/5 hover:text-white disabled:opacity-40"
                             title="Refresh"
                         >
                             <RefreshCw className={cn("h-4 w-4", refreshing && "animate-spin")} />
@@ -692,7 +704,7 @@ function RequestsSection({
 
     if (requests.length === 0) {
         return (
-            <div className="rounded-2xl border border-white/5 bg-[#141414] p-12 text-center">
+            <div className="rounded-xl border border-white/[0.06] bg-[#111214] p-12 text-center">
                 <Inbox className="mx-auto h-10 w-10 text-gray-600" />
                 <p className="mt-3 text-sm font-medium">No pending requests</p>
                 <p className="mt-1 text-xs text-gray-500">All caught up.</p>
@@ -703,7 +715,7 @@ function RequestsSection({
     return (
         <div className="space-y-4">
             <div>
-                <h1 className="cr-display text-xl font-bold">Requests</h1>
+                <h1 className="cr-display text-xl font-semibold tracking-tight">Requests</h1>
                 <p className="mt-1 text-sm text-gray-500">
                     {requests.length} active · {requests.filter((r) => r.status === 'pending').length} pending
                 </p>
@@ -713,7 +725,7 @@ function RequestsSection({
                 {requests.map((r) => (
                     <div
                         key={r.id}
-                        className="rounded-2xl border border-white/5 bg-[#141414] p-4 sm:p-5 transition hover:border-white/10"
+                        className="rounded-xl border border-white/[0.06] bg-[#111214] p-4 sm:p-5 transition hover:border-white/10"
                     >
                         <div className="flex items-start justify-between gap-4">
                             <div className="min-w-0 flex-1">
@@ -744,7 +756,7 @@ function RequestsSection({
                             <div className="flex shrink-0 gap-1">
                                 <button
                                     onClick={() => setViewing(r)}
-                                    className="rounded-full p-2 text-gray-400 transition hover:bg-white/5 hover:text-white"
+                                    className="rounded-lg p-2 text-gray-400 transition hover:bg-white/5 hover:text-white"
                                     title="View details"
                                 >
                                     <Eye className="h-4 w-4" />
@@ -752,7 +764,7 @@ function RequestsSection({
                                 <button
                                     onClick={() => { setNoteFor({ id: r.id, action: 'resolve' }); setNote(''); }}
                                     disabled={busyId === r.id}
-                                    className="rounded-full p-2 text-green-400 transition hover:bg-green-500/20 disabled:opacity-40"
+                                    className="rounded-lg p-2 text-green-400 transition hover:bg-green-500/20 disabled:opacity-40"
                                     title="Resolve"
                                 >
                                     <Check className="h-4 w-4" />
@@ -760,7 +772,7 @@ function RequestsSection({
                                 <button
                                     onClick={() => { setNoteFor({ id: r.id, action: 'reject' }); setNote(''); }}
                                     disabled={busyId === r.id}
-                                    className="rounded-full p-2 text-yellow-400 transition hover:bg-yellow-500/20 disabled:opacity-40"
+                                    className="rounded-lg p-2 text-yellow-400 transition hover:bg-yellow-500/20 disabled:opacity-40"
                                     title="Reject"
                                 >
                                     <X className="h-4 w-4" />
@@ -768,7 +780,7 @@ function RequestsSection({
                                 <button
                                     onClick={() => onAction(r.id, 'delete')}
                                     disabled={busyId === r.id}
-                                    className="rounded-full p-2 text-red-400 transition hover:bg-red-500/20 disabled:opacity-40"
+                                    className="rounded-lg p-2 text-red-400 transition hover:bg-red-500/20 disabled:opacity-40"
                                     title="Delete"
                                 >
                                     {busyId === r.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
@@ -797,19 +809,19 @@ function RequestsSection({
                             onChange={(e) => setNote(e.target.value.slice(0, 500))}
                             rows={3}
                             placeholder="Note (optional)…"
-                            className="w-full resize-none rounded-xl border border-white/10 bg-[#0A0A0A] px-4 py-3 text-sm outline-none focus:border-primary"
+                            className="w-full resize-none rounded-xl border border-white/10 bg-[#0A0A0A] px-4 py-3 text-sm outline-none transition-colors placeholder:text-gray-600 focus:border-primary/60"
                         />
                         <div className="flex justify-end gap-2">
                             <button
                                 onClick={() => setNoteFor(null)}
-                                className="rounded-full border border-white/10 px-4 py-2 text-sm text-gray-300 hover:bg-white/5"
+                                className="rounded-lg border border-white/10 px-4 py-2 text-sm text-gray-300 hover:bg-white/5"
                             >
                                 Cancel
                             </button>
                             <button
                                 onClick={() => { onAction(noteFor.id, noteFor.action, note); setNoteFor(null); }}
                                 className={cn(
-                                    "rounded-full px-5 py-2 text-sm font-semibold text-white",
+                                    "rounded-lg px-5 py-2 text-sm font-semibold text-white",
                                     noteFor.action === 'resolve'
                                         ? "bg-green-600 hover:brightness-110"
                                         : "bg-yellow-600 hover:brightness-110",
@@ -847,12 +859,12 @@ function RequestDetailModal({ request, onClose }: { request: UserRequest; onClos
 
     return (
         <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
             onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
             onKeyDown={(e) => e.key === 'Escape' && onClose()}
         >
-            <div className="relative max-h-[88vh] w-full max-w-xl overflow-y-auto rounded-2xl border border-white/10 bg-[#141414] shadow-2xl">
-                <div className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-white/5 bg-[#141414] px-6 py-5">
+            <div className="relative max-h-[88vh] w-full max-w-xl overflow-y-auto rounded-xl border border-white/10 bg-[#111214] shadow-2xl">
+                <div className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-white/[0.06] bg-[#111214] px-6 py-5">
                     <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
                             <span className={cn("rounded-full border px-2.5 py-1 text-[11px] font-semibold", REQUEST_TYPE_COLOR[request.type])}>
@@ -874,7 +886,7 @@ function RequestDetailModal({ request, onClose }: { request: UserRequest; onClos
                     </div>
                     <button
                         onClick={onClose}
-                        className="rounded-full p-1.5 text-gray-400 transition hover:bg-white/5 hover:text-white"
+                        className="rounded-lg p-1.5 text-gray-400 transition hover:bg-white/5 hover:text-white"
                     >
                         <X className="h-5 w-5" />
                     </button>
@@ -886,7 +898,7 @@ function RequestDetailModal({ request, onClose }: { request: UserRequest; onClos
                             <FileText className="h-3.5 w-3.5" />
                             <h3 className="text-xs font-semibold uppercase tracking-wide">Reason</h3>
                         </div>
-                        <div className="rounded-xl border border-white/5 bg-[#0A0A0A] p-4">
+                        <div className="rounded-xl border border-white/[0.06] bg-[#0A0A0A] p-4">
                             <p className="whitespace-pre-wrap text-sm leading-relaxed text-gray-200">
                                 {request.reason}
                             </p>
@@ -898,7 +910,7 @@ function RequestDetailModal({ request, onClose }: { request: UserRequest; onClos
                             <User className="h-3.5 w-3.5" />
                             <h3 className="text-xs font-semibold uppercase tracking-wide">User</h3>
                         </div>
-                        <div className="rounded-xl border border-white/5 bg-[#0A0A0A] p-4">
+                        <div className="rounded-xl border border-white/[0.06] bg-[#0A0A0A] p-4">
                             <p className="font-mono text-xs text-gray-300 break-all">{request.user_id}</p>
                         </div>
                     </section>
@@ -910,11 +922,11 @@ function RequestDetailModal({ request, onClose }: { request: UserRequest; onClos
                                 <h3 className="text-xs font-semibold uppercase tracking-wide">Client</h3>
                             </div>
                             <div className="grid grid-cols-2 gap-2">
-                                <div className="rounded-xl border border-white/5 bg-[#0A0A0A] p-3">
+                                <div className="rounded-xl border border-white/[0.06] bg-[#0A0A0A] p-3">
                                     <p className="text-[10px] uppercase tracking-wide text-gray-500">Browser</p>
                                     <p className="mt-1 text-sm font-medium">{parsedUa.browser}</p>
                                 </div>
-                                <div className="rounded-xl border border-white/5 bg-[#0A0A0A] p-3">
+                                <div className="rounded-xl border border-white/[0.06] bg-[#0A0A0A] p-3">
                                     <p className="text-[10px] uppercase tracking-wide text-gray-500">OS</p>
                                     <p className="mt-1 text-sm font-medium">{parsedUa.os}</p>
                                 </div>
@@ -927,7 +939,7 @@ function RequestDetailModal({ request, onClose }: { request: UserRequest; onClos
                             <Clock className="h-3.5 w-3.5" />
                             <h3 className="text-xs font-semibold uppercase tracking-wide">Timeline</h3>
                         </div>
-                        <div className="space-y-2 rounded-xl border border-white/5 bg-[#0A0A0A] p-4">
+                        <div className="space-y-2 rounded-xl border border-white/[0.06] bg-[#0A0A0A] p-4">
                             <TimelineRow
                                 label="Submitted"
                                 value={new Date(request.created_at).toLocaleString()}
@@ -972,17 +984,17 @@ function RequestDetailModal({ request, onClose }: { request: UserRequest; onClos
                                     Show raw user agent ▾
                                 </span>
                             </summary>
-                            <pre className="mt-2 overflow-x-auto rounded-xl border border-white/5 bg-[#0A0A0A] p-3 text-[11px] leading-relaxed text-gray-500">
+                            <pre className="mt-2 overflow-x-auto rounded-xl border border-white/[0.06] bg-[#0A0A0A] p-3 text-[11px] leading-relaxed text-gray-500">
                                 {ua}
                             </pre>
                         </details>
                     )}
                 </div>
 
-                <div className="sticky bottom-0 border-t border-white/5 bg-[#141414] px-6 py-4">
+                <div className="sticky bottom-0 border-t border-white/[0.06] bg-[#111214] px-6 py-4">
                     <button
                         onClick={onClose}
-                        className="w-full rounded-full border border-white/10 bg-transparent py-2.5 text-sm font-medium text-gray-300 transition hover:bg-white/5"
+                        className="w-full rounded-lg border border-white/10 bg-transparent py-2.5 text-sm font-medium text-gray-300 transition hover:bg-white/5"
                     >
                         Close
                     </button>
@@ -1029,25 +1041,25 @@ function NewsSection({
     return (
         <div className="space-y-6">
             <div>
-                <h1 className="cr-display text-xl font-bold">News</h1>
+                <h1 className="cr-display text-xl font-semibold tracking-tight">News</h1>
                 <p className="mt-1 text-sm text-gray-500">Post and manage official announcements.</p>
             </div>
 
-            <div className="rounded-2xl border border-white/5 bg-[#141414] p-5">
-                <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-400">Post News</h2>
+            <div className="rounded-xl border border-white/[0.06] bg-[#111214] p-5">
+                <h2 className="mb-3 text-sm font-medium text-gray-100">Post News</h2>
                 <textarea
                     value={newsContent}
                     onChange={(e: any) => setNewsContent(e.target.value.slice(0, 1000))}
                     rows={3}
                     placeholder="Write an announcement…"
-                    className="w-full resize-none rounded-xl border border-white/10 bg-[#0A0A0A] px-4 py-3 text-sm outline-none focus:border-primary"
+                    className="w-full resize-none rounded-xl border border-white/10 bg-[#0A0A0A] px-4 py-3 text-sm outline-none transition-colors placeholder:text-gray-600 focus:border-primary/60"
                 />
                 <div className="mt-3 flex items-center justify-between">
                     <span className="text-xs text-gray-500">{newsContent.length}/1000</span>
                     <button
                         onClick={postNews}
                         disabled={!newsContent.trim() || posting}
-                        className="inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2 text-sm font-semibold text-white transition hover:brightness-110 disabled:opacity-40"
+                        className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2 text-sm font-semibold text-white transition hover:brightness-110 disabled:opacity-40"
                     >
                         <Send className="h-4 w-4" />
                         {posting ? "Posting..." : "Post"}
@@ -1055,8 +1067,8 @@ function NewsSection({
                 </div>
             </div>
 
-            <div className="rounded-2xl border border-white/5 bg-[#141414] p-5">
-                <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-gray-400">
+            <div className="rounded-xl border border-white/[0.06] bg-[#111214] p-5">
+                <h2 className="mb-4 text-sm font-medium text-gray-100">
                     Existing News <span className="text-gray-600">· {news.length}</span>
                 </h2>
                 {news.length === 0 ? (
@@ -1064,26 +1076,26 @@ function NewsSection({
                 ) : (
                     <div className="space-y-3">
                         {news.map((post: NewsPost) => (
-                            <div key={post.id} className="rounded-xl border border-white/5 bg-[#0A0A0A] p-4">
+                            <div key={post.id} className="rounded-xl border border-white/[0.06] bg-[#0A0A0A] p-4">
                                 {editingId === post.id ? (
                                     <div className="space-y-2">
                                         <textarea
                                             value={editContent}
                                             onChange={(e) => setEditContent(e.target.value.slice(0, 1000))}
                                             rows={3}
-                                            className="w-full resize-none rounded-xl border border-white/10 bg-[#1A1A1A] px-3 py-2 text-sm outline-none focus:border-primary"
+                                            className="w-full resize-none rounded-xl border border-white/10 bg-[#1A1A1A] px-3 py-2 text-sm outline-none transition-colors placeholder:text-gray-600 focus:border-primary/60"
                                         />
                                         <div className="flex justify-end gap-2">
                                             <button
                                                 onClick={() => setEditingId(null)}
-                                                className="rounded-full p-2 text-gray-400 hover:bg-white/5 hover:text-white"
+                                                className="rounded-lg p-2 text-gray-400 hover:bg-white/5 hover:text-white"
                                             >
                                                 <X className="h-5 w-5" />
                                             </button>
                                             <button
                                                 onClick={() => saveEdit(post.id)}
                                                 disabled={savingEdit}
-                                                className="rounded-full p-2 text-green-400 hover:bg-white/5 hover:text-white"
+                                                className="rounded-lg p-2 text-green-400 hover:bg-white/5 hover:text-white"
                                             >
                                                 <Check className="h-5 w-5" />
                                             </button>
@@ -1100,13 +1112,13 @@ function NewsSection({
                                         <div className="flex shrink-0 gap-1">
                                             <button
                                                 onClick={() => { setEditingId(post.id); setEditContent(post.content); }}
-                                                className="rounded-full p-2 text-gray-400 hover:bg-white/5 hover:text-white"
+                                                className="rounded-lg p-2 text-gray-400 hover:bg-white/5 hover:text-white"
                                             >
                                                 <Pencil className="h-4 w-4" />
                                             </button>
                                             <button
                                                 onClick={() => deleteNews(post.id)}
-                                                className="rounded-full p-2 text-red-400 hover:bg-red-500/20 hover:text-white"
+                                                className="rounded-lg p-2 text-red-400 hover:bg-red-500/20 hover:text-white"
                                             >
                                                 <Trash2 className="h-4 w-4" />
                                             </button>
@@ -1304,170 +1316,175 @@ function MusicSection({
         }
     };
 
+    const inactiveCount = playlist.length - activeCount;
+
     return (
         <div className="space-y-6">
             <div>
-                <h1 className="cr-display text-xl font-bold">Music</h1>
+                <h1 className="cr-display text-xl font-semibold tracking-tight">Music</h1>
                 <p className="mt-1 text-sm text-gray-500">
                     Background music playlist · {activeCount} active · {playlist.length} total
                 </p>
             </div>
 
-            <div className="rounded-2xl border border-white/5 bg-[#141414] p-5">
-                <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-400">
-                    Upload Track
-                </h2>
-                <div
-                    onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
-                    onDragLeave={() => setDragOver(false)}
-                    onDrop={onDrop}
-                    onClick={() => !uploading && fileInputRef.current?.click()}
-                    className={cn(
-                        'flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed py-10 text-center transition-colors',
-                        dragOver
-                            ? 'border-primary/50 bg-primary/5'
-                            : 'border-white/10 bg-[#0A0A0A] hover:border-white/20',
-                        uploading && 'pointer-events-none opacity-60',
-                    )}
+            <div className="grid items-start gap-6 lg:grid-cols-[360px_minmax(0,1fr)]">
+                {/* Left: add tracks */}
+                <div className="space-y-6">
+                    <Card title="Upload audio" subtitle="Files are stored in your R2 bucket and added to the playlist.">
+                        <div
+                            onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+                            onDragLeave={() => setDragOver(false)}
+                            onDrop={onDrop}
+                            onClick={() => !uploading && fileInputRef.current?.click()}
+                            className={cn(
+                                'flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-lg border border-dashed px-4 py-8 text-center transition-colors',
+                                dragOver
+                                    ? 'border-primary/60 bg-primary/5'
+                                    : 'border-white/10 bg-[#0A0A0A] hover:border-white/20',
+                                uploading && 'pointer-events-none opacity-60',
+                            )}
+                        >
+                            {uploading ? (
+                                <>
+                                    <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
+                                    <p className="text-sm text-gray-400">Uploading…</p>
+                                </>
+                            ) : (
+                                <>
+                                    <Music2 className="h-5 w-5 text-gray-500" />
+                                    <p className="text-sm text-gray-300">
+                                        Drop an MP3 here, or <span className="text-[#5CA8FF]">browse</span>
+                                    </p>
+                                    <p className="text-xs text-gray-500">Max 20 MB · audio/*</p>
+                                </>
+                            )}
+                        </div>
+                        <input
+                            ref={fileInputRef}
+                            type="file"
+                            accept="audio/*"
+                            onChange={onFileChange}
+                            className="hidden"
+                        />
+                    </Card>
+
+                    <Card title="Add by URL" subtitle="Link to a track that is already hosted.">
+                        <div className="space-y-4">
+                            <label className="block">
+                                <span className="mb-1.5 block text-xs font-medium text-gray-400">Title</span>
+                                <input
+                                    value={title}
+                                    onChange={(e) => setTitle(e.target.value.slice(0, 120))}
+                                    placeholder="Track title"
+                                    className="w-full rounded-lg border border-white/10 bg-[#0A0A0A] px-3 py-2 text-sm outline-none transition-colors placeholder:text-gray-600 focus:border-primary/60"
+                                />
+                            </label>
+                            <label className="block">
+                                <span className="mb-1.5 block text-xs font-medium text-gray-400">URL</span>
+                                <input
+                                    value={url}
+                                    onChange={(e) => setUrl(e.target.value)}
+                                    placeholder={`${R2_PUBLIC_BASE}/track.mp3`}
+                                    className="w-full rounded-lg border border-white/10 bg-[#0A0A0A] px-3 py-2 font-mono text-xs outline-none transition-colors placeholder:text-gray-600 focus:border-primary/60"
+                                />
+                            </label>
+                            <label className="block">
+                                <span className="mb-1.5 flex items-center justify-between text-xs font-medium text-gray-400">
+                                    Duration <span className="font-normal text-gray-600">Optional · seconds</span>
+                                </span>
+                                <input
+                                    value={duration}
+                                    onChange={(e) => setDuration(e.target.value.replace(/\D/g, '').slice(0, 5))}
+                                    placeholder="e.g. 214"
+                                    inputMode="numeric"
+                                    className="w-full rounded-lg border border-white/10 bg-[#0A0A0A] px-3 py-2 text-sm tabular-nums outline-none transition-colors placeholder:text-gray-600 focus:border-primary/60"
+                                />
+                            </label>
+                            <button
+                                onClick={addTrack}
+                                disabled={adding || !title.trim() || !url.trim()}
+                                className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-white transition hover:brightness-110 disabled:opacity-40"
+                            >
+                                {adding ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                                Add track
+                            </button>
+                        </div>
+                    </Card>
+                </div>
+
+                {/* Right: playlist */}
+                <Card
+                    title="Playlist"
+                    subtitle={`${playlist.length} track${playlist.length === 1 ? '' : 's'}`}
+                    action={
+                        <div className="flex items-center gap-3 text-xs text-gray-500">
+                            <span><span className="tabular-nums text-green-400">{activeCount}</span> active</span>
+                            <span><span className="tabular-nums text-gray-300">{inactiveCount}</span> inactive</span>
+                        </div>
+                    }
+                    flush
                 >
-                    {uploading ? (
-                        <>
-                            <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                            <p className="text-sm text-gray-400">Uploading…</p>
-                        </>
+                    {playlist.length === 0 ? (
+                        <div className="px-5 py-14 text-center">
+                            <Music2 className="mx-auto h-6 w-6 text-gray-600" />
+                            <p className="mt-3 text-sm text-gray-400">No tracks yet</p>
+                            <p className="mt-1 text-xs text-gray-600">Upload a file or add a URL to get started.</p>
+                        </div>
                     ) : (
                         <>
-                            <Music2 className="h-7 w-7 text-gray-500" />
-                            <p className="text-sm text-gray-300">
-                                Drop an MP3 here, or <span className="text-[#5CA8FF] underline">browse</span>
-                            </p>
-                            <p className="text-xs text-gray-500">Max 20 MB · audio/*</p>
+                            <div className="hidden grid-cols-[28px_minmax(0,1fr)_64px_92px_36px] items-center gap-4 border-b border-white/[0.06] px-5 py-2.5 text-xs font-medium text-gray-500 sm:grid">
+                                <span>#</span>
+                                <span>Track</span>
+                                <span className="text-right">Length</span>
+                                <span>Status</span>
+                                <span />
+                            </div>
+                            <div className="divide-y divide-white/[0.06]">
+                                {playlist.map((track, i) => (
+                                    <div
+                                        key={track.id}
+                                        className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-2 px-5 py-3 transition-colors hover:bg-white/[0.02] sm:grid-cols-[28px_minmax(0,1fr)_64px_92px_36px]"
+                                    >
+                                        <span className="hidden text-xs tabular-nums text-gray-600 sm:block">{i + 1}</span>
+                                        <div className="min-w-0">
+                                            <p className={cn("truncate text-sm font-medium", track.active ? "text-white" : "text-gray-500")}>
+                                                {track.title}
+                                            </p>
+                                            <p className="mt-0.5 truncate font-mono text-[11px] text-gray-600">{track.url}</p>
+                                        </div>
+                                        <span className="hidden text-right text-xs tabular-nums text-gray-400 sm:block">
+                                            {track.duration_seconds != null ? formatDuration(track.duration_seconds) : '—'}
+                                        </span>
+                                        <button
+                                            onClick={() => toggleTrack(track.id)}
+                                            disabled={busyId === track.id}
+                                            title={track.active ? 'Deactivate' : 'Activate'}
+                                            className={cn(
+                                                "inline-flex w-fit items-center gap-1.5 rounded-md border px-2 py-1 text-xs font-medium transition-colors disabled:opacity-50",
+                                                track.active
+                                                    ? "border-green-500/20 bg-green-500/10 text-green-400 hover:bg-green-500/15"
+                                                    : "border-white/10 text-gray-400 hover:bg-white/5 hover:text-white",
+                                            )}
+                                        >
+                                            {busyId === track.id
+                                                ? <Loader2 className="h-3 w-3 animate-spin" />
+                                                : <span className={cn("h-1.5 w-1.5 rounded-full", track.active ? "bg-green-400" : "bg-gray-500")} />}
+                                            {track.active ? 'Active' : 'Inactive'}
+                                        </button>
+                                        <button
+                                            onClick={() => deleteTrack(track.id, track.title)}
+                                            disabled={busyId === track.id}
+                                            className="justify-self-end rounded-lg p-2 text-gray-500 transition hover:bg-red-500/10 hover:text-red-400 disabled:opacity-40"
+                                            title="Delete"
+                                        >
+                                            <Trash2 className="h-4 w-4" />
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
                         </>
                     )}
-                </div>
-                <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="audio/*"
-                    onChange={onFileChange}
-                    className="hidden"
-                />
-            </div>
-
-            <div className="rounded-2xl border border-white/5 bg-[#141414] p-5">
-                <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-400">
-                    Add by URL
-                </h2>
-                <div className="space-y-3">
-                    <input
-                        value={title}
-                        onChange={(e) => setTitle(e.target.value.slice(0, 120))}
-                        placeholder="Track title"
-                        className="w-full rounded-xl border border-white/10 bg-[#0A0A0A] px-4 py-2.5 text-sm outline-none focus:border-primary"
-                    />
-                    <input
-                        value={url}
-                        onChange={(e) => setUrl(e.target.value)}
-                        placeholder={`${R2_PUBLIC_BASE}/track.mp3`}
-                        className="w-full rounded-xl border border-white/10 bg-[#0A0A0A] px-4 py-2.5 text-sm outline-none focus:border-primary"
-                    />
-                    <input
-                        value={duration}
-                        onChange={(e) => setDuration(e.target.value.replace(/\D/g, '').slice(0, 5))}
-                        placeholder="Duration in seconds (optional)"
-                        className="w-full rounded-xl border border-white/10 bg-[#0A0A0A] px-4 py-2.5 text-sm outline-none focus:border-primary"
-                    />
-                    <div className="flex justify-end">
-                        <button
-                            onClick={addTrack}
-                            disabled={adding || !title.trim() || !url.trim()}
-                            className="inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2 text-sm font-semibold text-white transition hover:brightness-110 disabled:opacity-40"
-                        >
-                            {adding ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                            Add track
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            <div className="rounded-2xl border border-white/5 bg-[#141414] p-5">
-                <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-gray-400">
-                    Playlist <span className="text-gray-600">· {playlist.length}</span>
-                </h2>
-                {playlist.length === 0 ? (
-                    <div className="py-10 text-center">
-                        <Music2 className="mx-auto h-8 w-8 text-gray-600" />
-                        <p className="mt-3 text-sm text-gray-500">No tracks yet.</p>
-                        <p className="mt-1 text-xs text-gray-600">Upload a file or add a URL above.</p>
-                    </div>
-                ) : (
-                    <div className="space-y-2">
-                        {playlist.map((track) => (
-                            <div
-                                key={track.id}
-                                className={cn(
-                                    'flex items-center gap-3 rounded-xl border bg-[#0A0A0A] p-3.5 transition',
-                                    track.active
-                                        ? 'border-white/5 hover:border-white/10'
-                                        : 'border-white/5 opacity-55',
-                                )}
-                            >
-                                <div className="grid h-10 w-10 flex-shrink-0 place-items-center rounded-lg bg-white/[0.04]">
-                                    <Music2 className="h-4 w-4 text-gray-500" />
-                                </div>
-                                <div className="min-w-0 flex-1">
-                                    <div className="flex flex-wrap items-center gap-2">
-                                        <p className="truncate text-sm font-semibold text-white">
-                                            {track.title}
-                                        </p>
-                                        {!track.active && (
-                                            <span className="rounded-full border border-yellow-500/20 bg-yellow-500/10 px-2 py-0.5 text-[10px] font-semibold text-yellow-400">
-                                                Inactive
-                                            </span>
-                                        )}
-                                        {track.duration_seconds != null && (
-                                            <span className="text-[11px] text-gray-500">
-                                                {formatDuration(track.duration_seconds)}
-                                            </span>
-                                        )}
-                                    </div>
-                                    <p className="mt-0.5 truncate font-mono text-[11px] text-gray-500">
-                                        {track.url}
-                                    </p>
-                                </div>
-                                <div className="flex flex-shrink-0 gap-1">
-                                    <button
-                                        onClick={() => toggleTrack(track.id)}
-                                        disabled={busyId === track.id}
-                                        className={cn(
-                                            'rounded-full p-2 transition disabled:opacity-40',
-                                            track.active
-                                                ? 'text-green-400 hover:bg-green-500/20'
-                                                : 'text-gray-500 hover:bg-white/5 hover:text-white',
-                                        )}
-                                        title={track.active ? 'Deactivate' : 'Activate'}
-                                    >
-                                        {busyId === track.id ? (
-                                            <Loader2 className="h-4 w-4 animate-spin" />
-                                        ) : track.active ? (
-                                            <CheckCircle className="h-4 w-4" />
-                                        ) : (
-                                            <XCircle className="h-4 w-4" />
-                                        )}
-                                    </button>
-                                    <button
-                                        onClick={() => deleteTrack(track.id, track.title)}
-                                        disabled={busyId === track.id}
-                                        className="rounded-full p-2 text-red-400 transition hover:bg-red-500/20 disabled:opacity-40"
-                                        title="Delete"
-                                    >
-                                        <Trash2 className="h-4 w-4" />
-                                    </button>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                )}
+                </Card>
             </div>
         </div>
     );
@@ -1510,7 +1527,7 @@ function WorkersSection({
     return (
         <div className="space-y-6">
             <div>
-                <h1 className="cr-display text-xl font-bold">Workers</h1>
+                <h1 className="cr-display text-xl font-semibold tracking-tight">Workers</h1>
                 <p className="mt-1 text-sm text-gray-500">Background job health and run history.</p>
             </div>
 
@@ -1522,13 +1539,13 @@ function WorkersSection({
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
-                <div className="flex rounded-full border border-white/10 bg-[#141414] p-1">
+                <div className="inline-flex rounded-lg border border-white/[0.06] bg-[#0A0A0A] p-0.5">
                     {(['all', 'problem'] as const).map((f) => (
                         <button
                             key={f}
                             onClick={() => setFilter(f)}
                             className={cn(
-                                "rounded-full px-4 py-1.5 text-xs font-medium transition",
+                                "rounded-md px-3 py-1.5 text-xs font-medium transition",
                                 filter === f ? "bg-white/10 text-white" : "text-gray-500 hover:text-white",
                             )}
                         >
@@ -1540,7 +1557,7 @@ function WorkersSection({
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
                     placeholder="Search workers…"
-                    className="flex-1 min-w-[180px] rounded-full border border-white/10 bg-[#141414] px-4 py-1.5 text-xs outline-none focus:border-primary"
+                    className="flex-1 min-w-[180px] rounded-lg border border-white/[0.06] bg-[#111214] px-3 py-2 text-xs outline-none transition-colors placeholder:text-gray-600 focus:border-primary/60"
                 />
             </div>
 
@@ -1583,7 +1600,7 @@ function WorkerCard({ worker, history }: { worker: WorkerStat; history: number[]
         : [worker.success_rate, worker.success_rate];
 
     return (
-        <div className="rounded-2xl border border-white/5 bg-[#141414] p-4 transition hover:border-white/10">
+        <div className="rounded-xl border border-white/[0.06] bg-[#111214] p-4 transition hover:border-white/10">
             <div className="flex items-start gap-3">
                 <ProgressRing value={worker.success_rate} color={ringColor} size={64} stroke={5} />
 
@@ -1617,7 +1634,7 @@ function WorkerCard({ worker, history }: { worker: WorkerStat; history: number[]
                 </ResponsiveContainer>
             </div>
 
-            <div className="mt-3 grid grid-cols-3 gap-2 border-t border-white/5 pt-3 text-center">
+            <div className="mt-3 grid grid-cols-3 gap-2 border-t border-white/[0.06] pt-3 text-center">
                 <div>
                     <p className="text-xs text-gray-500">Success</p>
                     <p className="text-sm font-semibold text-green-400">{worker.success.toLocaleString()}</p>
@@ -1672,15 +1689,19 @@ function MaintenanceSection({
     return (
         <div className="space-y-6">
             <div>
-                <h1 className="cr-display text-xl font-bold">Maintenance Mode</h1>
+                <h1 className="cr-display text-xl font-semibold tracking-tight">Maintenance Mode</h1>
                 <p className="mt-1 text-sm text-gray-500">
                     Block every visitor with a holding page while you make changes.
                 </p>
             </div>
 
-            <div className="rounded-2xl border border-white/5 bg-[#141414] p-5">
+            <div className="rounded-xl border border-white/[0.06] bg-[#111214] p-5">
                 <div className="space-y-5">
-                    <div className="flex items-center justify-between gap-4 rounded-xl border border-white/5 bg-[#0A0A0A] p-4">
+                    <div className={cn(
+                        "flex items-center gap-3 rounded-lg border p-4",
+                        enabled ? "border-red-500/25 bg-red-500/[0.05]" : "border-white/[0.06] bg-[#0A0A0A]",
+                    )}>
+                        <span className={cn("h-2 w-2 shrink-0 rounded-full", enabled ? "bg-red-500" : "bg-green-500")} />
                         <div>
                             <p className="text-sm font-medium">
                                 Status: {enabled ? (
@@ -1704,7 +1725,7 @@ function MaintenanceSection({
                             onChange={(e) => setMessage(e.target.value.slice(0, 300))}
                             rows={2}
                             placeholder="We're making some improvements. This won't take long."
-                            className="w-full resize-none rounded-xl border border-white/10 bg-[#0A0A0A] px-4 py-3 text-sm outline-none focus:border-primary"
+                            className="w-full resize-none rounded-xl border border-white/10 bg-[#0A0A0A] px-4 py-3 text-sm outline-none transition-colors placeholder:text-gray-600 focus:border-primary/60"
                         />
                     </div>
 
@@ -1718,19 +1739,19 @@ function MaintenanceSection({
                             value={adminKey}
                             onChange={(e) => setAdminKey(e.target.value)}
                             placeholder="Required to confirm this change"
-                            className="w-full rounded-xl border border-white/10 bg-[#0A0A0A] px-4 py-2.5 text-sm outline-none focus:border-primary"
+                            className="w-full rounded-xl border border-white/10 bg-[#0A0A0A] px-4 py-2.5 text-sm outline-none transition-colors placeholder:text-gray-600 focus:border-primary/60"
                         />
                         <p className="mt-1.5 text-xs text-gray-600">
                             The same key you'd append as <code className="text-gray-500">?key=</code> to bypass the block page.
                         </p>
                     </div>
 
-                    <div className="flex justify-end gap-2 border-t border-white/5 pt-4">
+                    <div className="flex justify-end gap-2 border-t border-white/[0.06] pt-4">
                         {enabled ? (
                             <button
                                 onClick={() => apply(false)}
                                 disabled={saving}
-                                className="inline-flex items-center gap-2 rounded-full bg-green-600 px-5 py-2 text-sm font-semibold text-white transition hover:brightness-110 disabled:opacity-40"
+                                className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-5 py-2 text-sm font-semibold text-white transition hover:brightness-110 disabled:opacity-40"
                             >
                                 {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4" />}
                                 Bring site back online
@@ -1739,7 +1760,7 @@ function MaintenanceSection({
                             <button
                                 onClick={() => apply(true)}
                                 disabled={saving}
-                                className="inline-flex items-center gap-2 rounded-full bg-red-600 px-5 py-2 text-sm font-semibold text-white transition hover:brightness-110 disabled:opacity-40"
+                                className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-5 py-2 text-sm font-semibold text-white transition hover:brightness-110 disabled:opacity-40"
                             >
                                 {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Construction className="h-4 w-4" />}
                                 Enable maintenance mode
@@ -2012,59 +2033,29 @@ function AnalyticsSection() {
     return (
         <div className="space-y-6">
             <style>{`
-                @keyframes an-pulse-ring {
-                    0%   { transform: scale(0.9); opacity: 0.9; }
-                    70%  { transform: scale(2.4); opacity: 0; }
-                    100% { transform: scale(2.4); opacity: 0; }
-                }
-                .leaflet-container {
-                    background: #050608 !important;
-                    font-family: inherit;
-                }
-                .leaflet-tile {
-                    filter: hue-rotate(180deg) invert(1) brightness(0.85) contrast(0.9);
-                }
-                .leaflet-control-attribution {
-                    background: rgba(0,0,0,0.6) !important;
-                    color: #6b7280 !important;
-                    font-size: 10px !important;
-                }
+                .leaflet-container { background: #050608 !important; font-family: inherit; }
+                .leaflet-tile { filter: hue-rotate(180deg) invert(1) brightness(0.85) contrast(0.9); }
+                .leaflet-control-attribution { background: rgba(0,0,0,0.6) !important; color: #6b7280 !important; font-size: 10px !important; }
                 .leaflet-control-attribution a { color: #9ca3af !important; }
-                .leaflet-bar a {
-                    background: #141414 !important;
-                    color: #d1d5db !important;
-                    border-color: rgba(255,255,255,0.08) !important;
-                }
-                .leaflet-bar a:hover {
-                    background: #1f1f1f !important;
-                    color: #fff !important;
-                }
+                .leaflet-bar a { background: #141414 !important; color: #d1d5db !important; border-color: rgba(255,255,255,0.08) !important; }
+                .leaflet-bar a:hover { background: #1f1f1f !important; color: #fff !important; }
             `}</style>
 
-            {/* Header + range */}
-            <div className="flex flex-wrap items-center justify-between gap-3">
+            {/* Header */}
+            <div className="flex flex-wrap items-end justify-between gap-4">
                 <div>
-                    <h1 className="cr-display text-xl font-bold">Analytics</h1>
-                    <p className="mt-1 text-sm text-gray-500">Live traffic, sessions, and error diagnostics.</p>
+                    <h1 className="cr-display text-xl font-semibold tracking-tight">Analytics</h1>
+                    <p className="mt-1 text-sm text-gray-500">Traffic, sessions, and error diagnostics.</p>
                 </div>
                 <div className="flex items-center gap-2">
-                    <div className="flex rounded-full border border-white/10 bg-[#141414] p-1">
-                        {RANGE_OPTIONS.map((r) => (
-                            <button
-                                key={r}
-                                onClick={() => setRange(r)}
-                                className={cn(
-                                    "rounded-full px-3 py-1 text-[11px] font-medium transition uppercase tabular-nums",
-                                    range === r ? "bg-white/10 text-white" : "text-gray-500 hover:text-white",
-                                )}
-                            >
-                                {r}
-                            </button>
-                        ))}
-                    </div>
+                    <Segmented
+                        value={range}
+                        onChange={setRange}
+                        options={RANGE_OPTIONS.map((r) => ({ id: r, label: r === 'all' ? 'All' : r }))}
+                    />
                     <button
                         onClick={fetchAnalytics}
-                        className="rounded-full p-2 text-gray-400 transition hover:bg-white/5 hover:text-white"
+                        className="rounded-lg border border-white/[0.06] bg-[#111214] p-2 text-gray-400 transition-colors hover:bg-white/[0.05] hover:text-white"
                         title="Refresh"
                     >
                         <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
@@ -2074,234 +2065,220 @@ function AnalyticsSection() {
 
             {loading ? (
                 <div className="grid place-items-center py-24">
-                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                    <Loader2 className="h-6 w-6 animate-spin text-gray-500" />
                 </div>
             ) : (
                 <>
-                    {/* KPI row */}
-                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                        <KpiCard
-                            label="Live now"
-                            value={sessionStats.live}
-                            tone="green"
-                            icon={<Radio className="h-4 w-4" />}
-                            pulse={sessionStats.live > 0}
-                        />
-                        <KpiCard label="Sessions" value={sessionStats.total} tone="blue" icon={<Users className="h-4 w-4" />} />
-                        <KpiCard label="Page views" value={summary.totalPageViews} tone="purple" icon={<BarChart3 className="h-4 w-4" />} />
-                        <KpiCard label="Errors" value={summary.totalErrors} tone="red" icon={<Bug className="h-4 w-4" />} />
-                    </div>
-
-                    {/* Secondary stats */}
-                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                        <MiniStat
-                            label="Avg. session"
-                            value={formatDurationMs(sessionStats.avgDuration)}
-                            icon={<Timer className="h-3.5 w-3.5" />}
-                        />
-                        <MiniStat
-                            label="Sessions w/ errors"
-                            value={String(sessionStats.withErrors)}
-                            icon={<AlertTriangle className="h-3.5 w-3.5" />}
-                            tone={sessionStats.withErrors > 0 ? 'warn' : 'default'}
-                        />
-                        <MiniStat
-                            label="Unique users"
-                            value={String(summary.uniqueUsers)}
-                            icon={<User className="h-3.5 w-3.5" />}
-                        />
-                        <MiniStat
-                            label="Countries"
-                            value={String(summary.uniqueCountries)}
-                            icon={<MapPin className="h-3.5 w-3.5" />}
-                        />
-                    </div>
-
-                    {/* Sessions map */}
-                    <div className="rounded-2xl border border-white/5 bg-[#141414] overflow-hidden">
-                        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/5 px-4 py-3">
-                            <div className="flex items-center gap-2">
-                                <MapPinned className="h-4 w-4 text-gray-500" />
-                                <h2 className="text-sm font-semibold">Session map</h2>
-                                <span className="text-[11px] text-gray-500">
-                                    {mappableSessions.length} of {filteredSessions.length} plotted
-                                </span>
-                            </div>
-                            <div className="flex flex-wrap items-center gap-2">
-                                <div className="flex rounded-full border border-white/10 bg-[#0A0A0A] p-0.5">
-                                    {([
-                                        { id: 'all', label: 'All', count: sessions.length },
-                                        { id: 'live', label: 'Live', count: sessionStats.live },
-                                        { id: 'errors', label: 'Errors', count: sessionStats.withErrors },
-                                    ] as const).map((f) => (
-                                        <button
-                                            key={f.id}
-                                            onClick={() => setSessionFilter(f.id)}
-                                            className={cn(
-                                                "rounded-full px-3 py-1 text-[11px] font-medium transition flex items-center gap-1.5",
-                                                sessionFilter === f.id
-                                                    ? "bg-white/10 text-white"
-                                                    : "text-gray-500 hover:text-white",
-                                            )}
-                                        >
-                                            {f.label}
-                                            <span className="text-gray-500 tabular-nums">{f.count}</span>
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-                        </div>
-
-                        <SessionMap sessions={mappableSessions} onSelect={setSelectedSession} />
-
-                        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/5 px-4 py-2.5 text-[11px] text-gray-500">
-                            <div className="flex items-center gap-4">
-                                <LegendDot color="#1E90FF" label="Past session" />
-                                <LegendDot color="#22c55e" label="Live" pulse />
-                                <LegendDot color="#ef4444" label="Session with error" />
-                            </div>
-                            <span>Click a dot for details</span>
+                    {/* Overview */}
+                    <div className="overflow-hidden rounded-xl border border-white/[0.06] bg-white/[0.06]">
+                        <div className="grid grid-cols-2 gap-px lg:grid-cols-4">
+                            <Metric label="Live now" value={String(sessionStats.live)} tone={sessionStats.live > 0 ? 'green' : 'default'} />
+                            <Metric label="Sessions" value={sessionStats.total.toLocaleString()} />
+                            <Metric label="Page views" value={summary.totalPageViews.toLocaleString()} />
+                            <Metric label="Unique users" value={summary.uniqueUsers.toLocaleString()} />
+                            <Metric label="Errors" value={summary.totalErrors.toLocaleString()} tone={summary.totalErrors > 0 ? 'red' : 'default'} />
+                            <Metric label="Sessions with errors" value={String(sessionStats.withErrors)} tone={sessionStats.withErrors > 0 ? 'amber' : 'default'} />
+                            <Metric label="Avg. session" value={formatDurationMs(sessionStats.avgDuration)} />
+                            <Metric label="Countries" value={String(summary.uniqueCountries)} />
                         </div>
                     </div>
 
-                    {/* Country + device row */}
-                    <div className="grid gap-4 lg:grid-cols-2">
-                        <Card title="All countries">
-                            <div className="mb-3 flex items-center gap-2">
-                                <div className="relative flex-1">
-                                    <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-600" />
-                                    <input
-                                        value={countryQuery}
-                                        onChange={(e) => setCountryQuery(e.target.value)}
-                                        placeholder="Search countries…"
-                                        className="w-full rounded-full border border-white/10 bg-[#0A0A0A] py-1.5 pl-8 pr-3 text-xs outline-none focus:border-primary"
-                                    />
-                                </div>
-                                {allCountries.length > 12 && !countryQuery && (
-                                    <button
-                                        onClick={() => setShowAllCountries((v) => !v)}
-                                        className="rounded-full border border-white/10 px-3 py-1.5 text-[11px] text-gray-400 hover:bg-white/5 hover:text-white transition whitespace-nowrap"
-                                    >
-                                        {showAllCountries ? 'Show less' : `Show all ${allCountries.length}`}
-                                    </button>
-                                )}
-                            </div>
-
-                            {visibleCountries.length === 0 ? (
-                                <Empty msg="No location data yet." />
-                            ) : (
-                                <div className="max-h-[340px] space-y-1.5 overflow-y-auto pr-1">
-                                    {visibleCountries.map((c) => (
-                                        <div key={c.country} className="flex items-center justify-between rounded-lg bg-[#0A0A0A] px-3 py-2">
-                                            <span className="flex items-center gap-2 text-sm truncate">
-                                                <span className="text-lg shrink-0">{flagEmoji(c.code)}</span>
-                                                <span className="truncate">{c.country}</span>
-                                            </span>
-                                            <span className="flex items-center gap-3 shrink-0 text-[11px] text-gray-500">
-                                                <span className="tabular-nums">
-                                                    {c.sessions} <span className="text-gray-600">ses</span>
-                                                </span>
-                                                <span className="tabular-nums font-semibold text-gray-300">
-                                                    {c.count}
-                                                </span>
-                                            </span>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </Card>
-
-                        <Card title="Devices">
-                            {summary.devices.length === 0 ? (
-                                <Empty msg="No data." />
-                            ) : (
-                                <ResponsiveContainer width="100%" height={340}>
-                                    <PieChart>
-                                        <Pie
-                                            data={summary.devices}
-                                            dataKey="value"
-                                            nameKey="name"
-                                            cx="50%"
-                                            cy="50%"
-                                            outerRadius={110}
-                                            innerRadius={55}
-                                            paddingAngle={2}
-                                            label={(entry: any) => `${entry.name} (${entry.value})`}
-                                            labelLine={false}
-                                        >
-                                            {summary.devices.map((_, i) => (
-                                                <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
-                                            ))}
-                                        </Pie>
-                                        <Tooltip contentStyle={{ background: '#0A0A0A', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, fontSize: 12 }} />
-                                    </PieChart>
-                                </ResponsiveContainer>
-                            )}
-                        </Card>
-                    </div>
-
-                    {/* Traffic over time */}
-                    <Card title="Traffic over time">
+                    {/* Traffic */}
+                    <Card title="Traffic" subtitle="Page views over the selected range">
                         {summary.timeSeries.length === 0 ? (
                             <Empty msg="No page views in this range." />
                         ) : (
-                            <ResponsiveContainer width="100%" height={220}>
-                                <LineChart data={summary.timeSeries}>
-                                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                                    <XAxis dataKey="t" stroke="#6b7280" fontSize={11} />
-                                    <YAxis stroke="#6b7280" fontSize={11} allowDecimals={false} />
-                                    <Tooltip contentStyle={{ background: '#0A0A0A', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, fontSize: 12 }} />
-                                    <Line type="monotone" dataKey="count" stroke="#1E90FF" strokeWidth={2} dot={false} />
+                            <ResponsiveContainer width="100%" height={240}>
+                                <LineChart data={summary.timeSeries} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+                                    <CartesianGrid stroke="rgba(255,255,255,0.05)" vertical={false} />
+                                    <XAxis dataKey="t" stroke={AXIS_COLOR} fontSize={11} tickLine={false} axisLine={false} />
+                                    <YAxis stroke={AXIS_COLOR} fontSize={11} allowDecimals={false} tickLine={false} axisLine={false} />
+                                    <Tooltip contentStyle={TOOLTIP_STYLE} cursor={{ stroke: 'rgba(255,255,255,0.12)' }} />
+                                    <Line type="monotone" dataKey="count" name="Page views" stroke={CHART_COLOR} strokeWidth={2} dot={false} />
                                 </LineChart>
                             </ResponsiveContainer>
                         )}
                     </Card>
 
-                    {/* Session list */}
-                    <div className="rounded-2xl border border-white/5 bg-[#141414]">
-                        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/5 px-4 py-3">
-                            <div className="flex items-center gap-2">
-                                <Users className="h-4 w-4 text-gray-500" />
-                                <h2 className="text-sm font-semibold">Sessions</h2>
-                                <span className="text-[11px] text-gray-500 tabular-nums">
-                                    {filteredSessions.length} of {sessions.length}
-                                </span>
+                    {/* Map */}
+                    <Card
+                        title="Session map"
+                        subtitle={`${mappableSessions.length} of ${filteredSessions.length} sessions plotted`}
+                        action={
+                            <Segmented
+                                value={sessionFilter}
+                                onChange={setSessionFilter}
+                                options={[
+                                    { id: 'all', label: 'All', count: sessions.length },
+                                    { id: 'live', label: 'Live', count: sessionStats.live },
+                                    { id: 'errors', label: 'Errors', count: sessionStats.withErrors },
+                                ] as const}
+                            />
+                        }
+                        flush
+                    >
+                        <SessionMap sessions={mappableSessions} onSelect={setSelectedSession} />
+                        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/[0.06] px-5 py-3 text-xs text-gray-500">
+                            <div className="flex flex-wrap items-center gap-5">
+                                <LegendDot color="#1E90FF" label="Past session" />
+                                <LegendDot color="#22c55e" label="Live" />
+                                <LegendDot color="#ef4444" label="Session with error" />
                             </div>
-                            <div className="relative w-full sm:w-64">
-                                <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-600" />
+                            <span>Select a point for details</span>
+                        </div>
+                    </Card>
+
+                    {/* Countries + devices */}
+                    <div className="grid gap-6 lg:grid-cols-2">
+                        <Card
+                            title="Countries"
+                            subtitle={`${allCountries.length} total`}
+                            action={
+                                allCountries.length > 12 && !countryQuery ? (
+                                    <button
+                                        onClick={() => setShowAllCountries((v) => !v)}
+                                        className="text-xs font-medium text-gray-400 transition-colors hover:text-white"
+                                    >
+                                        {showAllCountries ? 'Show less' : `Show all ${allCountries.length}`}
+                                    </button>
+                                ) : undefined
+                            }
+                            flush
+                        >
+                            <div className="border-b border-white/[0.06] px-5 py-3">
+                                <div className="relative">
+                                    <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-600" />
+                                    <input
+                                        value={countryQuery}
+                                        onChange={(e) => setCountryQuery(e.target.value)}
+                                        placeholder="Search countries…"
+                                        className="w-full rounded-lg border border-white/[0.06] bg-[#0A0A0A] py-2 pl-9 pr-3 text-xs outline-none transition-colors placeholder:text-gray-600 focus:border-primary/60"
+                                    />
+                                </div>
+                            </div>
+                            {visibleCountries.length === 0 ? (
+                                <Empty msg="No location data yet." />
+                            ) : (
+                                <>
+                                    <div className="grid grid-cols-[minmax(0,1fr)_64px_64px] gap-3 px-5 py-2 text-xs font-medium text-gray-500">
+                                        <span>Country</span>
+                                        <span className="text-right">Sessions</span>
+                                        <span className="text-right">Events</span>
+                                    </div>
+                                    <div className="max-h-[300px] divide-y divide-white/[0.06] overflow-y-auto border-t border-white/[0.06]">
+                                        {visibleCountries.map((c) => (
+                                            <div key={c.country} className="grid grid-cols-[minmax(0,1fr)_64px_64px] items-center gap-3 px-5 py-2.5 text-sm">
+                                                <span className="flex min-w-0 items-center gap-2.5">
+                                                    <span className="shrink-0 text-base leading-none">{flagEmoji(c.code)}</span>
+                                                    <span className="truncate">{c.country}</span>
+                                                </span>
+                                                <span className="text-right text-xs tabular-nums text-gray-400">{c.sessions}</span>
+                                                <span className="text-right text-xs tabular-nums text-gray-200">{c.count}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </>
+                            )}
+                        </Card>
+
+                        <Card title="Devices" subtitle="Share of events by device type">
+                            {summary.devices.length === 0 ? (
+                                <Empty msg="No data." />
+                            ) : (
+                                <div className="flex flex-col items-center gap-6 sm:flex-row">
+                                    <div className="h-[180px] w-[180px] shrink-0">
+                                        <ResponsiveContainer width="100%" height="100%">
+                                            <PieChart>
+                                                <Pie
+                                                    data={summary.devices}
+                                                    dataKey="value"
+                                                    nameKey="name"
+                                                    innerRadius={54}
+                                                    outerRadius={84}
+                                                    paddingAngle={1}
+                                                    stroke="none"
+                                                >
+                                                    {summary.devices.map((_, i) => (
+                                                        <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
+                                                    ))}
+                                                </Pie>
+                                                <Tooltip contentStyle={TOOLTIP_STYLE} />
+                                            </PieChart>
+                                        </ResponsiveContainer>
+                                    </div>
+                                    <div className="w-full flex-1 divide-y divide-white/[0.06]">
+                                        {summary.devices.map((d, i) => {
+                                            const total = summary.devices.reduce((n, x) => n + x.value, 0) || 1;
+                                            return (
+                                                <div key={d.name} className="flex items-center justify-between gap-3 py-2.5 text-sm">
+                                                    <span className="flex items-center gap-2.5 capitalize">
+                                                        <span className="h-2.5 w-2.5 rounded-sm" style={{ background: PIE_COLORS[i % PIE_COLORS.length] }} />
+                                                        {d.name}
+                                                    </span>
+                                                    <span className="flex items-baseline gap-3 tabular-nums">
+                                                        <span className="text-gray-200">{d.value.toLocaleString()}</span>
+                                                        <span className="w-10 text-right text-xs text-gray-500">{Math.round((d.value / total) * 100)}%</span>
+                                                    </span>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
+                        </Card>
+                    </div>
+
+                    {/* Sessions */}
+                    <Card
+                        title="Sessions"
+                        subtitle={`${filteredSessions.length} of ${sessions.length}`}
+                        action={
+                            <div className="relative w-56 max-w-full">
+                                <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-600" />
                                 <input
                                     value={sessionQuery}
                                     onChange={(e) => setSessionQuery(e.target.value)}
                                     placeholder="Search sessions…"
-                                    className="w-full rounded-full border border-white/10 bg-[#0A0A0A] py-1.5 pl-8 pr-3 text-xs outline-none focus:border-primary"
+                                    className="w-full rounded-lg border border-white/[0.06] bg-[#0A0A0A] py-2 pl-9 pr-3 text-xs outline-none transition-colors placeholder:text-gray-600 focus:border-primary/60"
                                 />
                             </div>
-                        </div>
-
+                        }
+                        flush
+                    >
                         {filteredSessions.length === 0 ? (
                             <Empty msg="No sessions match." />
                         ) : (
-                            <div className="max-h-[520px] divide-y divide-white/5 overflow-y-auto">
-                                {filteredSessions.slice(0, 200).map((s) => (
-                                    <SessionRow key={s.session_id} session={s} onClick={() => setSelectedSession(s)} />
-                                ))}
-                            </div>
+                            <>
+                                <div className={cn("hidden gap-4 border-b border-white/[0.06] px-5 py-2.5 text-xs font-medium text-gray-500 lg:grid", SESSION_COLS)}>
+                                    <span>Session</span>
+                                    <span>Location</span>
+                                    <span>Device</span>
+                                    <span className="text-right">Views</span>
+                                    <span className="text-right">Duration</span>
+                                    <span className="text-right">Last seen</span>
+                                </div>
+                                <div className="max-h-[520px] divide-y divide-white/[0.06] overflow-y-auto">
+                                    {filteredSessions.slice(0, 200).map((s) => (
+                                        <SessionRow key={s.session_id} session={s} onClick={() => setSelectedSession(s)} />
+                                    ))}
+                                </div>
+                            </>
                         )}
-                    </div>
+                    </Card>
 
-                    {/* Secondary charts */}
-                    <div className="grid gap-4 lg:grid-cols-2">
+                    {/* Breakdowns */}
+                    <div className="grid gap-6 lg:grid-cols-2">
                         <Card title="Top pages">
                             {summary.topPages.length === 0 ? (
                                 <Empty msg="No data." />
                             ) : (
                                 <ResponsiveContainer width="100%" height={260}>
-                                    <BarChart data={summary.topPages} layout="vertical" margin={{ left: 12 }}>
-                                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                                        <XAxis type="number" stroke="#6b7280" fontSize={11} allowDecimals={false} />
-                                        <YAxis dataKey="path" type="category" stroke="#6b7280" fontSize={11} width={90} />
-                                        <Tooltip contentStyle={{ background: '#0A0A0A', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, fontSize: 12 }} />
-                                        <Bar dataKey="count" fill="#1E90FF" radius={[0, 4, 4, 0]} />
+                                    <BarChart data={summary.topPages} layout="vertical" margin={{ left: 0, right: 8 }}>
+                                        <CartesianGrid stroke="rgba(255,255,255,0.05)" horizontal={false} />
+                                        <XAxis type="number" stroke={AXIS_COLOR} fontSize={11} allowDecimals={false} tickLine={false} axisLine={false} />
+                                        <YAxis dataKey="path" type="category" stroke={AXIS_COLOR} fontSize={11} width={90} tickLine={false} axisLine={false} />
+                                        <Tooltip contentStyle={TOOLTIP_STYLE} cursor={{ fill: 'rgba(255,255,255,0.04)' }} />
+                                        <Bar dataKey="count" name="Views" fill={CHART_COLOR} radius={[0, 3, 3, 0]} barSize={14} />
                                     </BarChart>
                                 </ResponsiveContainer>
                             )}
@@ -2312,12 +2289,12 @@ function AnalyticsSection() {
                                 <Empty msg="No data." />
                             ) : (
                                 <ResponsiveContainer width="100%" height={260}>
-                                    <BarChart data={summary.browsers}>
-                                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                                        <XAxis dataKey="name" stroke="#6b7280" fontSize={11} />
-                                        <YAxis stroke="#6b7280" fontSize={11} allowDecimals={false} />
-                                        <Tooltip contentStyle={{ background: '#0A0A0A', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, fontSize: 12 }} />
-                                        <Bar dataKey="value" fill="#22c55e" radius={[4, 4, 0, 0]} />
+                                    <BarChart data={summary.browsers} margin={{ left: -20, right: 4 }}>
+                                        <CartesianGrid stroke="rgba(255,255,255,0.05)" vertical={false} />
+                                        <XAxis dataKey="name" stroke={AXIS_COLOR} fontSize={11} tickLine={false} axisLine={false} />
+                                        <YAxis stroke={AXIS_COLOR} fontSize={11} allowDecimals={false} tickLine={false} axisLine={false} />
+                                        <Tooltip contentStyle={TOOLTIP_STYLE} cursor={{ fill: 'rgba(255,255,255,0.04)' }} />
+                                        <Bar dataKey="value" name="Events" fill={CHART_COLOR} radius={[3, 3, 0, 0]} maxBarSize={36} />
                                     </BarChart>
                                 </ResponsiveContainer>
                             )}
@@ -2328,54 +2305,48 @@ function AnalyticsSection() {
                                 <Empty msg="No data." />
                             ) : (
                                 <ResponsiveContainer width="100%" height={260}>
-                                    <BarChart data={summary.osAll} layout="vertical" margin={{ left: 12 }}>
-                                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                                        <XAxis type="number" stroke="#6b7280" fontSize={11} allowDecimals={false} />
-                                        <YAxis dataKey="name" type="category" stroke="#6b7280" fontSize={11} width={80} />
-                                        <Tooltip contentStyle={{ background: '#0A0A0A', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, fontSize: 12 }} />
-                                        <Bar dataKey="value" fill="#a855f7" radius={[0, 4, 4, 0]} />
+                                    <BarChart data={summary.osAll} layout="vertical" margin={{ left: 0, right: 8 }}>
+                                        <CartesianGrid stroke="rgba(255,255,255,0.05)" horizontal={false} />
+                                        <XAxis type="number" stroke={AXIS_COLOR} fontSize={11} allowDecimals={false} tickLine={false} axisLine={false} />
+                                        <YAxis dataKey="name" type="category" stroke={AXIS_COLOR} fontSize={11} width={80} tickLine={false} axisLine={false} />
+                                        <Tooltip contentStyle={TOOLTIP_STYLE} cursor={{ fill: 'rgba(255,255,255,0.04)' }} />
+                                        <Bar dataKey="value" name="Events" fill={CHART_COLOR} radius={[0, 3, 3, 0]} barSize={14} />
                                     </BarChart>
                                 </ResponsiveContainer>
                             )}
                         </Card>
 
-                        <Card title="Error rate by OS">
+                        <Card title="Error rate by OS" subtitle="Errors as a share of all events">
                             {summary.osErrorRate.length === 0 ? (
                                 <Empty msg="No data." />
                             ) : (
-                                <div className="space-y-2">
+                                <div className="max-h-[260px] divide-y divide-white/[0.06] overflow-y-auto">
                                     {summary.osErrorRate.map((row) => {
                                         const Icon = osIcon(row.name);
                                         return (
-                                            <div key={row.name} className="rounded-lg bg-[#0A0A0A] p-3">
-                                                <div className="flex items-center justify-between gap-3">
-                                                    <div className="flex items-center gap-2">
-                                                        <Icon className="h-4 w-4 text-gray-400" />
-                                                        <span className="text-sm font-medium">{row.name}</span>
-                                                    </div>
+                                            <div key={row.name} className="py-3 first:pt-0 last:pb-0">
+                                                <div className="flex items-center justify-between gap-3 text-sm">
+                                                    <span className="flex items-center gap-2">
+                                                        <Icon className="h-4 w-4 text-gray-500" />
+                                                        {row.name}
+                                                    </span>
                                                     <span className={cn(
-                                                        "rounded-full px-2 py-0.5 text-[10px] font-bold",
-                                                        row.rate >= 20 ? "bg-red-500/10 text-red-400"
-                                                            : row.rate >= 5 ? "bg-yellow-500/10 text-yellow-400"
-                                                                : "bg-green-500/10 text-green-400",
+                                                        "text-xs font-medium tabular-nums",
+                                                        row.rate >= 20 ? "text-red-400" : row.rate >= 5 ? "text-yellow-400" : "text-gray-300",
                                                     )}>
-                                                        {row.rate}% errors
+                                                        {row.rate}%
                                                     </span>
                                                 </div>
-                                                <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/5">
+                                                <div className="mt-2 h-1 overflow-hidden rounded-full bg-white/[0.06]">
                                                     <div
                                                         className={cn(
-                                                            "h-full rounded-full transition-all",
-                                                            row.rate >= 20 ? "bg-red-500"
-                                                                : row.rate >= 5 ? "bg-yellow-500"
-                                                                    : "bg-green-500",
+                                                            "h-full rounded-full",
+                                                            row.rate >= 20 ? "bg-red-500" : row.rate >= 5 ? "bg-yellow-500" : "bg-green-500",
                                                         )}
                                                         style={{ width: `${Math.min(100, row.rate)}%` }}
                                                     />
                                                 </div>
-                                                <p className="mt-1.5 text-[11px] text-gray-500">
-                                                    {row.errors} errors / {row.total} events
-                                                </p>
+                                                <p className="mt-1.5 text-xs tabular-nums text-gray-500">{row.errors} errors · {row.total} events</p>
                                             </div>
                                         );
                                     })}
@@ -2384,49 +2355,31 @@ function AnalyticsSection() {
                         </Card>
                     </div>
 
-                    <Card title="Error categories">
+                    {/* Errors */}
+                    <Card title="Error categories" subtitle="Select a category to see recent events" flush>
                         {summary.errorGroups.length === 0 ? (
                             <Empty msg="No errors recorded." />
                         ) : (
-                            <div className="space-y-2">
+                            <div className="divide-y divide-white/[0.06]">
                                 {summary.errorGroups.map((g) => (
                                     <button
                                         key={g.category}
                                         onClick={() => setErrorFilter(g.category)}
-                                        className="w-full rounded-lg bg-[#0A0A0A] p-3 text-left transition hover:bg-white/5"
+                                        className={cn(
+                                            "flex w-full items-start justify-between gap-4 px-5 py-3.5 text-left transition-colors hover:bg-white/[0.03]",
+                                            errorFilter === g.category && "bg-white/[0.04]",
+                                        )}
                                     >
-                                        <div className="flex items-start justify-between gap-3">
-                                            <div className="min-w-0 flex-1">
-                                                <div className="flex items-center gap-2">
-                                                    <Bug className="h-3.5 w-3.5 text-red-400" />
-                                                    <span className="text-sm font-semibold text-red-300">{g.category}</span>
-                                                </div>
-                                                <p className="mt-1 line-clamp-1 text-xs text-gray-500">{g.sample}</p>
-                                                <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                                                    {g.osList.slice(0, 4).map((os) => {
-                                                        const Icon = osIcon(os);
-                                                        return (
-                                                            <span key={os} className="inline-flex items-center gap-1 rounded-full bg-white/5 px-2 py-0.5 text-[10px] text-gray-400">
-                                                                <Icon className="h-2.5 w-2.5" />
-                                                                {os}
-                                                            </span>
-                                                        );
-                                                    })}
-                                                    {g.countryList.slice(0, 3).map((c) => (
-                                                        <span key={c} className="rounded-full bg-white/5 px-2 py-0.5 text-[10px] text-gray-400">
-                                                            {c}
-                                                        </span>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                            <div className="shrink-0 text-right">
-                                                <span className="rounded-full bg-red-500/10 px-2 py-0.5 text-[10px] font-bold text-red-400">
-                                                    ×{g.count}
-                                                </span>
-                                                <p className="mt-1 text-[10px] text-gray-500">
-                                                    {relativeTime(g.last)}
-                                                </p>
-                                            </div>
+                                        <div className="min-w-0 flex-1">
+                                            <p className="text-sm font-medium text-gray-100">{g.category}</p>
+                                            <p className="mt-0.5 line-clamp-1 font-mono text-xs text-gray-500">{g.sample}</p>
+                                            <p className="mt-1.5 text-xs text-gray-500">
+                                                {[...g.osList.slice(0, 4), ...g.countryList.slice(0, 3)].join(' · ')}
+                                            </p>
+                                        </div>
+                                        <div className="shrink-0 text-right">
+                                            <p className="text-sm font-semibold tabular-nums text-red-400">{g.count}</p>
+                                            <p className="mt-0.5 text-xs text-gray-500">{relativeTime(g.last)}</p>
                                         </div>
                                     </button>
                                 ))}
@@ -2435,45 +2388,48 @@ function AnalyticsSection() {
                     </Card>
 
                     {errorFilter && (
-                        <Card title={`Recent "${errorFilter}" errors`}>
-                            <div className="mb-3 flex items-center justify-between">
-                                <p className="text-xs text-gray-500">{filteredErrors.length} events</p>
+                        <Card
+                            title={`Recent "${errorFilter}" errors`}
+                            subtitle={`${filteredErrors.length} events`}
+                            action={
                                 <button
                                     onClick={() => setErrorFilter(null)}
-                                    className="text-xs text-gray-500 hover:text-white"
+                                    className="text-xs font-medium text-gray-400 transition-colors hover:text-white"
                                 >
                                     Clear filter
                                 </button>
-                            </div>
+                            }
+                            flush
+                        >
                             {filteredErrors.length === 0 ? (
                                 <Empty msg="No errors of this type." />
                             ) : (
-                                <div className="space-y-2">
+                                <div className="divide-y divide-white/[0.06]">
                                     {filteredErrors.map((e) => (
-                                        <div key={e.id} className="rounded-lg bg-[#0A0A0A] p-3">
-                                            <p className="text-sm text-red-300 break-words">{e.error_message}</p>
+                                        <div key={e.id} className="px-5 py-3.5">
+                                            <p className="break-words text-sm text-red-300">{e.error_message}</p>
                                             {e.error_stack && (
-                                                <details className="mt-1">
-                                                    <summary className="cursor-pointer text-[11px] text-gray-500 hover:text-gray-300">
-                                                        Stack trace
-                                                    </summary>
-                                                    <pre className="mt-1 overflow-x-auto rounded bg-black/40 p-2 text-[10px] text-gray-400">
+                                                <details className="mt-1.5">
+                                                    <summary className="cursor-pointer text-xs text-gray-500 hover:text-gray-300">Stack trace</summary>
+                                                    <pre className="mt-1.5 overflow-x-auto rounded-lg bg-[#0A0A0A] p-3 text-[11px] leading-relaxed text-gray-400">
                                                         {e.error_stack.slice(0, 600)}
                                                     </pre>
                                                 </details>
                                             )}
-                                            <div className="mt-2 flex flex-wrap items-center gap-2 text-[10px] text-gray-500">
-                                                <span className="rounded-full bg-white/5 px-2 py-0.5">{e.page_path}</span>
-                                                <span className="rounded-full bg-white/5 px-2 py-0.5">{e.os || 'unknown OS'}</span>
-                                                <span className="rounded-full bg-white/5 px-2 py-0.5">{e.browser || 'unknown'}</span>
+                                            <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-gray-500">
+                                                <span className="font-mono">{e.page_path}</span>
+                                                <span>·</span>
+                                                <span>{e.os || 'unknown OS'}</span>
+                                                <span>·</span>
+                                                <span>{e.browser || 'unknown'}</span>
                                                 {e.country && (
-                                                    <span className="rounded-full bg-white/5 px-2 py-0.5">
-                                                        {flagEmoji(e.country_code)} {e.country}
-                                                        {e.city ? ` · ${e.city}` : ''}
-                                                    </span>
+                                                    <>
+                                                        <span>·</span>
+                                                        <span>{flagEmoji(e.country_code)} {e.country}{e.city ? `, ${e.city}` : ''}</span>
+                                                    </>
                                                 )}
                                                 <span className="ml-auto">{relativeTime(e.created_at)}</span>
-                                            </div>
+                                            </p>
                                         </div>
                                     ))}
                                 </div>
@@ -2552,7 +2508,6 @@ function SessionMap({ sessions, onSelect }: { sessions: SessionSummary[]; onSele
                 weight,
                 fillColor: color,
                 fillOpacity,
-                className: isLive ? 'ctr-live-marker' : undefined,
             });
 
             marker.on('click', () => onSelect(s));
@@ -2562,13 +2517,6 @@ function SessionMap({ sessions, onSelect }: { sessions: SessionSummary[]; onSele
 
     return (
         <>
-            <style>{`
-                .ctr-live-marker {
-                    animation: an-pulse-ring 1.8s ease-out infinite;
-                    transform-origin: center;
-                    transform-box: fill-box;
-                }
-            `}</style>
             <div
                 ref={containerRef}
                 style={{ height: 380, width: '100%' }}
@@ -2578,86 +2526,92 @@ function SessionMap({ sessions, onSelect }: { sessions: SessionSummary[]; onSele
     );
 }
 
-function LegendDot({ color, label, pulse }: { color: string; label: string; pulse?: boolean }) {
+function LegendDot({ color, label }: { color: string; label: string; pulse?: boolean }) {
     return (
-        <span className="inline-flex items-center gap-1.5">
-            <span
-                className={cn("inline-block h-2.5 w-2.5 rounded-full", pulse && "animate-pulse")}
-                style={{ background: color }}
-            />
+        <span className="inline-flex items-center gap-2">
+            <span className="inline-block h-2 w-2 rounded-full" style={{ background: color }} />
             <span>{label}</span>
         </span>
     );
 }
 
-// ============================================================
-// SESSION ROW + DETAIL MODAL
-// ============================================================
 function SessionRow({ session, onClick }: { session: SessionSummary; onClick: () => void }) {
     const live = session.is_live;
     const hasErrors = session.has_errors;
-
     const dotColor = hasErrors ? '#ef4444' : live ? '#22c55e' : '#1E90FF';
 
     return (
         <button
             onClick={onClick}
-            className="flex w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-white/[0.03]"
+            className={cn(
+                "flex w-full flex-col gap-1.5 px-5 py-3 text-left transition-colors hover:bg-white/[0.03] lg:grid lg:items-center lg:gap-4",
+                SESSION_COLS,
+            )}
         >
-            <span className="relative flex-shrink-0">
-                <span
-                    className={cn("block h-2.5 w-2.5 rounded-full", live && "animate-pulse")}
-                    style={{ background: dotColor }}
-                />
-            </span>
-            <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                    <span className="font-mono text-[11px] text-gray-500 truncate max-w-[140px]">
-                        {session.session_id.slice(0, 12)}…
-                    </span>
-                    {session.user_id ? (
-                        <span className="flex items-center gap-1 text-[11px] text-gray-400">
-                            <User className="h-3 w-3" />
-                            {session.user_id.slice(0, 12)}…
-                        </span>
-                    ) : (
-                        <span className="text-[11px] text-gray-600">anonymous</span>
-                    )}
-                    {session.country && (
-                        <span className="flex items-center gap-1 text-[11px] text-gray-400 truncate">
-                            <span>{flagEmoji(session.country_code)}</span>
-                            <span className="truncate">{session.city || session.country}</span>
-                        </span>
-                    )}
-                    <span className="flex items-center gap-1 text-[11px] text-gray-500">
-                        <MonitorSmartphone className="h-3 w-3" />
-                        {session.device_type}
-                    </span>
-                    <span className="text-[11px] text-gray-500">
-                        {session.os} · {session.browser}
-                    </span>
-                </div>
-                <div className="mt-1 flex flex-wrap items-center gap-3 text-[11px] text-gray-500">
-                    <span className="tabular-nums">
-                        {session.page_view_count} <span className="text-gray-600">views</span>
-                    </span>
-                    <span className="tabular-nums">
-                        {formatDurationMs(session.duration_ms)}
-                    </span>
-                    {hasErrors && (
-                        <span className="text-red-400">
-                            {session.error_count} error{session.error_count > 1 ? 's' : ''}
-                        </span>
-                    )}
+            <div className="flex min-w-0 items-center gap-2.5">
+                <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: dotColor }} />
+                <div className="min-w-0">
+                    <p className="truncate font-mono text-xs text-gray-200">{session.session_id.slice(0, 12)}…</p>
+                    <p className="truncate text-xs text-gray-500">
+                        {session.user_id ? `${session.user_id.slice(0, 12)}…` : 'Anonymous'}
+                    </p>
                 </div>
             </div>
-            <div className="flex-shrink-0 text-right">
-                <p className="text-[11px] text-gray-500">{relativeTime(session.last_seen)}</p>
-                {live && (
-                    <p className="mt-0.5 text-[10px] font-semibold text-green-400">LIVE</p>
+
+            <div className="min-w-0 pl-[18px] lg:pl-0">
+                {session.country ? (
+                    <>
+                        <p className="truncate text-xs text-gray-300">
+                            {flagEmoji(session.country_code)} {session.city || session.country}
+                        </p>
+                        {session.city && <p className="truncate text-xs text-gray-500">{session.country}</p>}
+                    </>
+                ) : (
+                    <p className="text-xs text-gray-600">—</p>
                 )}
             </div>
+
+            <div className="min-w-0 pl-[18px] lg:pl-0">
+                <p className="truncate text-xs capitalize text-gray-300">{session.device_type}</p>
+                <p className="truncate text-xs text-gray-500">{session.os} · {session.browser}</p>
+            </div>
+
+            <p className="hidden text-right text-xs tabular-nums text-gray-300 lg:block">{session.page_view_count}</p>
+            <p className="hidden text-right text-xs tabular-nums text-gray-300 lg:block">{formatDurationMs(session.duration_ms)}</p>
+            <div className="hidden text-right lg:block">
+                <p className="text-xs text-gray-400">{relativeTime(session.last_seen)}</p>
+                {live && <p className="text-xs font-medium text-green-400">Live</p>}
+                {!live && hasErrors && (
+                    <p className="text-xs font-medium text-red-400">{session.error_count} error{session.error_count > 1 ? 's' : ''}</p>
+                )}
+            </div>
+
+            <p className="pl-[18px] text-xs text-gray-500 lg:hidden">
+                {session.page_view_count} views · {formatDurationMs(session.duration_ms)} · {relativeTime(session.last_seen)}
+                {live && <span className="text-green-400"> · Live</span>}
+                {hasErrors && <span className="text-red-400"> · {session.error_count} error{session.error_count > 1 ? 's' : ''}</span>}
+            </p>
         </button>
+    );
+}
+
+function DetailSection({ title, children }: { title: string; children: React.ReactNode }) {
+    return (
+        <section>
+            <h3 className="mb-2 text-xs font-medium text-gray-500">{title}</h3>
+            <div className="divide-y divide-white/[0.06] rounded-lg border border-white/[0.06] bg-[#0A0A0A] px-4">
+                {children}
+            </div>
+        </section>
+    );
+}
+
+function DetailField({ label, value, mono }: { label: string; value: React.ReactNode; mono?: boolean }) {
+    return (
+        <div className="flex items-start justify-between gap-4 py-2.5 text-sm">
+            <span className="shrink-0 text-gray-500">{label}</span>
+            <span className={cn("min-w-0 break-all text-right text-gray-200", mono && "font-mono text-xs")}>{value}</span>
+        </div>
     );
 }
 
@@ -2670,175 +2624,97 @@ function SessionDetailModal({ session, onClose }: { session: SessionSummary; onC
 
     return (
         <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
             onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
         >
-            <div className="relative max-h-[88vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-white/10 bg-[#141414] shadow-2xl">
-                <div className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-white/5 bg-[#141414] px-6 py-5">
+            <div className="relative flex max-h-[88vh] w-full max-w-xl flex-col overflow-hidden rounded-xl border border-white/10 bg-[#111214]">
+                <div className="flex items-start justify-between gap-4 border-b border-white/[0.06] px-5 py-4">
                     <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                            <span
-                                className={cn("inline-block h-2.5 w-2.5 rounded-full", session.is_live && "animate-pulse")}
-                                style={{
-                                    background: session.has_errors ? '#ef4444' : session.is_live ? '#22c55e' : '#1E90FF',
-                                }}
-                            />
-                            <h2 className="cr-display text-lg font-bold">Session</h2>
+                        <div className="flex flex-wrap items-center gap-2">
+                            <h2 className="cr-display text-base font-semibold">Session</h2>
                             {session.is_live && (
-                                <span className="rounded-full bg-green-500/10 px-2 py-0.5 text-[10px] font-bold text-green-400">
-                                    LIVE
-                                </span>
+                                <span className="rounded-md bg-green-500/10 px-1.5 py-0.5 text-[11px] font-medium text-green-400">Live</span>
                             )}
                             {session.has_errors && (
-                                <span className="rounded-full bg-red-500/10 px-2 py-0.5 text-[10px] font-bold text-red-400">
-                                    {session.error_count} ERROR{session.error_count > 1 ? 'S' : ''}
+                                <span className="rounded-md bg-red-500/10 px-1.5 py-0.5 text-[11px] font-medium text-red-400">
+                                    {session.error_count} error{session.error_count > 1 ? 's' : ''}
                                 </span>
                             )}
                         </div>
-                        <p className="mt-1 font-mono text-xs text-gray-500 break-all">{session.session_id}</p>
+                        <p className="mt-1 break-all font-mono text-xs text-gray-500">{session.session_id}</p>
                     </div>
-                    <button
-                        onClick={onClose}
-                        className="rounded-full p-1.5 text-gray-400 transition hover:bg-white/5 hover:text-white"
-                    >
-                        <X className="h-5 w-5" />
+                    <button onClick={onClose} className="rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-white/5 hover:text-white">
+                        <X className="h-4 w-4" />
                     </button>
                 </div>
 
-                <div className="space-y-5 px-6 py-5">
-                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                <div className="space-y-5 overflow-y-auto px-5 py-5">
+                    <div className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-white/[0.06] bg-white/[0.06] sm:grid-cols-4">
                         <Stat label="Views" value={String(session.page_view_count)} />
                         <Stat label="Duration" value={formatDurationMs(session.duration_ms)} />
                         <Stat label="Errors" value={String(session.error_count)} tone={session.error_count > 0 ? 'red' : 'default'} />
-                        <Stat
-                            label="Status"
-                            value={session.is_live ? 'Live now' : 'Ended'}
-                            tone={session.is_live ? 'green' : 'default'}
-                        />
+                        <Stat label="Status" value={session.is_live ? 'Live' : 'Ended'} tone={session.is_live ? 'green' : 'default'} />
                     </div>
 
-                    <section>
-                        <div className="mb-2 flex items-center gap-2 text-gray-400">
-                            <MapPin className="h-3.5 w-3.5" />
-                            <h3 className="text-xs font-semibold uppercase tracking-wide">Location</h3>
-                        </div>
-                        <div className="rounded-xl border border-white/5 bg-[#0A0A0A] p-4">
-                            {session.country ? (
-                                <div className="space-y-1 text-sm">
-                                    <p className="flex items-center gap-2">
-                                        <span className="text-lg">{flagEmoji(session.country_code)}</span>
-                                        <span className="font-medium">{session.country}</span>
-                                    </p>
-                                    {session.region && (
-                                        <p className="text-xs text-gray-500">{session.region}{session.city ? ` · ${session.city}` : ''}</p>
-                                    )}
-                                    {session.latitude != null && session.longitude != null && (
-                                        <p className="mt-2 font-mono text-[11px] text-gray-600">
-                                            {session.latitude.toFixed(4)}, {session.longitude.toFixed(4)}
-                                        </p>
-                                    )}
-                                </div>
-                            ) : (
-                                <p className="text-sm text-gray-500">No location recorded</p>
-                            )}
-                        </div>
-                    </section>
+                    <DetailSection title="Location">
+                        {session.country ? (
+                            <>
+                                <DetailField label="Country" value={`${flagEmoji(session.country_code)} ${session.country}`} />
+                                {(session.region || session.city) && (
+                                    <DetailField label="Region" value={[session.city, session.region].filter(Boolean).join(', ')} />
+                                )}
+                                {session.latitude != null && session.longitude != null && (
+                                    <DetailField label="Coordinates" mono value={`${session.latitude.toFixed(4)}, ${session.longitude.toFixed(4)}`} />
+                                )}
+                            </>
+                        ) : (
+                            <DetailField label="Location" value={<span className="text-gray-500">Not recorded</span>} />
+                        )}
+                    </DetailSection>
 
-                    <section>
-                        <div className="mb-2 flex items-center gap-2 text-gray-400">
-                            <MonitorSmartphone className="h-3.5 w-3.5" />
-                            <h3 className="text-xs font-semibold uppercase tracking-wide">Device</h3>
-                        </div>
-                        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                            <Stat label="Device" value={session.device_type} />
-                            <Stat label="OS" value={session.os} />
-                            <Stat label="Browser" value={session.browser} />
-                            <Stat
-                                label="Screen"
-                                value={session.screen_width && session.screen_height
-                                    ? `${session.screen_width}×${session.screen_height}`
-                                    : '—'}
-                            />
-                        </div>
-                    </section>
+                    <DetailSection title="Device">
+                        <DetailField label="Device" value={<span className="capitalize">{session.device_type}</span>} />
+                        <DetailField label="OS" value={session.os} />
+                        <DetailField label="Browser" value={session.browser} />
+                        <DetailField
+                            label="Screen"
+                            value={session.screen_width && session.screen_height ? `${session.screen_width}×${session.screen_height}` : '—'}
+                        />
+                    </DetailSection>
 
-                    <section>
-                        <div className="mb-2 flex items-center gap-2 text-gray-400">
-                            <User className="h-3.5 w-3.5" />
-                            <h3 className="text-xs font-semibold uppercase tracking-wide">Identity</h3>
-                        </div>
-                        <div className="rounded-xl border border-white/5 bg-[#0A0A0A] p-4 space-y-1.5 text-sm">
-                            <div className="flex justify-between gap-3">
-                                <span className="text-gray-500">User ID</span>
-                                <span className="font-mono text-xs text-gray-300 truncate max-w-[300px]">
-                                    {session.user_id || 'anonymous'}
-                                </span>
-                            </div>
-                            {session.referrer && (
-                                <div className="flex justify-between gap-3">
-                                    <span className="text-gray-500">Referrer</span>
-                                    <span className="text-xs text-gray-300 truncate max-w-[300px]">
-                                        {session.referrer}
-                                    </span>
-                                </div>
-                            )}
-                        </div>
-                    </section>
+                    <DetailSection title="Identity">
+                        <DetailField label="User ID" mono value={session.user_id || 'anonymous'} />
+                        {session.referrer && <DetailField label="Referrer" value={session.referrer} />}
+                    </DetailSection>
 
-                    <section>
-                        <div className="mb-2 flex items-center gap-2 text-gray-400">
-                            <Clock className="h-3.5 w-3.5" />
-                            <h3 className="text-xs font-semibold uppercase tracking-wide">Timeline</h3>
-                        </div>
-                        <div className="rounded-xl border border-white/5 bg-[#0A0A0A] p-4 space-y-2 text-sm">
-                            <div className="flex justify-between">
-                                <span className="text-gray-500">First seen</span>
-                                <span className="text-gray-300">{new Date(session.first_seen).toLocaleString()}</span>
-                            </div>
-                            <div className="flex justify-between">
-                                <span className="text-gray-500">Last seen</span>
-                                <span className="text-gray-300">{new Date(session.last_seen).toLocaleString()}</span>
-                            </div>
-                            <div className="flex justify-between">
-                                <span className="text-gray-500">Duration</span>
-                                <span className="text-gray-300">{formatDurationMs(session.duration_ms)}</span>
-                            </div>
-                        </div>
-                    </section>
+                    <DetailSection title="Timeline">
+                        <DetailField label="First seen" value={new Date(session.first_seen).toLocaleString()} />
+                        <DetailField label="Last seen" value={new Date(session.last_seen).toLocaleString()} />
+                        <DetailField label="Duration" value={formatDurationMs(session.duration_ms)} />
+                    </DetailSection>
 
                     {session.pages.length > 0 && (
-                        <section>
-                            <div className="mb-2 flex items-center gap-2 text-gray-400">
-                                <FileText className="h-3.5 w-3.5" />
-                                <h3 className="text-xs font-semibold uppercase tracking-wide">Pages visited</h3>
-                            </div>
-                            <div className="flex flex-wrap gap-1.5">
-                                {session.pages.map((p) => (
-                                    <span key={p} className="rounded-full bg-white/5 px-2.5 py-1 text-[11px] text-gray-300">
-                                        {p}
-                                    </span>
-                                ))}
-                            </div>
-                        </section>
+                        <DetailSection title="Pages visited">
+                            {session.pages.map((p) => (
+                                <div key={p} className="py-2 font-mono text-xs text-gray-300">{p}</div>
+                            ))}
+                        </DetailSection>
                     )}
 
                     {session.last_error && (
                         <section>
-                            <div className="mb-2 flex items-center gap-2 text-gray-400">
-                                <AlertTriangle className="h-3.5 w-3.5" />
-                                <h3 className="text-xs font-semibold uppercase tracking-wide">Last error</h3>
-                            </div>
-                            <div className="rounded-xl border border-red-500/20 bg-red-500/[0.06] p-4">
-                                <p className="text-sm text-red-200 break-words">{session.last_error}</p>
+                            <h3 className="mb-2 text-xs font-medium text-gray-500">Last error</h3>
+                            <div className="rounded-lg border border-red-500/20 bg-red-500/[0.05] p-4">
+                                <p className="break-words text-sm text-red-200">{session.last_error}</p>
                             </div>
                         </section>
                     )}
                 </div>
 
-                <div className="sticky bottom-0 border-t border-white/5 bg-[#141414] px-6 py-4">
+                <div className="border-t border-white/[0.06] px-5 py-3">
                     <button
                         onClick={onClose}
-                        className="w-full rounded-full border border-white/10 bg-transparent py-2.5 text-sm font-medium text-gray-300 transition hover:bg-white/5"
+                        className="w-full rounded-lg border border-white/10 py-2 text-sm font-medium text-gray-300 transition-colors hover:bg-white/5"
                     >
                         Close
                     </button>
@@ -2854,14 +2730,14 @@ function SessionDetailModal({ session, onClose }: { session: SessionSummary; onC
 function Modal({ children, onClose, title }: { children: React.ReactNode; onClose: () => void; title: string }) {
     return (
         <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
             onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
             onKeyDown={(e) => e.key === 'Escape' && onClose()}
         >
-            <div className="relative max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-white/10 bg-[#141414] p-6 shadow-2xl">
+            <div className="relative max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-xl border border-white/10 bg-[#111214] p-6 shadow-2xl">
                 <button
                     onClick={onClose}
-                    className="absolute top-3 right-3 rounded-full p-1.5 text-gray-400 hover:bg-white/5 hover:text-white"
+                    className="absolute top-3 right-3 rounded-lg p-1.5 text-gray-400 hover:bg-white/5 hover:text-white"
                 >
                     <X className="h-5 w-5" />
                 </button>
@@ -2872,36 +2748,86 @@ function Modal({ children, onClose, title }: { children: React.ReactNode; onClos
     );
 }
 
-function Card({ title, children }: { title: string; children: React.ReactNode }) {
+function Card({
+    title, subtitle, action, flush, children,
+}: {
+    title: string;
+    subtitle?: string;
+    action?: React.ReactNode;
+    flush?: boolean;
+    children: React.ReactNode;
+}) {
     return (
-        <div className="rounded-2xl border border-white/5 bg-[#141414] p-5">
-            <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-400">{title}</h2>
-            {children}
+        <section className="overflow-hidden rounded-xl border border-white/[0.06] bg-[#111214]">
+            <header className="flex flex-wrap items-center justify-between gap-3 border-b border-white/[0.06] px-5 py-3.5">
+                <div className="min-w-0">
+                    <h2 className="text-sm font-medium text-gray-100">{title}</h2>
+                    {subtitle && <p className="mt-0.5 text-xs text-gray-500">{subtitle}</p>}
+                </div>
+                {action}
+            </header>
+            <div className={flush ? undefined : "p-5"}>{children}</div>
+        </section>
+    );
+}
+
+function Segmented<T extends string>({
+    value, onChange, options,
+}: {
+    value: T;
+    onChange: (v: T) => void;
+    options: readonly { id: T; label: string; count?: number }[];
+}) {
+    return (
+        <div className="inline-flex rounded-lg border border-white/[0.06] bg-[#0A0A0A] p-0.5">
+            {options.map((o) => (
+                <button
+                    key={o.id}
+                    onClick={() => onChange(o.id)}
+                    className={cn(
+                        "rounded-md px-3 py-1.5 text-xs font-medium tabular-nums transition-colors",
+                        value === o.id ? "bg-white/10 text-white" : "text-gray-500 hover:text-gray-200",
+                    )}
+                >
+                    {o.label}
+                    {o.count !== undefined && <span className="ml-1.5 text-gray-500">{o.count}</span>}
+                </button>
+            ))}
+        </div>
+    );
+}
+
+function Metric({ label, value, tone = 'default' }: { label: string; value: string; tone?: 'default' | 'green' | 'red' | 'amber' }) {
+    const valueClass = {
+        default: 'text-white',
+        green: 'text-green-400',
+        red: 'text-red-400',
+        amber: 'text-yellow-400',
+    }[tone];
+    return (
+        <div className="bg-[#111214] px-5 py-4">
+            <p className="text-xs text-gray-500">{label}</p>
+            <p className={cn("mt-1 truncate text-2xl font-semibold tabular-nums tracking-tight", valueClass)}>{value}</p>
         </div>
     );
 }
 
 function Empty({ msg }: { msg: string }) {
-    return <p className="py-8 text-center text-sm text-gray-500">{msg}</p>;
+    return <p className="px-5 py-10 text-center text-sm text-gray-500">{msg}</p>;
 }
 
 function Stat({ label, value, tone = 'default' }: { label: string; value: string; tone?: 'default' | 'green' | 'red' }) {
-    const valueClass = {
-        default: 'text-white',
-        green: 'text-green-400',
-        red: 'text-red-400',
-    }[tone];
-
+    const valueClass = { default: 'text-white', green: 'text-green-400', red: 'text-red-400' }[tone];
     return (
-        <div className="rounded-xl border border-white/5 bg-[#0A0A0A] p-3">
-            <p className="text-[10px] uppercase tracking-wide text-gray-500">{label}</p>
-            <p className={cn("mt-1 text-sm font-semibold truncate", valueClass)}>{value}</p>
+        <div className="bg-[#111214] px-3 py-3">
+            <p className="text-xs text-gray-500">{label}</p>
+            <p className={cn("mt-1 truncate text-sm font-semibold tabular-nums", valueClass)}>{value}</p>
         </div>
     );
 }
 
 function KpiCard({
-    label, value, icon, tone, pulse,
+    label, value, icon, tone,
 }: {
     label: string;
     value: number;
@@ -2919,43 +2845,12 @@ function KpiCard({
     }[tone];
 
     return (
-        <div className={cn(
-            "rounded-2xl border bg-[#141414] p-4 transition",
-            pulse ? "border-green-500/20" : "border-white/5",
-        )}>
-            <div className={cn("flex items-center gap-2", toneClass)}>
-                {pulse && (
-                    <span className="relative flex h-2 w-2">
-                        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-75" />
-                        <span className="relative inline-flex h-2 w-2 rounded-full bg-green-400" />
-                    </span>
-                )}
+        <div className="rounded-xl border border-white/[0.06] bg-[#111214] p-4">
+            <div className={cn("flex items-center gap-2 text-xs", toneClass)}>
                 {icon}
-                <span className="text-xs uppercase tracking-wide">{label}</span>
+                <span className="text-gray-400">{label}</span>
             </div>
-            <p className="mt-2 text-2xl font-bold tabular-nums">{value.toLocaleString()}</p>
-        </div>
-    );
-}
-
-function MiniStat({
-    label, value, icon, tone = 'default',
-}: {
-    label: string;
-    value: string;
-    icon: React.ReactNode;
-    tone?: 'default' | 'warn';
-}) {
-    return (
-        <div className="rounded-xl border border-white/5 bg-[#141414] px-3 py-2.5">
-            <div className={cn(
-                "flex items-center gap-1.5 text-[10px] uppercase tracking-wide",
-                tone === 'warn' ? "text-yellow-400" : "text-gray-500",
-            )}>
-                {icon}
-                {label}
-            </div>
-            <p className="mt-1 text-lg font-semibold tabular-nums truncate">{value}</p>
+            <p className="mt-2 text-2xl font-semibold tabular-nums tracking-tight">{value.toLocaleString()}</p>
         </div>
     );
 }
