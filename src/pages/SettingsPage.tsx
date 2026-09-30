@@ -13,6 +13,7 @@ import {
     stripControlChars,
     REQUEST_REASON_MAX,
 } from '@/lib/sanitizeRequest';
+import { subscribeToPush, unsubscribeFromPush } from '@/lib/push';
 
 const APP_VERSION = 'v1.0.1';
 
@@ -161,6 +162,8 @@ export default function SettingsPage() {
         toast.success(SETTING_LABELS[key](value));
     };
 
+    const { user: currentUser } = useKindeAuth(); // if not already destructured
+
     const handlePushToggle = async (checked: boolean) => {
         if (checked && typeof window !== 'undefined' && 'Notification' in window) {
             if (Notification.permission === 'denied') {
@@ -177,7 +180,26 @@ export default function SettingsPage() {
                 }
             }
         }
+
+        // Persist the setting first so the UI reflects the choice
         updateSetting('pushNotifications', checked);
+
+        // Subscribe / unsubscribe in the background
+        if (currentUser?.id) {
+            try {
+                if (checked) {
+                    const ok = await subscribeToPush(currentUser.id, getToken);
+                    if (!ok) {
+                        toast.error('Could not enable push notifications. Try again.');
+                        updateSetting('pushNotifications', false);
+                    }
+                } else {
+                    await unsubscribeFromPush(currentUser.id, getToken);
+                }
+            } catch (err) {
+                console.error('Push toggle error:', err);
+            }
+        }
     };
     
     const [musicEnabled, setMusicEnabled] = useState<boolean>(() => {

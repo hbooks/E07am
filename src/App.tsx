@@ -14,6 +14,8 @@ import { MusicProvider } from "@/components/MusicProvider";
 import { trackPageView, trackError } from '@/lib/analytics';
 import { useLocationCapture } from '@/hooks/useLocationCapture';
 import { TourProvider, TourOverlay } from '@/tour';
+import { subscribeToPush, unsubscribeFromPush } from '@/lib/push';
+import { PushSubscriber } from '@/components/PushSubscriber';
 
 import IndexPage from "@/pages/IndexPage";
 import CreateRoomPage from "@/pages/CreateRoomPage";
@@ -94,6 +96,8 @@ const App = () => (
         <BrowserRouter>
             <TourProvider>
           <AnalyticsTracker />
+              <AnalyticsTracker />
+              <PushSubscriber />
           <Routes>
             {/* /admin: no nav rail, no notification bell, no maintenance gate
                 (so you can never lock yourself out of the page that turns

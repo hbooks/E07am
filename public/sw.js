@@ -121,3 +121,59 @@ self.addEventListener('fetch', (event) => {
 
     // ---- 4. Everything else → network only ----
 });
+
+// ============================================================
+// PUSH NOTIFICATIONS
+// ============================================================
+
+const DEFAULT_ICON = 'https://res.cloudinary.com/ctr-cloud/image/upload/v1790499503/w6vzv9xag033geouilxo.png';
+
+// ---------- Push received ----------
+self.addEventListener('push', (event) => {
+    let data = {};
+    try {
+        data = event.data ? event.data.json() : {};
+    } catch (err) {
+        console.warn('[SW] Push payload not JSON:', err);
+        data = { title: 'Claim The Room', body: event.data?.text() || 'New activity' };
+    }
+
+    const title = data.title || 'Claim The Room';
+    const options = {
+        body: data.body || 'You have a new notification',
+        icon: data.icon || DEFAULT_ICON,
+        badge: data.badge || DEFAULT_ICON,
+        tag: data.tag || 'ctr-notification',
+        data: {
+            url: data.url || '/',
+        },
+        requireInteraction: false,
+        silent: false,
+    };
+
+    event.waitUntil(self.registration.showNotification(title, options));
+});
+
+// ---------- Notification clicked ----------
+self.addEventListener('notificationclick', (event) => {
+    event.notification.close();
+    const urlToOpen = event.notification.data?.url || '/';
+
+    event.waitUntil(
+        self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+            // If a CTR tab is already open, focus it and navigate
+            for (const client of clientList) {
+                if (client.url.includes(self.location.origin) && 'focus' in client) {
+                    if ('navigate' in client) {
+                        client.navigate(urlToOpen).catch(() => { });
+                    }
+                    return client.focus();
+                }
+            }
+            // Otherwise open a new window
+            if (self.clients.openWindow) {
+                return self.clients.openWindow(urlToOpen);
+            }
+        })
+    );
+});
