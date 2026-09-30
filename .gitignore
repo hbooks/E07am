@@ -56,3 +56,6 @@ build/
 .cxx/
 captures/
 .externalNativeBuild/
+
+#Stubbon lock file
+bun.lock
