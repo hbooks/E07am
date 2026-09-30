@@ -1,13 +1,13 @@
 import { useEffect, useRef } from 'react'
 
 const FEMU_URL = `${import.meta.env.VITE_SUPABASE_FUNCTIONS_URL}/Femu`
-const FALLBACK_TRACK = 'https://rmc.hpbooks.uk/Haunting_Me.mp3'
+const FALLBACK_TRACK = 'https://rmc.hpbooks.uk/Goodbye.mp3'
 const FETCH_TIMEOUT_MS = 3500
 const RESHUFFLE_COOLDOWN_MS = 20_000
 const FADE_MS = 800
 const DEFAULT_VOLUME = 0.25
-const LS_ENABLED = 'cmued'
-const LS_VOLUME = 'cmuvlme'
+const LS_ENABLED = 'ctr_music_enabled'
+const LS_VOLUME = 'ctr_music_volume'
 
 interface Track {
     id: number | string
@@ -86,22 +86,13 @@ export function MusicProvider({ children }: { children: React.ReactNode }) {
         })
     }
 
-    // ---- Pick next track from queue; refill when empty ----
-    const playNext = () => {
-        if (queueRef.current.length === 0) {
-            // refill
-            if (queueRef.current.length === 0 && currentRef.current) {
-                // we lost the original list; just replay what's left
-            }
-        }
-        const next = queueRef.current.shift()
-        if (next) {
-            playTrack(next, true)
-        }
-    }
-
     // ---- Reshuffle remaining queue; hard-transition current ----
     const reshuffleNow = (reason: string) => {
+        // Critical: do not reshuffle (or play) if the user has music disabled.
+        // Without this guard, a claim/create event would restart playback while
+        // the Settings toggle still reads "off".
+        if (!readEnabled()) return
+
         const now = Date.now()
         if (now - lastReshuffleRef.current < RESHUFFLE_COOLDOWN_MS) {
             console.log(`[Music] Reshuffle skipped (cooldown) — ${reason}`)

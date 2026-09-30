@@ -182,7 +182,7 @@ export default function SettingsPage() {
     
     const [musicEnabled, setMusicEnabled] = useState<boolean>(() => {
         try {
-            return localStorage.getItem('cmued') !== '0';
+            return localStorage.getItem('ctr_music_enabled') !== '0';
         } catch {
             return true;
         }
@@ -190,7 +190,7 @@ export default function SettingsPage() {
 
     const [musicVolume, setMusicVolume] = useState<number>(() => {
         try {
-            const v = localStorage.getItem('cmuvlme');
+            const v = localStorage.getItem('ctr_music_volume');
             return v !== null ? Number(v) : 25;
         } catch {
             return 25;
@@ -200,7 +200,7 @@ export default function SettingsPage() {
     const handleMusicToggle = (checked: boolean) => {
         setMusicEnabled(checked);
         try {
-            localStorage.setItem('cmued', checked ? '1' : '0');
+            localStorage.setItem('ctr_music_enabled', checked ? '1' : '0');
         } catch { /* ignore */ }
         window.dispatchEvent(
             new CustomEvent('ctr:music:enabled', { detail: { enabled: checked } })
@@ -212,7 +212,7 @@ export default function SettingsPage() {
         const v = Number(e.target.value);
         setMusicVolume(v);
         try {
-            localStorage.setItem('cmuvlme', String(v));
+            localStorage.setItem('ctr_music_volume', String(v));
         } catch { /* ignore */ }
         window.dispatchEvent(
             new CustomEvent('ctr:music:volume', { detail: { volume: v / 100 } })
