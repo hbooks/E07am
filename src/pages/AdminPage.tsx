@@ -4,7 +4,7 @@ import {
     Send, RefreshCw, Loader2, Pencil, Trash2, Check, X, CheckCircle, XCircle, AlertTriangle,
     Newspaper, Activity, Construction, KeyRound, LogOut, ShieldAlert, BarChart3, Globe,
     MonitorSmartphone, Bug, Inbox, Eye, MapPin, Clock, Smartphone, Laptop, User,
-    FileText, Terminal, Music2,
+    FileText, Terminal, Music2, Search, Radio, Users, Zap, Timer, MapPinned,
 } from "lucide-react";
 import {
     ResponsiveContainer, LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
@@ -13,6 +13,8 @@ import {
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabaseClient";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
 
 const BASE_URL = import.meta.env.VITE_SUPABASE_FUNCTIONS_URL;
 const R2_PUBLIC_BASE = 'https://rmc.hpbooks.uk';
@@ -72,6 +74,8 @@ interface AnalyticsEvent {
     country_code: string | null;
     city: string | null;
     region: string | null;
+    latitude: number | null;
+    longitude: number | null;
     created_at: string;
 }
 
@@ -95,8 +99,36 @@ interface AdworResponse {
     fetched_at: string;
 }
 
+interface SessionSummary {
+    session_id: string;
+    user_id: string | null;
+    country: string | null;
+    country_code: string | null;
+    city: string | null;
+    region: string | null;
+    latitude: number | null;
+    longitude: number | null;
+    device_type: string;
+    browser: string;
+    os: string;
+    screen_width: number | null;
+    screen_height: number | null;
+    referrer: string | null;
+    first_seen: string;
+    last_seen: string;
+    duration_ms: number;
+    page_view_count: number;
+    error_count: number;
+    pages: string[];
+    last_error: string | null;
+    is_live: boolean;
+    has_errors: boolean;
+}
+
 type Section = "requests" | "news" | "music" | "workers" | "maintenance" | "analytics";
-type DateRange = '24h' | '7d' | '30d' | 'all';
+type DateRange = '15m' | '30m' | '1h' | '24h' | '7d' | '30d' | 'all';
+
+const LIVE_THRESHOLD_MS = 2 * 60 * 1000; // < 2min = live
 
 const NAV_ITEMS: { id: Section; label: string; icon: typeof Newspaper }[] = [
     { id: "requests", label: "Requests", icon: Inbox },
@@ -121,6 +153,8 @@ const REQUEST_TYPE_COLOR: Record<UserRequest['type'], string> = {
 
 const PIE_COLORS = ['#1E90FF', '#22c55e', '#f59e0b', '#ef4444', '#a855f7', '#06b6d4', '#ec4899', '#6b7280'];
 
+const RANGE_OPTIONS: DateRange[] = ['15m', '30m', '1h', '24h', '7d', '30d', 'all'];
+
 // ============================================================
 // HELPERS
 // ============================================================
@@ -141,10 +175,25 @@ function relativeTime(iso: string | null | undefined): string {
 function rangeCutoff(range: DateRange): number {
     const now = Date.now();
     switch (range) {
+        case '15m': return now - 15 * 60 * 1000;
+        case '30m': return now - 30 * 60 * 1000;
+        case '1h': return now - 60 * 60 * 1000;
         case '24h': return now - 24 * 60 * 60 * 1000;
         case '7d': return now - 7 * 24 * 60 * 60 * 1000;
         case '30d': return now - 30 * 24 * 60 * 60 * 1000;
         case 'all': return 0;
+    }
+}
+
+function rangeBucketMs(range: DateRange): number {
+    switch (range) {
+        case '15m': return 60 * 1000;              // 1-minute buckets
+        case '30m': return 2 * 60 * 1000;          // 2-minute buckets
+        case '1h': return 5 * 60 * 1000;           // 5-minute buckets
+        case '24h': return 60 * 60 * 1000;         // 1-hour buckets
+        case '7d': return 6 * 60 * 60 * 1000;      // 6-hour buckets
+        case '30d': return 24 * 60 * 60 * 1000;    // 1-day buckets
+        case 'all': return 24 * 60 * 60 * 1000;
     }
 }
 
@@ -171,6 +220,17 @@ function formatDuration(seconds: number | null): string {
     return `${m}:${String(s).padStart(2, '0')}`;
 }
 
+function formatDurationMs(ms: number): string {
+    if (ms < 1000) return '<1s';
+    const s = Math.floor(ms / 1000);
+    if (s < 60) return `${s}s`;
+    const m = Math.floor(s / 60);
+    const rem = s % 60;
+    if (m < 60) return rem > 0 ? `${m}m ${rem}s` : `${m}m`;
+    const h = Math.floor(m / 60);
+    return `${h}h ${m % 60}m`;
+}
+
 function categorizeError(message: string | null): string {
     if (!message) return 'Other';
     const m = message.toLowerCase();
@@ -183,6 +243,75 @@ function categorizeError(message: string | null): string {
     if (m.includes('quota') || m.includes('storage')) return 'Storage';
     if (m.includes('permission')) return 'Permission';
     return 'Uncaught exception';
+}
+
+function buildSessions(events: AnalyticsEvent[]): SessionSummary[] {
+    const map = new Map<string, SessionSummary>();
+    const now = Date.now();
+
+    for (const e of events) {
+        const t = new Date(e.created_at).getTime();
+        let s = map.get(e.session_id);
+
+        if (!s) {
+            s = {
+                session_id: e.session_id,
+                user_id: e.user_id,
+                country: e.country,
+                country_code: e.country_code,
+                city: e.city,
+                region: e.region,
+                latitude: e.latitude,
+                longitude: e.longitude,
+                device_type: e.device_type || 'unknown',
+                browser: e.browser || 'unknown',
+                os: e.os || 'unknown',
+                screen_width: e.screen_width,
+                screen_height: e.screen_height,
+                referrer: e.referrer,
+                first_seen: e.created_at,
+                last_seen: e.created_at,
+                duration_ms: 0,
+                page_view_count: 0,
+                error_count: 0,
+                pages: [],
+                last_error: null,
+                is_live: false,
+                has_errors: false,
+            };
+            map.set(e.session_id, s);
+        }
+
+        // Update bounds
+        if (e.created_at < s.first_seen) s.first_seen = e.created_at;
+        if (e.created_at > s.last_seen) s.last_seen = e.created_at;
+
+        // Fill in missing geo data from any event that has it
+        if (!s.latitude && e.latitude != null) s.latitude = e.latitude;
+        if (!s.longitude && e.longitude != null) s.longitude = e.longitude;
+        if (!s.country && e.country) s.country = e.country;
+        if (!s.country_code && e.country_code) s.country_code = e.country_code;
+        if (!s.city && e.city) s.city = e.city;
+        if (!s.region && e.region) s.region = e.region;
+        if (!s.user_id && e.user_id) s.user_id = e.user_id;
+
+        if (e.event_type === 'page_view') {
+            s.page_view_count++;
+            if (e.page_path && !s.pages.includes(e.page_path)) s.pages.push(e.page_path);
+        } else if (e.event_type === 'error') {
+            s.error_count++;
+            if (e.error_message) s.last_error = e.error_message;
+        }
+    }
+
+    // Finalize
+    const out = Array.from(map.values());
+    for (const s of out) {
+        s.duration_ms = new Date(s.last_seen).getTime() - new Date(s.first_seen).getTime();
+        s.is_live = now - new Date(s.last_seen).getTime() < LIVE_THRESHOLD_MS;
+        s.has_errors = s.error_count > 0;
+    }
+    return out.sort((a, b) => new Date(b.last_seen).getTime() - new Date(a.last_seen).getTime());
 }
 
 // ============================================================
@@ -390,7 +519,6 @@ export default function AdminPage() {
 
     return (
         <div className="flex min-h-screen bg-[#0A0A0A] text-white">
-            {/* Sidebar */}
             <aside className="hidden w-60 flex-shrink-0 flex-col border-r border-white/5 bg-[#0C0C0C] sm:flex">
                 <div className="px-5 py-5">
                     <p className="cr-display text-sm font-bold tracking-wide">Admin</p>
@@ -438,7 +566,6 @@ export default function AdminPage() {
                 </div>
             </aside>
 
-            {/* Mobile nav */}
             <div className="fixed inset-x-0 top-0 z-20 flex border-b border-white/5 bg-[#0A0A0A]/95 backdrop-blur sm:hidden">
                 {NAV_ITEMS.map((item) => {
                     const Icon = item.icon;
@@ -465,7 +592,6 @@ export default function AdminPage() {
                 })}
             </div>
 
-            {/* Content */}
             <main className="min-w-0 flex-1 px-5 py-6 pt-16 sm:pt-6 sm:px-8 sm:py-8">
                 <div className="mx-auto max-w-5xl">
                     {maintenanceEnabled && (
@@ -704,7 +830,6 @@ function RequestsSection({
 // ============================================================
 function RequestDetailModal({ request, onClose }: { request: UserRequest; onClose: () => void }) {
     const ua = request.meta?.user_agent as string | undefined;
-    const submittedAt = request.meta?.submitted_at as string | undefined;
 
     const parsedUa = ua
         ? {
@@ -1021,7 +1146,6 @@ function MusicSection({
 
     const activeCount = playlist.filter((t) => t.active).length;
 
-    // ---- Manual add ----
     const addTrack = async () => {
         if (!title.trim() || !url.trim()) {
             toast.error('Title and URL are required');
@@ -1057,7 +1181,6 @@ function MusicSection({
         }
     };
 
-    // ---- File upload ----
     const uploadFile = async (file: File) => {
         if (!file) return;
         if (!file.type.startsWith('audio/')) {
@@ -1190,7 +1313,6 @@ function MusicSection({
                 </p>
             </div>
 
-            {/* Upload */}
             <div className="rounded-2xl border border-white/5 bg-[#141414] p-5">
                 <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-400">
                     Upload Track
@@ -1232,7 +1354,6 @@ function MusicSection({
                 />
             </div>
 
-            {/* Add by URL */}
             <div className="rounded-2xl border border-white/5 bg-[#141414] p-5">
                 <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-400">
                     Add by URL
@@ -1269,7 +1390,6 @@ function MusicSection({
                 </div>
             </div>
 
-            {/* Playlist */}
             <div className="rounded-2xl border border-white/5 bg-[#141414] p-5">
                 <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-gray-400">
                     Playlist <span className="text-gray-600">· {playlist.length}</span>
@@ -1640,6 +1760,11 @@ function AnalyticsSection() {
     const [events, setEvents] = useState<AnalyticsEvent[]>([]);
     const [loading, setLoading] = useState(true);
     const [errorFilter, setErrorFilter] = useState<string | null>(null);
+    const [sessionFilter, setSessionFilter] = useState<'all' | 'live' | 'errors'>('all');
+    const [sessionQuery, setSessionQuery] = useState('');
+    const [selectedSession, setSelectedSession] = useState<SessionSummary | null>(null);
+    const [countryQuery, setCountryQuery] = useState('');
+    const [showAllCountries, setShowAllCountries] = useState(false);
 
     const fetchAnalytics = useCallback(async () => {
         setLoading(true);
@@ -1649,7 +1774,7 @@ function AnalyticsSection() {
                 .from('analytics_events')
                 .select('*')
                 .order('created_at', { ascending: false })
-                .limit(5000);
+                .limit(10000);
             if (cutoff > 0) q = q.gte('created_at', new Date(cutoff).toISOString());
             const { data, error } = await q;
             if (error) throw error;
@@ -1663,13 +1788,87 @@ function AnalyticsSection() {
 
     useEffect(() => { fetchAnalytics(); }, [fetchAnalytics]);
 
+    // Auto-refresh for short ranges (live feel)
+    useEffect(() => {
+        if (range !== '15m' && range !== '30m' && range !== '1h') return;
+        const id = setInterval(() => fetchAnalytics(), 30_000);
+        return () => clearInterval(id);
+    }, [range, fetchAnalytics]);
+
+    // ---- Sessions ----
+    const sessions = useMemo(() => buildSessions(events), [events]);
+
+    const sessionStats = useMemo(() => {
+        const live = sessions.filter((s) => s.is_live).length;
+        const withErrors = sessions.filter((s) => s.has_errors).length;
+        const total = sessions.length;
+        const avgDuration = total > 0
+            ? sessions.reduce((sum, s) => sum + s.duration_ms, 0) / total
+            : 0;
+        return { total, live, withErrors, avgDuration };
+    }, [sessions]);
+
+    const filteredSessions = useMemo(() => {
+        let list = sessions;
+        if (sessionFilter === 'live') list = list.filter((s) => s.is_live);
+        if (sessionFilter === 'errors') list = list.filter((s) => s.has_errors);
+        if (sessionQuery.trim()) {
+            const q = sessionQuery.toLowerCase();
+            list = list.filter((s) =>
+                s.session_id.toLowerCase().includes(q) ||
+                (s.user_id && s.user_id.toLowerCase().includes(q)) ||
+                (s.country && s.country.toLowerCase().includes(q)) ||
+                (s.city && s.city.toLowerCase().includes(q)) ||
+                s.os.toLowerCase().includes(q) ||
+                s.browser.toLowerCase().includes(q)
+            );
+        }
+        return list;
+    }, [sessions, sessionFilter, sessionQuery]);
+
+    const mappableSessions = useMemo(
+        () => filteredSessions.filter((s) => s.latitude != null && s.longitude != null),
+        [filteredSessions],
+    );
+
+    // ---- Country counts (all, not top 10) ----
+    const allCountries = useMemo(() => {
+        const map: Record<string, { country: string; code: string; count: number; sessions: number }> = {};
+        const byCountry = new Map<string, Set<string>>();
+        for (const e of events) {
+            if (!e.country) continue;
+            const key = e.country;
+            const code = e.country_code || 'XX';
+            if (!map[key]) map[key] = { country: key, code, count: 0, sessions: 0 };
+            map[key].count++;
+            if (!byCountry.has(key)) byCountry.set(key, new Set());
+            byCountry.get(key)!.add(e.session_id);
+        }
+        for (const [country, set] of byCountry) {
+            if (map[country]) map[country].sessions = set.size;
+        }
+        return Object.values(map).sort((a, b) => b.count - a.count);
+    }, [events]);
+
+    const visibleCountries = useMemo(() => {
+        let list = allCountries;
+        if (countryQuery.trim()) {
+            const q = countryQuery.toLowerCase();
+            list = list.filter((c) => c.country.toLowerCase().includes(q) || c.code.toLowerCase().includes(q));
+        }
+        if (!showAllCountries && list.length > 12) return list.slice(0, 12);
+        return list;
+    }, [allCountries, countryQuery, showAllCountries]);
+
+    // ---- Summary + time series ----
     const summary = useMemo(() => {
         const pageViews = events.filter((e) => e.event_type === 'page_view');
         const errors = events.filter((e) => e.event_type === 'error');
         const uniqueSessions = new Set(events.map((e) => e.session_id)).size;
+        const uniqueUsers = new Set(events.map((e) => e.user_id).filter(Boolean)).size;
         const uniqueCountries = new Set(events.map((e) => e.country_code).filter(Boolean)).size;
 
-        const bucketMs = range === '24h' ? 60 * 60 * 1000 : 24 * 60 * 60 * 1000;
+        const bucketMs = rangeBucketMs(range);
         const buckets: Record<string, number> = {};
         for (const e of pageViews) {
             const t = new Date(e.created_at).getTime();
@@ -1678,13 +1877,16 @@ function AnalyticsSection() {
             buckets[key] = (buckets[key] || 0) + 1;
         }
         const timeSeries = Object.entries(buckets)
-            .map(([iso, count]) => ({
-                t: new Date(iso).toLocaleString(undefined, {
-                    month: 'short', day: 'numeric',
-                    hour: range === '24h' ? 'numeric' : undefined,
-                }),
-                count,
-            }))
+            .map(([iso, count]) => {
+                const d = new Date(iso);
+                const label =
+                    range === '15m' || range === '30m' || range === '1h'
+                        ? d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
+                        : range === '24h'
+                            ? d.toLocaleTimeString(undefined, { hour: 'numeric' })
+                            : d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+                return { t: label, count };
+            })
             .sort((a, b) => a.t.localeCompare(b.t));
 
         const pageCounts: Record<string, number> = {};
@@ -1696,18 +1898,6 @@ function AnalyticsSection() {
             .map(([path, count]) => ({ path, count }))
             .sort((a, b) => b.count - a.count)
             .slice(0, 8);
-
-        const countryCounts: Record<string, { count: number; code: string }> = {};
-        for (const e of events) {
-            if (!e.country) continue;
-            const code = e.country_code || 'XX';
-            if (!countryCounts[e.country]) countryCounts[e.country] = { count: 0, code };
-            countryCounts[e.country].count++;
-        }
-        const topCountries = Object.entries(countryCounts)
-            .map(([country, { count, code }]) => ({ country, code, count }))
-            .sort((a, b) => b.count - a.count)
-            .slice(0, 10);
 
         const deviceCounts: Record<string, number> = {};
         for (const e of events) {
@@ -1800,10 +1990,10 @@ function AnalyticsSection() {
             totalPageViews: pageViews.length,
             totalErrors: errors.length,
             uniqueSessions,
+            uniqueUsers,
             uniqueCountries,
             timeSeries,
             topPages,
-            topCountries,
             devices,
             browsers,
             osAll,
@@ -1821,19 +2011,50 @@ function AnalyticsSection() {
 
     return (
         <div className="space-y-6">
+            <style>{`
+                @keyframes an-pulse-ring {
+                    0%   { transform: scale(0.9); opacity: 0.9; }
+                    70%  { transform: scale(2.4); opacity: 0; }
+                    100% { transform: scale(2.4); opacity: 0; }
+                }
+                .leaflet-container {
+                    background: #050608 !important;
+                    font-family: inherit;
+                }
+                .leaflet-tile {
+                    filter: hue-rotate(180deg) invert(1) brightness(0.85) contrast(0.9);
+                }
+                .leaflet-control-attribution {
+                    background: rgba(0,0,0,0.6) !important;
+                    color: #6b7280 !important;
+                    font-size: 10px !important;
+                }
+                .leaflet-control-attribution a { color: #9ca3af !important; }
+                .leaflet-bar a {
+                    background: #141414 !important;
+                    color: #d1d5db !important;
+                    border-color: rgba(255,255,255,0.08) !important;
+                }
+                .leaflet-bar a:hover {
+                    background: #1f1f1f !important;
+                    color: #fff !important;
+                }
+            `}</style>
+
+            {/* Header + range */}
             <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                     <h1 className="cr-display text-xl font-bold">Analytics</h1>
-                    <p className="mt-1 text-sm text-gray-500">Traffic, geography, OS, and error diagnostics.</p>
+                    <p className="mt-1 text-sm text-gray-500">Live traffic, sessions, and error diagnostics.</p>
                 </div>
                 <div className="flex items-center gap-2">
                     <div className="flex rounded-full border border-white/10 bg-[#141414] p-1">
-                        {(['24h', '7d', '30d', 'all'] as DateRange[]).map((r) => (
+                        {RANGE_OPTIONS.map((r) => (
                             <button
                                 key={r}
                                 onClick={() => setRange(r)}
                                 className={cn(
-                                    "rounded-full px-3 py-1 text-xs font-medium transition uppercase",
+                                    "rounded-full px-3 py-1 text-[11px] font-medium transition uppercase tabular-nums",
                                     range === r ? "bg-white/10 text-white" : "text-gray-500 hover:text-white",
                                 )}
                             >
@@ -1857,18 +2078,174 @@ function AnalyticsSection() {
                 </div>
             ) : (
                 <>
+                    {/* KPI row */}
                     <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                        <KpiCard label="Page views" value={summary.totalPageViews} tone="blue" icon={<BarChart3 className="h-4 w-4" />} />
-                        <KpiCard label="Sessions" value={summary.uniqueSessions} tone="green" icon={<Globe className="h-4 w-4" />} />
-                        <KpiCard label="Countries" value={summary.uniqueCountries} tone="purple" icon={<MapPin className="h-4 w-4" />} />
+                        <KpiCard
+                            label="Live now"
+                            value={sessionStats.live}
+                            tone="green"
+                            icon={<Radio className="h-4 w-4" />}
+                            pulse={sessionStats.live > 0}
+                        />
+                        <KpiCard label="Sessions" value={sessionStats.total} tone="blue" icon={<Users className="h-4 w-4" />} />
+                        <KpiCard label="Page views" value={summary.totalPageViews} tone="purple" icon={<BarChart3 className="h-4 w-4" />} />
                         <KpiCard label="Errors" value={summary.totalErrors} tone="red" icon={<Bug className="h-4 w-4" />} />
                     </div>
 
-                    <Card title="Page views over time">
+                    {/* Secondary stats */}
+                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                        <MiniStat
+                            label="Avg. session"
+                            value={formatDurationMs(sessionStats.avgDuration)}
+                            icon={<Timer className="h-3.5 w-3.5" />}
+                        />
+                        <MiniStat
+                            label="Sessions w/ errors"
+                            value={String(sessionStats.withErrors)}
+                            icon={<AlertTriangle className="h-3.5 w-3.5" />}
+                            tone={sessionStats.withErrors > 0 ? 'warn' : 'default'}
+                        />
+                        <MiniStat
+                            label="Unique users"
+                            value={String(summary.uniqueUsers)}
+                            icon={<User className="h-3.5 w-3.5" />}
+                        />
+                        <MiniStat
+                            label="Countries"
+                            value={String(summary.uniqueCountries)}
+                            icon={<MapPin className="h-3.5 w-3.5" />}
+                        />
+                    </div>
+
+                    {/* Sessions map */}
+                    <div className="rounded-2xl border border-white/5 bg-[#141414] overflow-hidden">
+                        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/5 px-4 py-3">
+                            <div className="flex items-center gap-2">
+                                <MapPinned className="h-4 w-4 text-gray-500" />
+                                <h2 className="text-sm font-semibold">Session map</h2>
+                                <span className="text-[11px] text-gray-500">
+                                    {mappableSessions.length} of {filteredSessions.length} plotted
+                                </span>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-2">
+                                <div className="flex rounded-full border border-white/10 bg-[#0A0A0A] p-0.5">
+                                    {([
+                                        { id: 'all', label: 'All', count: sessions.length },
+                                        { id: 'live', label: 'Live', count: sessionStats.live },
+                                        { id: 'errors', label: 'Errors', count: sessionStats.withErrors },
+                                    ] as const).map((f) => (
+                                        <button
+                                            key={f.id}
+                                            onClick={() => setSessionFilter(f.id)}
+                                            className={cn(
+                                                "rounded-full px-3 py-1 text-[11px] font-medium transition flex items-center gap-1.5",
+                                                sessionFilter === f.id
+                                                    ? "bg-white/10 text-white"
+                                                    : "text-gray-500 hover:text-white",
+                                            )}
+                                        >
+                                            {f.label}
+                                            <span className="text-gray-500 tabular-nums">{f.count}</span>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+
+                        <SessionMap sessions={mappableSessions} onSelect={setSelectedSession} />
+
+                        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/5 px-4 py-2.5 text-[11px] text-gray-500">
+                            <div className="flex items-center gap-4">
+                                <LegendDot color="#1E90FF" label="Past session" />
+                                <LegendDot color="#22c55e" label="Live" pulse />
+                                <LegendDot color="#ef4444" label="Session with error" />
+                            </div>
+                            <span>Click a dot for details</span>
+                        </div>
+                    </div>
+
+                    {/* Country + device row */}
+                    <div className="grid gap-4 lg:grid-cols-2">
+                        <Card title="All countries">
+                            <div className="mb-3 flex items-center gap-2">
+                                <div className="relative flex-1">
+                                    <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-600" />
+                                    <input
+                                        value={countryQuery}
+                                        onChange={(e) => setCountryQuery(e.target.value)}
+                                        placeholder="Search countries…"
+                                        className="w-full rounded-full border border-white/10 bg-[#0A0A0A] py-1.5 pl-8 pr-3 text-xs outline-none focus:border-primary"
+                                    />
+                                </div>
+                                {allCountries.length > 12 && !countryQuery && (
+                                    <button
+                                        onClick={() => setShowAllCountries((v) => !v)}
+                                        className="rounded-full border border-white/10 px-3 py-1.5 text-[11px] text-gray-400 hover:bg-white/5 hover:text-white transition whitespace-nowrap"
+                                    >
+                                        {showAllCountries ? 'Show less' : `Show all ${allCountries.length}`}
+                                    </button>
+                                )}
+                            </div>
+
+                            {visibleCountries.length === 0 ? (
+                                <Empty msg="No location data yet." />
+                            ) : (
+                                <div className="max-h-[340px] space-y-1.5 overflow-y-auto pr-1">
+                                    {visibleCountries.map((c) => (
+                                        <div key={c.country} className="flex items-center justify-between rounded-lg bg-[#0A0A0A] px-3 py-2">
+                                            <span className="flex items-center gap-2 text-sm truncate">
+                                                <span className="text-lg shrink-0">{flagEmoji(c.code)}</span>
+                                                <span className="truncate">{c.country}</span>
+                                            </span>
+                                            <span className="flex items-center gap-3 shrink-0 text-[11px] text-gray-500">
+                                                <span className="tabular-nums">
+                                                    {c.sessions} <span className="text-gray-600">ses</span>
+                                                </span>
+                                                <span className="tabular-nums font-semibold text-gray-300">
+                                                    {c.count}
+                                                </span>
+                                            </span>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </Card>
+
+                        <Card title="Devices">
+                            {summary.devices.length === 0 ? (
+                                <Empty msg="No data." />
+                            ) : (
+                                <ResponsiveContainer width="100%" height={340}>
+                                    <PieChart>
+                                        <Pie
+                                            data={summary.devices}
+                                            dataKey="value"
+                                            nameKey="name"
+                                            cx="50%"
+                                            cy="50%"
+                                            outerRadius={110}
+                                            innerRadius={55}
+                                            paddingAngle={2}
+                                            label={(entry: any) => `${entry.name} (${entry.value})`}
+                                            labelLine={false}
+                                        >
+                                            {summary.devices.map((_, i) => (
+                                                <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
+                                            ))}
+                                        </Pie>
+                                        <Tooltip contentStyle={{ background: '#0A0A0A', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, fontSize: 12 }} />
+                                    </PieChart>
+                                </ResponsiveContainer>
+                            )}
+                        </Card>
+                    </div>
+
+                    {/* Traffic over time */}
+                    <Card title="Traffic over time">
                         {summary.timeSeries.length === 0 ? (
                             <Empty msg="No page views in this range." />
                         ) : (
-                            <ResponsiveContainer width="100%" height={240}>
+                            <ResponsiveContainer width="100%" height={220}>
                                 <LineChart data={summary.timeSeries}>
                                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
                                     <XAxis dataKey="t" stroke="#6b7280" fontSize={11} />
@@ -1880,6 +2257,39 @@ function AnalyticsSection() {
                         )}
                     </Card>
 
+                    {/* Session list */}
+                    <div className="rounded-2xl border border-white/5 bg-[#141414]">
+                        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/5 px-4 py-3">
+                            <div className="flex items-center gap-2">
+                                <Users className="h-4 w-4 text-gray-500" />
+                                <h2 className="text-sm font-semibold">Sessions</h2>
+                                <span className="text-[11px] text-gray-500 tabular-nums">
+                                    {filteredSessions.length} of {sessions.length}
+                                </span>
+                            </div>
+                            <div className="relative w-full sm:w-64">
+                                <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-600" />
+                                <input
+                                    value={sessionQuery}
+                                    onChange={(e) => setSessionQuery(e.target.value)}
+                                    placeholder="Search sessions…"
+                                    className="w-full rounded-full border border-white/10 bg-[#0A0A0A] py-1.5 pl-8 pr-3 text-xs outline-none focus:border-primary"
+                                />
+                            </div>
+                        </div>
+
+                        {filteredSessions.length === 0 ? (
+                            <Empty msg="No sessions match." />
+                        ) : (
+                            <div className="max-h-[520px] divide-y divide-white/5 overflow-y-auto">
+                                {filteredSessions.slice(0, 200).map((s) => (
+                                    <SessionRow key={s.session_id} session={s} onClick={() => setSelectedSession(s)} />
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Secondary charts */}
                     <div className="grid gap-4 lg:grid-cols-2">
                         <Card title="Top pages">
                             {summary.topPages.length === 0 ? (
@@ -1897,28 +2307,18 @@ function AnalyticsSection() {
                             )}
                         </Card>
 
-                        <Card title="Devices">
-                            {summary.devices.length === 0 ? (
+                        <Card title="Browsers">
+                            {summary.browsers.length === 0 ? (
                                 <Empty msg="No data." />
                             ) : (
                                 <ResponsiveContainer width="100%" height={260}>
-                                    <PieChart>
-                                        <Pie
-                                            data={summary.devices}
-                                            dataKey="value"
-                                            nameKey="name"
-                                            cx="50%"
-                                            cy="50%"
-                                            outerRadius={90}
-                                            label={(entry: any) => `${entry.name} (${entry.value})`}
-                                            labelLine={false}
-                                        >
-                                            {summary.devices.map((_, i) => (
-                                                <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
-                                            ))}
-                                        </Pie>
+                                    <BarChart data={summary.browsers}>
+                                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                                        <XAxis dataKey="name" stroke="#6b7280" fontSize={11} />
+                                        <YAxis stroke="#6b7280" fontSize={11} allowDecimals={false} />
                                         <Tooltip contentStyle={{ background: '#0A0A0A', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, fontSize: 12 }} />
-                                    </PieChart>
+                                        <Bar dataKey="value" fill="#22c55e" radius={[4, 4, 0, 0]} />
+                                    </BarChart>
                                 </ResponsiveContainer>
                             )}
                         </Card>
@@ -1982,45 +2382,11 @@ function AnalyticsSection() {
                                 </div>
                             )}
                         </Card>
-
-                        <Card title="Top countries">
-                            {summary.topCountries.length === 0 ? (
-                                <Empty msg="No location data yet." />
-                            ) : (
-                                <div className="space-y-2">
-                                    {summary.topCountries.map((c) => (
-                                        <div key={c.country} className="flex items-center justify-between rounded-lg bg-[#0A0A0A] px-3 py-2">
-                                            <span className="flex items-center gap-2 text-sm">
-                                                <span className="text-lg">{flagEmoji(c.code)}</span>
-                                                {c.country}
-                                            </span>
-                                            <span className="text-xs font-semibold text-gray-400">{c.count}</span>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </Card>
-
-                        <Card title="Browsers">
-                            {summary.browsers.length === 0 ? (
-                                <Empty msg="No data." />
-                            ) : (
-                                <ResponsiveContainer width="100%" height={260}>
-                                    <BarChart data={summary.browsers}>
-                                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                                        <XAxis dataKey="name" stroke="#6b7280" fontSize={11} />
-                                        <YAxis stroke="#6b7280" fontSize={11} allowDecimals={false} />
-                                        <Tooltip contentStyle={{ background: '#0A0A0A', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, fontSize: 12 }} />
-                                        <Bar dataKey="value" fill="#22c55e" radius={[4, 4, 0, 0]} />
-                                    </BarChart>
-                                </ResponsiveContainer>
-                            )}
-                        </Card>
                     </div>
 
                     <Card title="Error categories">
                         {summary.errorGroups.length === 0 ? (
-                            <Empty msg="No errors recorded. 🎉" />
+                            <Empty msg="No errors recorded." />
                         ) : (
                             <div className="space-y-2">
                                 {summary.errorGroups.map((g) => (
@@ -2116,6 +2482,368 @@ function AnalyticsSection() {
                     )}
                 </>
             )}
+
+            {selectedSession && (
+                <SessionDetailModal session={selectedSession} onClose={() => setSelectedSession(null)} />
+            )}
+        </div>
+    );
+}
+
+// ============================================================
+// SESSION MAP (Leaflet)
+// ============================================================
+function SessionMap({ sessions, onSelect }: { sessions: SessionSummary[]; onSelect: (s: SessionSummary) => void }) {
+    const containerRef = useRef<HTMLDivElement>(null);
+    const mapRef = useRef<L.Map | null>(null);
+    const layerRef = useRef<L.LayerGroup | null>(null);
+
+    // Init map once
+    useEffect(() => {
+        if (!containerRef.current || mapRef.current) return;
+
+        const map = L.map(containerRef.current, {
+            center: [20, 0],
+            zoom: 2,
+            worldCopyJump: true,
+            minZoom: 2,
+            maxZoom: 12,
+            zoomControl: true,
+            attributionControl: true,
+        });
+
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png?key=cb1_44ek_1_bf1cbc0ef2ac07ba7c106296', {
+            attribution: '&copy; OpenStreetMap &copy; CARTO',
+            subdomains: 'abcd',
+            maxZoom: 19,
+        }).addTo(map);
+
+        const layer = L.layerGroup().addTo(map);
+        layerRef.current = layer;
+        mapRef.current = map;
+
+        return () => {
+            map.remove();
+            mapRef.current = null;
+            layerRef.current = null;
+        };
+    }, []);
+
+    // Draw markers whenever sessions change
+    useEffect(() => {
+        const layer = layerRef.current;
+        if (!layer) return;
+        layer.clearLayers();
+
+        for (const s of sessions) {
+            if (s.latitude == null || s.longitude == null) continue;
+
+            const isLive = s.is_live;
+            const hasErrors = s.has_errors;
+            const color = hasErrors ? '#ef4444' : isLive ? '#22c55e' : '#1E90FF';
+
+            const radius = isLive ? 7 : 5;
+            const weight = isLive ? 2 : 1;
+            const fillOpacity = isLive ? 0.85 : 0.7;
+
+            const marker = L.circleMarker([s.latitude, s.longitude], {
+                radius,
+                color,
+                weight,
+                fillColor: color,
+                fillOpacity,
+                className: isLive ? 'ctr-live-marker' : undefined,
+            });
+
+            marker.on('click', () => onSelect(s));
+            marker.addTo(layer);
+        }
+    }, [sessions, onSelect]);
+
+    return (
+        <>
+            <style>{`
+                .ctr-live-marker {
+                    animation: an-pulse-ring 1.8s ease-out infinite;
+                    transform-origin: center;
+                    transform-box: fill-box;
+                }
+            `}</style>
+            <div
+                ref={containerRef}
+                style={{ height: 380, width: '100%' }}
+                className="relative"
+            />
+        </>
+    );
+}
+
+function LegendDot({ color, label, pulse }: { color: string; label: string; pulse?: boolean }) {
+    return (
+        <span className="inline-flex items-center gap-1.5">
+            <span
+                className={cn("inline-block h-2.5 w-2.5 rounded-full", pulse && "animate-pulse")}
+                style={{ background: color }}
+            />
+            <span>{label}</span>
+        </span>
+    );
+}
+
+// ============================================================
+// SESSION ROW + DETAIL MODAL
+// ============================================================
+function SessionRow({ session, onClick }: { session: SessionSummary; onClick: () => void }) {
+    const live = session.is_live;
+    const hasErrors = session.has_errors;
+
+    const dotColor = hasErrors ? '#ef4444' : live ? '#22c55e' : '#1E90FF';
+
+    return (
+        <button
+            onClick={onClick}
+            className="flex w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-white/[0.03]"
+        >
+            <span className="relative flex-shrink-0">
+                <span
+                    className={cn("block h-2.5 w-2.5 rounded-full", live && "animate-pulse")}
+                    style={{ background: dotColor }}
+                />
+            </span>
+            <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                    <span className="font-mono text-[11px] text-gray-500 truncate max-w-[140px]">
+                        {session.session_id.slice(0, 12)}…
+                    </span>
+                    {session.user_id ? (
+                        <span className="flex items-center gap-1 text-[11px] text-gray-400">
+                            <User className="h-3 w-3" />
+                            {session.user_id.slice(0, 12)}…
+                        </span>
+                    ) : (
+                        <span className="text-[11px] text-gray-600">anonymous</span>
+                    )}
+                    {session.country && (
+                        <span className="flex items-center gap-1 text-[11px] text-gray-400 truncate">
+                            <span>{flagEmoji(session.country_code)}</span>
+                            <span className="truncate">{session.city || session.country}</span>
+                        </span>
+                    )}
+                    <span className="flex items-center gap-1 text-[11px] text-gray-500">
+                        <MonitorSmartphone className="h-3 w-3" />
+                        {session.device_type}
+                    </span>
+                    <span className="text-[11px] text-gray-500">
+                        {session.os} · {session.browser}
+                    </span>
+                </div>
+                <div className="mt-1 flex flex-wrap items-center gap-3 text-[11px] text-gray-500">
+                    <span className="tabular-nums">
+                        {session.page_view_count} <span className="text-gray-600">views</span>
+                    </span>
+                    <span className="tabular-nums">
+                        {formatDurationMs(session.duration_ms)}
+                    </span>
+                    {hasErrors && (
+                        <span className="text-red-400">
+                            {session.error_count} error{session.error_count > 1 ? 's' : ''}
+                        </span>
+                    )}
+                </div>
+            </div>
+            <div className="flex-shrink-0 text-right">
+                <p className="text-[11px] text-gray-500">{relativeTime(session.last_seen)}</p>
+                {live && (
+                    <p className="mt-0.5 text-[10px] font-semibold text-green-400">LIVE</p>
+                )}
+            </div>
+        </button>
+    );
+}
+
+function SessionDetailModal({ session, onClose }: { session: SessionSummary; onClose: () => void }) {
+    useEffect(() => {
+        const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    }, [onClose]);
+
+    return (
+        <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
+            onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+        >
+            <div className="relative max-h-[88vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-white/10 bg-[#141414] shadow-2xl">
+                <div className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-white/5 bg-[#141414] px-6 py-5">
+                    <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                            <span
+                                className={cn("inline-block h-2.5 w-2.5 rounded-full", session.is_live && "animate-pulse")}
+                                style={{
+                                    background: session.has_errors ? '#ef4444' : session.is_live ? '#22c55e' : '#1E90FF',
+                                }}
+                            />
+                            <h2 className="cr-display text-lg font-bold">Session</h2>
+                            {session.is_live && (
+                                <span className="rounded-full bg-green-500/10 px-2 py-0.5 text-[10px] font-bold text-green-400">
+                                    LIVE
+                                </span>
+                            )}
+                            {session.has_errors && (
+                                <span className="rounded-full bg-red-500/10 px-2 py-0.5 text-[10px] font-bold text-red-400">
+                                    {session.error_count} ERROR{session.error_count > 1 ? 'S' : ''}
+                                </span>
+                            )}
+                        </div>
+                        <p className="mt-1 font-mono text-xs text-gray-500 break-all">{session.session_id}</p>
+                    </div>
+                    <button
+                        onClick={onClose}
+                        className="rounded-full p-1.5 text-gray-400 transition hover:bg-white/5 hover:text-white"
+                    >
+                        <X className="h-5 w-5" />
+                    </button>
+                </div>
+
+                <div className="space-y-5 px-6 py-5">
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                        <Stat label="Views" value={String(session.page_view_count)} />
+                        <Stat label="Duration" value={formatDurationMs(session.duration_ms)} />
+                        <Stat label="Errors" value={String(session.error_count)} tone={session.error_count > 0 ? 'red' : 'default'} />
+                        <Stat
+                            label="Status"
+                            value={session.is_live ? 'Live now' : 'Ended'}
+                            tone={session.is_live ? 'green' : 'default'}
+                        />
+                    </div>
+
+                    <section>
+                        <div className="mb-2 flex items-center gap-2 text-gray-400">
+                            <MapPin className="h-3.5 w-3.5" />
+                            <h3 className="text-xs font-semibold uppercase tracking-wide">Location</h3>
+                        </div>
+                        <div className="rounded-xl border border-white/5 bg-[#0A0A0A] p-4">
+                            {session.country ? (
+                                <div className="space-y-1 text-sm">
+                                    <p className="flex items-center gap-2">
+                                        <span className="text-lg">{flagEmoji(session.country_code)}</span>
+                                        <span className="font-medium">{session.country}</span>
+                                    </p>
+                                    {session.region && (
+                                        <p className="text-xs text-gray-500">{session.region}{session.city ? ` · ${session.city}` : ''}</p>
+                                    )}
+                                    {session.latitude != null && session.longitude != null && (
+                                        <p className="mt-2 font-mono text-[11px] text-gray-600">
+                                            {session.latitude.toFixed(4)}, {session.longitude.toFixed(4)}
+                                        </p>
+                                    )}
+                                </div>
+                            ) : (
+                                <p className="text-sm text-gray-500">No location recorded</p>
+                            )}
+                        </div>
+                    </section>
+
+                    <section>
+                        <div className="mb-2 flex items-center gap-2 text-gray-400">
+                            <MonitorSmartphone className="h-3.5 w-3.5" />
+                            <h3 className="text-xs font-semibold uppercase tracking-wide">Device</h3>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                            <Stat label="Device" value={session.device_type} />
+                            <Stat label="OS" value={session.os} />
+                            <Stat label="Browser" value={session.browser} />
+                            <Stat
+                                label="Screen"
+                                value={session.screen_width && session.screen_height
+                                    ? `${session.screen_width}×${session.screen_height}`
+                                    : '—'}
+                            />
+                        </div>
+                    </section>
+
+                    <section>
+                        <div className="mb-2 flex items-center gap-2 text-gray-400">
+                            <User className="h-3.5 w-3.5" />
+                            <h3 className="text-xs font-semibold uppercase tracking-wide">Identity</h3>
+                        </div>
+                        <div className="rounded-xl border border-white/5 bg-[#0A0A0A] p-4 space-y-1.5 text-sm">
+                            <div className="flex justify-between gap-3">
+                                <span className="text-gray-500">User ID</span>
+                                <span className="font-mono text-xs text-gray-300 truncate max-w-[300px]">
+                                    {session.user_id || 'anonymous'}
+                                </span>
+                            </div>
+                            {session.referrer && (
+                                <div className="flex justify-between gap-3">
+                                    <span className="text-gray-500">Referrer</span>
+                                    <span className="text-xs text-gray-300 truncate max-w-[300px]">
+                                        {session.referrer}
+                                    </span>
+                                </div>
+                            )}
+                        </div>
+                    </section>
+
+                    <section>
+                        <div className="mb-2 flex items-center gap-2 text-gray-400">
+                            <Clock className="h-3.5 w-3.5" />
+                            <h3 className="text-xs font-semibold uppercase tracking-wide">Timeline</h3>
+                        </div>
+                        <div className="rounded-xl border border-white/5 bg-[#0A0A0A] p-4 space-y-2 text-sm">
+                            <div className="flex justify-between">
+                                <span className="text-gray-500">First seen</span>
+                                <span className="text-gray-300">{new Date(session.first_seen).toLocaleString()}</span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span className="text-gray-500">Last seen</span>
+                                <span className="text-gray-300">{new Date(session.last_seen).toLocaleString()}</span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span className="text-gray-500">Duration</span>
+                                <span className="text-gray-300">{formatDurationMs(session.duration_ms)}</span>
+                            </div>
+                        </div>
+                    </section>
+
+                    {session.pages.length > 0 && (
+                        <section>
+                            <div className="mb-2 flex items-center gap-2 text-gray-400">
+                                <FileText className="h-3.5 w-3.5" />
+                                <h3 className="text-xs font-semibold uppercase tracking-wide">Pages visited</h3>
+                            </div>
+                            <div className="flex flex-wrap gap-1.5">
+                                {session.pages.map((p) => (
+                                    <span key={p} className="rounded-full bg-white/5 px-2.5 py-1 text-[11px] text-gray-300">
+                                        {p}
+                                    </span>
+                                ))}
+                            </div>
+                        </section>
+                    )}
+
+                    {session.last_error && (
+                        <section>
+                            <div className="mb-2 flex items-center gap-2 text-gray-400">
+                                <AlertTriangle className="h-3.5 w-3.5" />
+                                <h3 className="text-xs font-semibold uppercase tracking-wide">Last error</h3>
+                            </div>
+                            <div className="rounded-xl border border-red-500/20 bg-red-500/[0.06] p-4">
+                                <p className="text-sm text-red-200 break-words">{session.last_error}</p>
+                            </div>
+                        </section>
+                    )}
+                </div>
+
+                <div className="sticky bottom-0 border-t border-white/5 bg-[#141414] px-6 py-4">
+                    <button
+                        onClick={onClose}
+                        className="w-full rounded-full border border-white/10 bg-transparent py-2.5 text-sm font-medium text-gray-300 transition hover:bg-white/5"
+                    >
+                        Close
+                    </button>
+                </div>
+            </div>
         </div>
     );
 }
@@ -2157,13 +2885,29 @@ function Empty({ msg }: { msg: string }) {
     return <p className="py-8 text-center text-sm text-gray-500">{msg}</p>;
 }
 
+function Stat({ label, value, tone = 'default' }: { label: string; value: string; tone?: 'default' | 'green' | 'red' }) {
+    const valueClass = {
+        default: 'text-white',
+        green: 'text-green-400',
+        red: 'text-red-400',
+    }[tone];
+
+    return (
+        <div className="rounded-xl border border-white/5 bg-[#0A0A0A] p-3">
+            <p className="text-[10px] uppercase tracking-wide text-gray-500">{label}</p>
+            <p className={cn("mt-1 text-sm font-semibold truncate", valueClass)}>{value}</p>
+        </div>
+    );
+}
+
 function KpiCard({
-    label, value, icon, tone,
+    label, value, icon, tone, pulse,
 }: {
     label: string;
     value: number;
     icon: React.ReactNode;
     tone: 'blue' | 'green' | 'red' | 'yellow' | 'purple' | 'gray';
+    pulse?: boolean;
 }) {
     const toneClass = {
         blue: 'text-blue-400',
@@ -2175,12 +2919,43 @@ function KpiCard({
     }[tone];
 
     return (
-        <div className="rounded-2xl border border-white/5 bg-[#141414] p-4">
+        <div className={cn(
+            "rounded-2xl border bg-[#141414] p-4 transition",
+            pulse ? "border-green-500/20" : "border-white/5",
+        )}>
             <div className={cn("flex items-center gap-2", toneClass)}>
+                {pulse && (
+                    <span className="relative flex h-2 w-2">
+                        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-75" />
+                        <span className="relative inline-flex h-2 w-2 rounded-full bg-green-400" />
+                    </span>
+                )}
                 {icon}
                 <span className="text-xs uppercase tracking-wide">{label}</span>
             </div>
-            <p className="mt-2 text-2xl font-bold">{value.toLocaleString()}</p>
+            <p className="mt-2 text-2xl font-bold tabular-nums">{value.toLocaleString()}</p>
+        </div>
+    );
+}
+
+function MiniStat({
+    label, value, icon, tone = 'default',
+}: {
+    label: string;
+    value: string;
+    icon: React.ReactNode;
+    tone?: 'default' | 'warn';
+}) {
+    return (
+        <div className="rounded-xl border border-white/5 bg-[#141414] px-3 py-2.5">
+            <div className={cn(
+                "flex items-center gap-1.5 text-[10px] uppercase tracking-wide",
+                tone === 'warn' ? "text-yellow-400" : "text-gray-500",
+            )}>
+                {icon}
+                {label}
+            </div>
+            <p className="mt-1 text-lg font-semibold tabular-nums truncate">{value}</p>
         </div>
     );
 }

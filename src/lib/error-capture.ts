@@ -1,81 +1,100 @@
-// Captures the original Error out-of-band so server.ts can recover the stack
-// when h3 has already swallowed the throw into a generic 500 Response.
+import { supabase } from '@/lib/supabaseClient';
+import { getCachedLocation } from '@/hooks/useLocationCapture';
 
-let lastCapturedError: { error: unknown; at: number } | undefined;
-const TTL_MS = 5_000;
+const SESSION_KEY = 'ctr_session_id';
 
-function record(error: unknown) {
-  lastCapturedError = { error, at: Date.now() };
-}
-
-// h3's HTTPError serializes to {"status":500,"unhandled":true,"message":"HTTPError"} —
-// no stack, no cause — so a plain console.error(error) reaches the log pipeline with
-// the failure detail stripped. Expand Error-like args into a string that keeps the
-// message, stack, and the full cause chain.
-const CAUSE_DEPTH_LIMIT = 5;
-const DESCRIPTION_LENGTH_LIMIT = 8_000;
-
-export function describeError(error: unknown): string {
-  const parts: string[] = [];
-  let current: unknown = error;
-  for (let depth = 0; depth < CAUSE_DEPTH_LIMIT && current != null; depth++) {
-    if (!(current instanceof Error)) {
-      parts.push(typeof current === "string" ? current : safeStringify(current));
-      break;
-    }
-    const label = depth === 0 ? "" : "caused by: ";
-    const status = describeStatus(current);
-    parts.push(`${label}${current.stack ?? `${current.name}: ${current.message}`}${status}`);
-    current = current.cause;
+function getSessionId(): string {
+  let sessionId = localStorage.getItem(SESSION_KEY);
+  if (!sessionId) {
+    sessionId = crypto.randomUUID();
+    localStorage.setItem(SESSION_KEY, sessionId);
   }
-  return parts.join("\n").slice(0, DESCRIPTION_LENGTH_LIMIT);
+  return sessionId;
 }
 
-function describeStatus(error: Error): string {
-  const { status, statusCode } = error as { status?: unknown; statusCode?: unknown };
-  const value = status ?? statusCode;
-  return typeof value === "number" ? ` (status ${value})` : "";
+function parseUserAgent(ua: string) {
+  const browser = ua.includes('Firefox') ? 'Firefox'
+    : ua.includes('Edg') ? 'Edge'
+      : ua.includes('Chrome') ? 'Chrome'
+        : ua.includes('Safari') ? 'Safari'
+          : 'Other';
+
+  const os = ua.includes('Windows') ? 'Windows'
+    : ua.includes('Mac') ? 'macOS'
+      : ua.includes('Android') ? 'Android'
+        : ua.includes('iPhone') || ua.includes('iPad') ? 'iOS'
+          : ua.includes('Linux') ? 'Linux'
+            : 'Other';
+
+  const deviceType = /Mobi|Android/i.test(ua) ? 'mobile'
+    : /Tablet|iPad/i.test(ua) ? 'tablet'
+      : 'desktop';
+
+  return { browser, os, deviceType };
 }
 
-function safeStringify(value: unknown): string {
-  try {
-    return JSON.stringify(value) ?? String(value);
-  } catch {
-    return String(value);
-  }
-}
+export function trackPageView(path: string, userId?: string | null) {
+  const ua = navigator.userAgent;
+  const { browser, os, deviceType } = parseUserAgent(ua);
+  const loc = getCachedLocation();
 
-function isErrorLike(value: unknown): value is Error {
-  return value instanceof Error;
-}
+  const payload = {
+    event_type: 'page_view',
+    page_path: path,
+    user_id: userId || null,
+    session_id: getSessionId(),
+    user_agent: ua,
+    browser,
+    os,
+    device_type: deviceType,
+    screen_width: window.screen.width,
+    screen_height: window.screen.height,
+    referrer: document.referrer || null,
+    // Location — null until ipwho.is resolves (first ~1s of a fresh session)
+    country: loc.country,
+    country_code: loc.country_code,
+    city: loc.city,
+    region: loc.region,
+    latitude: loc.latitude,
+    longitude: loc.longitude,
+  };
 
-// Wrap console.error so errors logged by any layer — including h3's internal
-// unhandled-error logging, which this file cannot hook directly — are both
-// recorded for consumeLastCapturedError and expanded before serialization.
-const originalConsoleError = console.error.bind(console);
-console.error = (...args: unknown[]) => {
-  const expanded = args.map((arg) => {
-    if (!isErrorLike(arg)) return arg;
-    record(arg);
-    return describeError(arg);
-  });
-  originalConsoleError(...expanded);
-};
-
-if (typeof globalThis.addEventListener === "function") {
-  globalThis.addEventListener("error", (event) => record((event as ErrorEvent).error ?? event));
-  globalThis.addEventListener("unhandledrejection", (event) =>
-    record((event as PromiseRejectionEvent).reason),
+  supabase.from('analytics_events').insert(payload).then(
+    () => { },
+    () => { } // silently fail
   );
 }
 
-export function consumeLastCapturedError(): unknown {
-  if (!lastCapturedError) return undefined;
-  if (Date.now() - lastCapturedError.at > TTL_MS) {
-    lastCapturedError = undefined;
-    return undefined;
-  }
-  const { error } = lastCapturedError;
-  lastCapturedError = undefined;
-  return error;
+export function trackError(message: string, stack?: string, userId?: string | null) {
+  const ua = navigator.userAgent;
+  const { browser, os, deviceType } = parseUserAgent(ua);
+  const loc = getCachedLocation();
+
+  const payload = {
+    event_type: 'error',
+    page_path: window.location.pathname,
+    user_id: userId || null,
+    session_id: getSessionId(),
+    user_agent: ua,
+    browser,
+    os,
+    device_type: deviceType,
+    screen_width: window.screen.width,
+    screen_height: window.screen.height,
+    referrer: document.referrer || null,
+    error_message: message,
+    error_stack: stack || null,
+    // Location
+    country: loc.country,
+    country_code: loc.country_code,
+    city: loc.city,
+    region: loc.region,
+    latitude: loc.latitude,
+    longitude: loc.longitude,
+  };
+
+  supabase.from('analytics_events').insert(payload).then(
+    () => { },
+    () => { }
+  );
 }

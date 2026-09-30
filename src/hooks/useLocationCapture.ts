@@ -9,6 +9,8 @@ export interface UserLocation {
     country_code: string | null;
     city: string | null;
     region: string | null;
+    latitude: number | null;
+    longitude: number | null;
 }
 
 const EMPTY_LOCATION: UserLocation = {
@@ -16,6 +18,8 @@ const EMPTY_LOCATION: UserLocation = {
     country_code: null,
     city: null,
     region: null,
+    latitude: null,
+    longitude: null,
 };
 
 function readCache(): UserLocation | null {
@@ -47,7 +51,7 @@ export function useLocationCapture(): UserLocation | null {
     const [location, setLocation] = useState<UserLocation | null>(() => readCache());
 
     useEffect(() => {
-        if (location) return; // already cached
+        if (location && location.latitude !== null) return; // already cached with coords
 
         let cancelled = false;
 
@@ -63,6 +67,8 @@ export function useLocationCapture(): UserLocation | null {
                     country_code: data.country_code ?? null,
                     city: data.city ?? null,
                     region: data.region ?? null,
+                    latitude: typeof data.latitude === 'number' ? data.latitude : null,
+                    longitude: typeof data.longitude === 'number' ? data.longitude : null,
                 };
                 if (!cancelled) {
                     setLocation(loc);
