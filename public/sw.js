@@ -126,7 +126,8 @@ self.addEventListener('fetch', (event) => {
 // PUSH NOTIFICATIONS
 // ============================================================
 
-const DEFAULT_ICON = 'https://res.cloudinary.com/ctr-cloud/image/upload/v1790499503/w6vzv9xag033geouilxo.png';
+const DEFAULT_ICON = 'https://res.cloudinary.com/ctr-cloud/image/upload/v1790850806/tvpz7ushslf9cw9ivwlu.png';
+const DEFAULT_BADGE = 'https://res.cloudinary.com/ctr-cloud/image/upload/v1790850805/mljpl4ynuscsoxqbnj0y.png';
 
 // ---------- Push received ----------
 self.addEventListener('push', (event) => {
@@ -142,7 +143,7 @@ self.addEventListener('push', (event) => {
     const options = {
         body: data.body || 'You have a new notification',
         icon: data.icon || DEFAULT_ICON,
-        badge: data.badge || DEFAULT_ICON,
+        badge: data.badge || DEFAULT_BADGE,
         tag: data.tag || 'ctr-notification',
         data: {
             url: data.url || '/',

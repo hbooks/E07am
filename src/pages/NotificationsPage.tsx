@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, BellOff, BellRing, CheckCheck, RefreshCw, AlertCircle, LogIn } from 'lucide-react';
+import { useNavigate, Link } from 'react-router-dom';
+import { ArrowLeft, BellOff, BellRing, CheckCheck, RefreshCw, AlertCircle, LogIn, BellPlus, ChevronRight } from 'lucide-react';
 import { useKindeAuth } from '@kinde-oss/kinde-auth-react';
 import { NotificationRow } from '@/components/NotificationBell';
 import { toast } from 'sonner';
@@ -44,6 +44,28 @@ function groupByDate(notifs: NotifItem[]): NotifGroup[] {
   ].filter((g) => g.items.length > 0);
 }
 
+/**
+ * Returns true if the user could benefit from enabling push notifications.
+ * False when: browser doesn't support them, permission is denied, or the
+ * user has already enabled them via Settings.
+ */
+function shouldShowPushHint(): boolean {
+  if (typeof window === 'undefined') return false;
+  if (!('Notification' in window)) return false;
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return false;
+  if (Notification.permission === 'denied') return false;
+  if (Notification.permission === 'granted') {
+    try {
+      const stored = localStorage.getItem('userSettings');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed.pushNotifications === true) return false;
+      }
+    } catch { /* ignore */ }
+  }
+  return true;
+}
+
 function NotificationsPage() {
   const navigate = useNavigate();
   const { user, isLoading: authLoading, login } = useKindeAuth();
@@ -51,6 +73,7 @@ function NotificationsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [showPushHint, setShowPushHint] = useState(false);
 
   const fetchNotifications = useCallback(async () => {
     if (!user) return;
@@ -74,6 +97,31 @@ function NotificationsPage() {
   useEffect(() => {
     if (user) fetchNotifications();
   }, [user, fetchNotifications]);
+
+  // Re-evaluate push hint on mount, when user changes, and when tab regains focus
+  useEffect(() => {
+    if (!user) {
+      setShowPushHint(false);
+      return;
+    }
+    setShowPushHint(shouldShowPushHint());
+
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        setShowPushHint(shouldShowPushHint());
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => document.removeEventListener('visibilitychange', onVisibility);
+  }, [user]);
+
+  // Listen for push change events from Settings (same tab only)
+  useEffect(() => {
+    if (!user) return;
+    const onPushChanged = () => setShowPushHint(shouldShowPushHint());
+    window.addEventListener('ctr:push:changed', onPushChanged);
+    return () => window.removeEventListener('ctr:push:changed', onPushChanged);
+  }, [user]);
 
   useEffect(() => {
     if (!user) return;
@@ -132,36 +180,36 @@ function NotificationsPage() {
   return (
     <div className="min-h-screen bg-[#08090b] text-white">
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&family=Inter:wght@400;500;600&display=swap');
-        .np-display { font-family: 'Rajdhani', sans-serif; letter-spacing: 0.01em; }
-        .np-body { font-family: 'Inter', sans-serif; }
+                @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&family=Inter:wght@400;500;600&display=swap');
+                .np-display { font-family: 'Rajdhani', sans-serif; letter-spacing: 0.01em; }
+                .np-body { font-family: 'Inter', sans-serif; }
 
-        @keyframes np-rise {
-          from { opacity: 0; transform: translateY(6px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        .np-rise { animation: np-rise 0.32s cubic-bezier(0.16, 1, 0.3, 1) both; }
+                @keyframes np-rise {
+                    from { opacity: 0; transform: translateY(6px); }
+                    to { opacity: 1; transform: translateY(0); }
+                }
+                .np-rise { animation: np-rise 0.32s cubic-bezier(0.16, 1, 0.3, 1) both; }
 
-        @keyframes np-shimmer {
-          from { background-position: -300px 0; }
-          to { background-position: 300px 0; }
-        }
-        .np-shimmer {
-          background-image: linear-gradient(
-            100deg,
-            #1a1a1c 30%,
-            #232326 45%,
-            #1a1a1c 60%
-          );
-          background-size: 300px 100%;
-          animation: np-shimmer 1.6s ease-in-out infinite;
-        }
+                @keyframes np-shimmer {
+                    from { background-position: -300px 0; }
+                    to { background-position: 300px 0; }
+                }
+                .np-shimmer {
+                    background-image: linear-gradient(
+                        100deg,
+                        #1a1a1c 30%,
+                        #232326 45%,
+                        #1a1a1c 60%
+                    );
+                    background-size: 300px 100%;
+                    animation: np-shimmer 1.6s ease-in-out infinite;
+                }
 
-        @media (prefers-reduced-motion: reduce) {
-          .np-rise { animation: none; }
-          .np-shimmer { animation: none; }
-        }
-      `}</style>
+                @media (prefers-reduced-motion: reduce) {
+                    .np-rise { animation: none; }
+                    .np-shimmer { animation: none; }
+                }
+            `}</style>
 
       <div className="mx-auto w-full max-w-xl px-4 pb-24 np-body">
         {/* Header */}
@@ -195,6 +243,11 @@ function NotificationsPage() {
             <RefreshCw className={cn('h-4 w-4', loading && 'animate-spin')} />
           </button>
         </header>
+
+        {/* Push notification hint — only for signed-in users who haven't enabled push */}
+        {user && showPushHint && (
+          <PushHintBanner />
+        )}
 
         {/* Content */}
         {authLoading ? (
@@ -285,6 +338,27 @@ function NotificationsPage() {
         )}
       </div>
     </div>
+  );
+}
+
+/* ---------- Push hint banner ---------- */
+function PushHintBanner() {
+  return (
+    <Link
+      to="/settings"
+      className="np-rise mb-4 flex items-center gap-3 rounded-xl border border-white/[0.06] bg-[#0f0f11] px-3.5 py-3 transition-colors hover:border-white/[0.12] hover:bg-white/[0.02]"
+    >
+      <BellPlus className="h-4 w-4 shrink-0 text-gray-500" strokeWidth={2} />
+      <div className="min-w-0 flex-1">
+        <p className="text-[13px] font-medium text-gray-200">
+          Turn on push notifications
+        </p>
+        <p className="mt-0.5 text-[11.5px] leading-relaxed text-gray-500">
+          Get alerted when your room is claimed even when the app isn't open. Right now you'll receive in-app notifications only.
+        </p>
+      </div>
+      <ChevronRight className="h-4 w-4 shrink-0 text-gray-600" />
+    </Link>
   );
 }
 

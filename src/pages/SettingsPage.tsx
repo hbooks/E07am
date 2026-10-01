@@ -4,7 +4,7 @@ import { toast } from 'sonner';
 import {
     ChevronLeft, ChevronRight, ChevronDown, Moon, Sun, Bell, Eye, Shield, FileText,
     Mail, Copy, X, AlertTriangle, Send, UserCog, Loader2, CheckCircle, LogOut,
- Camera, Music2,
+    Camera, Music2,
 } from 'lucide-react';
 import { useKindeAuth } from '@kinde-oss/kinde-auth-react';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -24,7 +24,7 @@ const FUNCTIONS_URL = import.meta.env.VITE_SUPABASE_FUNCTIONS_URL as string;
 
 const defaultSettings = {
     darkMode: false,
-    pushNotifications: true,
+    pushNotifications: false,  // new users opt in explicitly
     emailNotifications: false,
     showOnlineStatus: true,
 };
@@ -67,8 +67,7 @@ type RequestType = 'report_abuse' | 'request_changes' | 'delete_account';
 export default function SettingsPage() {
     const navigate = useNavigate();
     useIsMobile();
-    const { user, getToken } = useKindeAuth();
-    const { logout } = useKindeAuth();
+    const { user, getToken, logout } = useKindeAuth();
 
     const [settings, setSettings] = useState<SettingsType>(() => {
         try {
@@ -92,9 +91,87 @@ export default function SettingsPage() {
     const [contactModalOpen, setContactModalOpen] = useState(false);
     const [aboutOpen, setAboutOpen] = useState(false);
 
+    // ── Music state ─────────────────────────────────────
+    const [musicEnabled, setMusicEnabled] = useState<boolean>(() => {
+        try {
+            return localStorage.getItem('ctr_music_enabled') !== '0';
+        } catch {
+            return true;
+        }
+    });
+
+    const [musicVolume, setMusicVolume] = useState<number>(() => {
+        try {
+            const v = localStorage.getItem('ctr_music_volume');
+            return v !== null ? Number(v) : 25;
+        } catch {
+            return 25;
+        }
+    });
+
+    const handleMusicToggle = (checked: boolean) => {
+        setMusicEnabled(checked);
+        try {
+            localStorage.setItem('ctr_music_enabled', checked ? '1' : '0');
+        } catch { /* ignore */ }
+        window.dispatchEvent(
+            new CustomEvent('ctr:music:enabled', { detail: { enabled: checked } })
+        );
+        toast.success(checked ? 'Background music on' : 'Background music off');
+    };
+
+    const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const v = Number(e.target.value);
+        setMusicVolume(v);
+        try {
+            localStorage.setItem('ctr_music_volume', String(v));
+        } catch { /* ignore */ }
+        window.dispatchEvent(
+            new CustomEvent('ctr:music:volume', { detail: { volume: v / 100 } })
+        );
+    };
+
     useEffect(() => {
         document.documentElement.classList.toggle('dark', settings.darkMode);
     }, [settings.darkMode]);
+
+    // ── Reconcile push setting with browser permission on mount ──
+    useEffect(() => {
+        const checkPushState = () => {
+            if (typeof window === 'undefined' || !('Notification' in window)) {
+                if (settings.pushNotifications) {
+                    const next = { ...settings, pushNotifications: false };
+                    setSettings(next);
+                    try { localStorage.setItem('userSettings', JSON.stringify(next)); } catch { /* ignore */ }
+                }
+                return;
+            }
+            if (Notification.permission !== 'granted' && settings.pushNotifications) {
+                const next = { ...settings, pushNotifications: false };
+                setSettings(next);
+                try { localStorage.setItem('userSettings', JSON.stringify(next)); } catch { /* ignore */ }
+            }
+        };
+
+        checkPushState();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    // ── Re-check push state when the tab regains focus ──
+    useEffect(() => {
+        const onVisibilityChange = () => {
+            if (document.visibilityState !== 'visible') return;
+            if (typeof window === 'undefined' || !('Notification' in window)) return;
+            if (Notification.permission !== 'granted' && settings.pushNotifications) {
+                const next = { ...settings, pushNotifications: false };
+                setSettings(next);
+                try { localStorage.setItem('userSettings', JSON.stringify(next)); } catch { /* ignore */ }
+            }
+        };
+        document.addEventListener('visibilitychange', onVisibilityChange);
+        return () => document.removeEventListener('visibilitychange', onVisibilityChange);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [settings.pushNotifications]);
 
     useEffect(() => {
         if (!user?.id) {
@@ -162,8 +239,6 @@ export default function SettingsPage() {
         toast.success(SETTING_LABELS[key](value));
     };
 
-    const { user: currentUser } = useKindeAuth(); // if not already destructured
-
     const handlePushToggle = async (checked: boolean) => {
         if (checked && typeof window !== 'undefined' && 'Notification' in window) {
             if (Notification.permission === 'denied') {
@@ -185,60 +260,25 @@ export default function SettingsPage() {
         updateSetting('pushNotifications', checked);
 
         // Subscribe / unsubscribe in the background
-        if (currentUser?.id) {
+        if (user?.id) {
             try {
                 if (checked) {
-                    const ok = await subscribeToPush(currentUser.id, getToken);
+                    const ok = await subscribeToPush(user.id, getToken);
                     if (!ok) {
                         toast.error('Could not enable push notifications. Try again.');
                         updateSetting('pushNotifications', false);
+                        window.dispatchEvent(new CustomEvent('ctr:push:changed', { detail: { enabled: false } }));
+                    } else {
+                        window.dispatchEvent(new CustomEvent('ctr:push:changed', { detail: { enabled: true } }));
                     }
                 } else {
-                    await unsubscribeFromPush(currentUser.id, getToken);
+                    await unsubscribeFromPush(user.id, getToken);
+                    window.dispatchEvent(new CustomEvent('ctr:push:changed', { detail: { enabled: false } }));
                 }
             } catch (err) {
                 console.error('Push toggle error:', err);
             }
         }
-    };
-    
-    const [musicEnabled, setMusicEnabled] = useState<boolean>(() => {
-        try {
-            return localStorage.getItem('ctr_music_enabled') !== '0';
-        } catch {
-            return true;
-        }
-    });
-
-    const [musicVolume, setMusicVolume] = useState<number>(() => {
-        try {
-            const v = localStorage.getItem('ctr_music_volume');
-            return v !== null ? Number(v) : 25;
-        } catch {
-            return 25;
-        }
-    });
-
-    const handleMusicToggle = (checked: boolean) => {
-        setMusicEnabled(checked);
-        try {
-            localStorage.setItem('ctr_music_enabled', checked ? '1' : '0');
-        } catch { /* ignore */ }
-        window.dispatchEvent(
-            new CustomEvent('ctr:music:enabled', { detail: { enabled: checked } })
-        );
-        toast.success(checked ? 'Background music on' : 'Background music off');
-    };
-
-    const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const v = Number(e.target.value);
-        setMusicVolume(v);
-        try {
-            localStorage.setItem('ctr_music_volume', String(v));
-        } catch { /* ignore */ }
-        window.dispatchEvent(
-            new CustomEvent('ctr:music:volume', { detail: { volume: v / 100 } })
-        );
     };
 
     const copyToClipboard = (text: string, label: string) => {
@@ -410,7 +450,6 @@ export default function SettingsPage() {
             `}</style>
 
             <div className="mx-auto w-full max-w-xl px-4 pb-24 pt-4 sp-body">
-                {/* Header */}
                 <header className="mb-6 flex items-center gap-3">
                     <button
                         onClick={() => navigate(-1)}
@@ -437,39 +476,6 @@ export default function SettingsPage() {
                         </div>
                     </div>
 
-                    {/* MUSIC */}
-                    <div>
-                        <p className="sp-label">Music</p>
-                        <div className="sp-group">
-                            <ToggleRow
-                                label="Background music"
-                                description="Ambient tracks while you browse lobbies and matches"
-                                checked={musicEnabled}
-                                onChange={handleMusicToggle}
-                            />
-                            {musicEnabled && (
-                                <div className="sp-row">
-                                    <div className="min-w-0 flex-1">
-                                        <p className="text-sm font-medium text-white">Volume</p>
-                                        <p className="mt-0.5 text-[12px] leading-relaxed text-gray-500">
-                                            Adjust the background music volume to your preference.
-                                        </p>
-                                    </div>
-                                    <input
-                                        type="range"
-                                        min={0}
-                                        max={100}
-                                        step={1}
-                                        value={musicVolume}
-                                        onChange={handleVolumeChange}
-                                        className="w-32 accent-[#1E90FF]"
-                                        aria-label="Music volume"
-                                    />
-                                </div>
-                            )}
-                        </div>
-                    </div>
-
                     {/* NOTIFICATIONS */}
                     <div>
                         <p className="sp-label">Notifications</p>
@@ -490,6 +496,39 @@ export default function SettingsPage() {
                                 checked={settings.emailNotifications}
                                 onChange={(checked) => updateSetting('emailNotifications', checked)}
                             />
+                        </div>
+                    </div>
+
+                    {/* MUSIC */}
+                    <div>
+                        <p className="sp-label">Music</p>
+                        <div className="sp-group">
+                            <ToggleRow
+                                label="Background music"
+                                description="Ambient tracks while you browse lobbies"
+                                checked={musicEnabled}
+                                onChange={handleMusicToggle}
+                            />
+                            {musicEnabled && (
+                                <div className="sp-row">
+                                    <div className="min-w-0 flex-1">
+                                        <p className="text-sm font-medium text-white">Volume</p>
+                                        <p className="mt-0.5 text-[12px] leading-relaxed text-gray-500">
+                                            How loud the music plays
+                                        </p>
+                                    </div>
+                                    <input
+                                        type="range"
+                                        min={0}
+                                        max={100}
+                                        step={1}
+                                        value={musicVolume}
+                                        onChange={handleVolumeChange}
+                                        className="w-32 accent-[#1E90FF]"
+                                        aria-label="Music volume"
+                                    />
+                                </div>
+                            )}
                         </div>
                     </div>
 
@@ -911,7 +950,6 @@ function AboutModal({
             aria-label="About Claim The Room"
         >
             <div className="w-full max-w-md overflow-hidden rounded-t-2xl border border-white/[0.08] bg-[#0f0f11] shadow-[0_24px_64px_-16px_rgba(0,0,0,0.9)] sm:rounded-2xl">
-                {/* Header */}
                 <div className="flex items-start justify-between gap-3 border-b border-white/[0.06] px-5 py-4">
                     <div className="flex min-w-0 items-center gap-3">
                         <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-white/[0.04]">
@@ -935,7 +973,6 @@ function AboutModal({
                     </button>
                 </div>
 
-                {/* Body */}
                 <div className="divide-y divide-white/[0.05]">
                     <AboutSection label="Brand">
                         <p className="text-[13px] leading-relaxed text-gray-300">
@@ -997,7 +1034,6 @@ function AboutModal({
                     </div>
                 </div>
 
-                {/* Footer */}
                 <div className="flex items-center justify-between border-t border-white/[0.06] px-5 py-3.5">
                     <span className="text-[11px] text-gray-600">
                         Version {version}
