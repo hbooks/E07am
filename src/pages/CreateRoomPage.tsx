@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import { useKindeAuth } from '@kinde-oss/kinde-auth-react';
 import { supabase } from '@/lib/supabaseClient';
 import { cn } from '@/lib/utils';
+import { trackFirstAction } from '@/lib/analytics';
 
 // ---------- sanitizers ----------
 function sanitizeRoomNumber(value: string): string {
@@ -156,6 +157,7 @@ export default function CreateRoomPage() {
         window.dispatchEvent(
           new CustomEvent('ctr:music:reshuffle', { detail: { reason: 'create' } })
         );
+        trackFirstAction(user.id, 'create');
         fetchActiveMatch();
         navigate('/');
       } else {

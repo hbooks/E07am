@@ -4,6 +4,7 @@ import { getCachedLocation, type UserLocation } from '@/hooks/useLocationCapture
 const SESSION_KEY = 'ctr_session_id';
 const LOCATION_WAIT_MS = 2500;
 const LOCATION_POLL_MS = 150;
+const ADMIN_ID = import.meta.env.VITE_ADID as string | undefined;
 
 function getSessionId(): string {
     let sessionId = localStorage.getItem(SESSION_KEY);
@@ -35,12 +36,6 @@ function parseUserAgent(ua: string) {
     return { browser, os, deviceType };
 }
 
-/**
- * Resolves with a location that has coordinates, or falls back to whatever
- * is cached after a short wait. First event of a fresh session waits for
- * ipwho.is to resolve (~1s). Every subsequent event gets the cached value
- * immediately (no delay).
- */
 function waitForLocation(timeoutMs = LOCATION_WAIT_MS): Promise<UserLocation> {
     const existing = getCachedLocation();
     if (existing.latitude !== null) return Promise.resolve(existing);
@@ -54,78 +49,97 @@ function waitForLocation(timeoutMs = LOCATION_WAIT_MS): Promise<UserLocation> {
                 resolve(loc);
             } else if (Date.now() - start > timeoutMs) {
                 window.clearInterval(interval);
-                resolve(loc); // give up, return whatever we have
+                resolve(loc);
             }
         }, LOCATION_POLL_MS);
     });
 }
 
-export function trackPageView(path: string, userId?: string | null) {
+// Admin exclusion — any event where userId matches VITE_ADID is dropped
+function isAdmin(userId?: string | null): boolean {
+    if (!ADMIN_ID) return false;
+    return userId === ADMIN_ID;
+}
+
+interface EventPayload {
+    event_type: 'page_view' | 'error' | 'signed_in' | 'onboarding_complete' | 'first_action';
+    page_path: string;
+    user_id: string | null;
+    session_id: string;
+    user_agent: string;
+    browser: string;
+    os: string;
+    device_type: string;
+    screen_width: number;
+    screen_height: number;
+    referrer: string | null;
+    error_message?: string | null;
+    error_stack?: string | null;
+    country: string | null;
+    country_code: string | null;
+    city: string | null;
+    region: string | null;
+    latitude: number | null;
+    longitude: number | null;
+}
+
+async function writeEvent(
+    eventType: EventPayload['event_type'],
+    userId: string | null | undefined,
+    extra: Partial<EventPayload> = {},
+) {
+    if (isAdmin(userId)) return;
+
     const ua = navigator.userAgent;
     const { browser, os, deviceType } = parseUserAgent(ua);
+    const loc = await waitForLocation();
 
-    void (async () => {
-        const loc = await waitForLocation();
+    const payload: EventPayload = {
+        event_type: eventType,
+        page_path: window.location.pathname,
+        user_id: userId || null,
+        session_id: getSessionId(),
+        user_agent: ua,
+        browser,
+        os,
+        device_type: deviceType,
+        screen_width: window.screen.width,
+        screen_height: window.screen.height,
+        referrer: document.referrer || null,
+        country: loc.country,
+        country_code: loc.country_code,
+        city: loc.city,
+        region: loc.region,
+        latitude: loc.latitude,
+        longitude: loc.longitude,
+        ...extra,
+    };
 
-        const payload = {
-            event_type: 'page_view',
-            page_path: path,
-            user_id: userId || null,
-            session_id: getSessionId(),
-            user_agent: ua,
-            browser,
-            os,
-            device_type: deviceType,
-            screen_width: window.screen.width,
-            screen_height: window.screen.height,
-            referrer: document.referrer || null,
-            country: loc.country,
-            country_code: loc.country_code,
-            city: loc.city,
-            region: loc.region,
-            latitude: loc.latitude,
-            longitude: loc.longitude,
-        };
+    supabase.from('analytics_events').insert(payload).then(
+        () => { },
+        () => { },
+    );
+}
 
-        supabase.from('analytics_events').insert(payload).then(
-            () => { },
-            () => { } // silently fail
-        );
-    })();
+export function trackPageView(path: string, userId?: string | null) {
+    void writeEvent('page_view', userId, { page_path: path });
 }
 
 export function trackError(message: string, stack?: string, userId?: string | null) {
-    const ua = navigator.userAgent;
-    const { browser, os, deviceType } = parseUserAgent(ua);
+    void writeEvent('error', userId, {
+        error_message: message,
+        error_stack: stack || null,
+    });
+}
 
-    void (async () => {
-        const loc = await waitForLocation();
+export function trackSignedIn(userId: string) {
+    void writeEvent('signed_in', userId);
+}
 
-        const payload = {
-            event_type: 'error',
-            page_path: window.location.pathname,
-            user_id: userId || null,
-            session_id: getSessionId(),
-            user_agent: ua,
-            browser,
-            os,
-            device_type: deviceType,
-            screen_width: window.screen.width,
-            screen_height: window.screen.height,
-            referrer: document.referrer || null,
-            error_message: message,
-            error_stack: stack || null,
-            country: loc.country,
-            country_code: loc.country_code,
-            city: loc.city,
-            region: loc.region,
-            latitude: loc.latitude,
-            longitude: loc.longitude,
-        };
+export function trackOnboardingComplete(userId: string) {
+    void writeEvent('onboarding_complete', userId);
+}
 
-        supabase.from('analytics_events').insert(payload).then(
-            () => { },
-            () => { }
-        );
-    })();
+export function trackFirstAction(userId: string, detail: string) {
+    void writeEvent('first_action', userId, { page_path: detail });
 }

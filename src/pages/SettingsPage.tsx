@@ -15,7 +15,7 @@ import {
 } from '@/lib/sanitizeRequest';
 import { subscribeToPush, unsubscribeFromPush } from '@/lib/push';
 
-const APP_VERSION = 'v1.0.1';
+const APP_VERSION = 'v1.0.2';
 
 const ACTIVE_REQUEST_CACHE_KEY = 'ctr_active_request_';
 const CACHE_EXPIRY_MS = 60 * 60 * 1000;

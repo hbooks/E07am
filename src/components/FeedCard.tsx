@@ -2,6 +2,7 @@ import { Clock, Swords, Users, Trophy, Bot, UserPlus, Flame, CheckCircle2, XCirc
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import type { MatchWithHost } from '@/types';
+import { trackFirstAction } from '@/lib/analytics';
 
 const STAFF_BADGE = 'https://res.cloudinary.com/ctr-cloud/image/upload/v1786380915/ff7rn60eiylq1x1oixsz.png';
 const VERIFIED_BADGE = 'https://res.cloudinary.com/ctr-cloud/image/upload/v1786380916/rsfa4dftmbz427k5cnmw.png';
@@ -133,6 +134,7 @@ export function FeedCard({ match, currentUserId, onClaimed }: FeedCardProps) {
         window.dispatchEvent(
           new CustomEvent('ctr:music:reshuffle', { detail: { reason: 'claim' } })
         );
+        trackFirstAction(currentUserId!, 'claim');
       }
     } catch {
       toast.error('Network error – please try again.');

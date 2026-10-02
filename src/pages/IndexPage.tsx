@@ -2,11 +2,15 @@ import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { RefreshCw, Radar, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import { useKindeAuth } from '@kinde-oss/kinde-auth-react';
+import { PromptTypes } from '@kinde/js-utils';
 import { FeedCard, FeedCardSkeleton } from '@/components/FeedCard';
+import { MockFeedCard } from '@/components/MockFeedCard';
+import { MockClaimPrompt } from '@/components/MockClaimPrompt';
+import { ClaimModal } from '@/components/ClaimModal';
 import { useIsMobile } from '@/hooks/use-mobile';
 import type { MatchWithHost } from '@/types';
 import { supabase } from '@/lib/supabaseClient';
-import { ClaimModal } from '@/components/ClaimModal';
+import { getMocksForType, type MockUser, type MockMatchType } from '@/lib/mockMatches';
 
 const PULL_THRESHOLD = 64;
 const PULL_RESISTANCE = 0.45;
@@ -16,6 +20,13 @@ const SWIPE_HINT_KEY = 'ctr_swipe_hint_seen';
 
 const SWIPE_MIN = 60;
 const SWIPE_MAX_Y = 50;
+
+const MOCK_COUNTDOWN_MIN_MS = 150_000;
+const MOCK_COUNTDOWN_MAX_MS = 300_000;
+const MOCK_TTL_MIN_MS = 20_000;
+const MOCK_TTL_MAX_MS = 55_000;
+const MOCK_MIN_PER_TAB = 3;
+const MOCK_MAX_PER_TAB = 5;
 
 type FilterType = '1v1' | 'tournament' | 'coop';
 
@@ -31,19 +42,35 @@ const ACCENT: Record<FilterType, string> = {
   'coop': '#22c55e',
 };
 
-// The exact collision point in viewport %. Both orbs' keyframes are written
-// so that on a meet frame, both land here. Ring is pinned here too.
+const FILTER_TO_MOCK_TYPE: Record<FilterType, MockMatchType> = {
+  '1v1': '1v1',
+  'tournament': 'Tournament',
+  'coop': 'Co-op',
+};
+
 const MEET_X = 46;
 const MEET_Y = 34;
 
 const DUEL_PALETTES: [string, string, string][] = [
-  ['#ef4444', '#f97316', '#eab308'], // red + orange -> yellow
-  ['#1E90FF', '#ef4444', '#a855f7'], // blue + red -> magenta
-  ['#1E90FF', '#22c55e', '#06b6d4'], // blue + green -> cyan
-  ['#f97316', '#eab308', '#f59e0b'], // orange + yellow -> amber
-  ['#1E90FF', '#8B5CF6', '#8B5CF6'], // blue + purple -> violet
-  ['#ef4444', '#22c55e', '#f97316'], // red + green -> ember
+  ['#ef4444', '#f97316', '#eab308'],
+  ['#1E90FF', '#ef4444', '#a855f7'],
+  ['#1E90FF', '#22c55e', '#06b6d4'],
+  ['#f97316', '#eab308', '#f59e0b'],
+  ['#1E90FF', '#8B5CF6', '#8B5CF6'],
+  ['#ef4444', '#22c55e', '#f97316'],
 ];
+
+interface MockSlot {
+  slotId: string;
+  user: MockUser;
+  initialCountdownMs: number;
+  ttlMs: number;
+  createdAt: number;
+}
+
+function randomBetween(min: number, max: number): number {
+  return min + Math.random() * (max - min);
+}
 
 function shuffleArray<T>(array: T[]): T[] {
   const shuffled = [...array];
@@ -74,18 +101,18 @@ function hexToRgba(hex: string, alpha: number): string {
 }
 
 export default function IndexPage() {
-  const { user } = useKindeAuth();
+  const { user, login } = useKindeAuth();
   const isMobile = useIsMobile();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [matches, setMatches] = useState<MatchWithHost[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [lastFetched, setLastFetched] = useState<number>(Date.now());
+
   const [claimResult, setClaimResult] = useState<{
     roomNumber: string;
     password: string | null;
   } | null>(null);
-
 
   const [filter, setFilter] = useState<FilterType>(() => {
     try {
@@ -98,7 +125,6 @@ export default function IndexPage() {
     try { localStorage.setItem(FILTER_STORAGE_KEY, filter); } catch { /* ignore */ }
   }, [filter]);
 
-  // Rotate palette every 90s — one full cycle of the 30s loop x3.
   const [duelPaletteIdx, setDuelPaletteIdx] = useState(() =>
     Math.floor(Math.random() * DUEL_PALETTES.length)
   );
@@ -136,6 +162,107 @@ export default function IndexPage() {
     const id = setInterval(() => setTick((t) => t + 1), 10_000);
     return () => clearInterval(id);
   }, []);
+
+  const [mockPrompt, setMockPrompt] = useState<'signin' | 'toolate' | null>(null);
+
+  // Track IDs of mocks already shown this session, per tab.
+  const usedMockIdsRef = useRef<Record<FilterType, Set<string>>>({
+    '1v1': new Set(),
+    'tournament': new Set(),
+    'coop': new Set(),
+  });
+
+  const [slotsByTab, setSlotsByTab] = useState<Record<FilterType, MockSlot[]>>({
+    '1v1': [],
+    'tournament': [],
+    'coop': [],
+  });
+
+  const ttlTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+
+  /**
+   * Pick N mocks for a tab, excluding:
+   *   1. Users already shown this session (usedMockIdsRef)
+   *   2. Users currently visible in any slot for this tab (excludeIds)
+   *
+   * If the pool is exhausted after those filters, reset the session-used
+   * set and try again with just the on-screen exclusion.
+   */
+  const pickMocks = useCallback((
+    forFilter: FilterType,
+    count: number,
+    excludeIds: Set<string>,
+  ): MockUser[] => {
+    const pool = getMocksForType(FILTER_TO_MOCK_TYPE[forFilter]);
+    if (pool.length === 0) return [];
+
+    const used = usedMockIdsRef.current[forFilter];
+    let available = pool.filter((m) => !used.has(m.id) && !excludeIds.has(m.id));
+
+    if (available.length < count) {
+      // Wrap the session-used set, keep the on-screen exclusion
+      usedMockIdsRef.current[forFilter] = new Set();
+      available = pool.filter((m) => !excludeIds.has(m.id));
+    }
+
+    const shuffled = shuffleArray(available);
+    const picked = shuffled.slice(0, count);
+    for (const m of picked) usedMockIdsRef.current[forFilter].add(m.id);
+    return picked;
+  }, []);
+
+  const makeSlot = useCallback((
+    forFilter: FilterType,
+    excludeIds: Set<string>,
+  ): MockSlot | null => {
+    const [user] = pickMocks(forFilter, 1, excludeIds);
+    if (!user) return null;
+    return {
+      slotId: `${user.id}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      user,
+      initialCountdownMs: randomBetween(MOCK_COUNTDOWN_MIN_MS, MOCK_COUNTDOWN_MAX_MS),
+      ttlMs: randomBetween(MOCK_TTL_MIN_MS, MOCK_TTL_MAX_MS),
+      createdAt: Date.now(),
+    };
+  }, [pickMocks]);
+
+  const makeSlotList = useCallback((forFilter: FilterType): MockSlot[] => {
+    const count = Math.floor(randomBetween(MOCK_MIN_PER_TAB, MOCK_MAX_PER_TAB + 0.99));
+    const slots: MockSlot[] = [];
+    const seen = new Set<string>();
+
+    for (let i = 0; i < count; i++) {
+      const slot = makeSlot(forFilter, seen);
+      if (!slot) break;
+      seen.add(slot.user.id);
+      slots.push(slot);
+    }
+    return slots;
+  }, [makeSlot]);
+
+  const scheduleTtl = useCallback((forFilter: FilterType, slot: MockSlot) => {
+    const timer = setTimeout(() => {
+      setSlotsByTab((current) => {
+        const list = current[forFilter];
+        if (!list.some((s) => s.slotId === slot.slotId)) return current;
+
+        // Exclude every user still visible in this tab
+        const excludeIds = new Set(list.map((s) => s.user.id));
+        const replacement = makeSlot(forFilter, excludeIds);
+
+        if (!replacement) {
+          return { ...current, [forFilter]: list.filter((s) => s.slotId !== slot.slotId) };
+        }
+
+        scheduleTtl(forFilter, replacement);
+
+        const newList = list.map((s) => (s.slotId === slot.slotId ? replacement : s));
+        return { ...current, [forFilter]: newList };
+      });
+    }, slot.ttlMs);
+
+    ttlTimersRef.current[slot.slotId] = timer;
+  }, [makeSlot]);
 
   const fetchMatches = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
@@ -187,6 +314,65 @@ export default function IndexPage() {
       case 'coop': return matches.filter((m) => m.match_type === 'Co-op');
     }
   }, [matches, filter]);
+
+  useEffect(() => {
+    if (loading) return;
+    if (filteredMatches.length > 0) return;
+
+    const current = slotsByTab[filter];
+    if (current.length > 0) return;
+
+    const fresh = makeSlotList(filter);
+    setSlotsByTab((s) => ({ ...s, [filter]: fresh }));
+    for (const slot of fresh) scheduleTtl(filter, slot);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, filter, filteredMatches.length]);
+
+  useEffect(() => {
+    if (filteredMatches.length === 0) return;
+    setSlotsByTab((s) => ({ ...s, [filter]: [] }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filteredMatches.length, filter]);
+
+  useEffect(() => {
+    return () => {
+      for (const id of Object.values(ttlTimersRef.current)) clearTimeout(id);
+      ttlTimersRef.current = {};
+    };
+  }, []);
+
+  const handleMockClaim = useCallback((slot: MockSlot) => {
+    setSlotsByTab((current) => {
+      const list = current[filter];
+      const without = list.filter((s) => s.slotId !== slot.slotId);
+
+      // Never re-use a user that's still visible in this tab
+      const excludeIds = new Set(without.map((s) => s.user.id));
+      const replacement = makeSlot(filter, excludeIds);
+
+      if (replacement) {
+        scheduleTtl(filter, replacement);
+        return { ...current, [filter]: [...without, replacement] };
+      }
+      return { ...current, [filter]: without };
+    });
+
+    setMockPrompt(user ? 'toolate' : 'signin');
+  }, [filter, makeSlot, scheduleTtl, user]);
+
+  const handleMockSignIn = useCallback(() => {
+    setMockPrompt(null);
+    login({ prompt: PromptTypes.login });
+  }, [login]);
+
+  const handleMockCreateRoom = useCallback(() => {
+    setMockPrompt(null);
+    window.location.href = '/create';
+  }, []);
+
+  const handleMockPromptClose = useCallback(() => {
+    setMockPrompt(null);
+  }, []);
 
   const setFilterWithNudge = useCallback((next: FilterType, direction: 'left' | 'right') => {
     setFilter(next);
@@ -240,6 +426,19 @@ export default function IndexPage() {
   const pullProgress = Math.min(pullDistance / PULL_THRESHOLD, 1);
   const activeIdx = FILTERS.findIndex((f) => f.id === filter);
   const accent = ACCENT[filter];
+  const visibleSlots = slotsByTab[filter];
+
+  // Defensive UI-level dedupe. Even if the pick logic somehow allowed a
+  // duplicate through (race condition, hot reload, etc.), only the first
+  // instance of each user is ever rendered.
+  const dedupedVisibleSlots = useMemo(() => {
+    const seen = new Set<string>();
+    return visibleSlots.filter((slot) => {
+      if (seen.has(slot.user.id)) return false;
+      seen.add(slot.user.id);
+      return true;
+    });
+  }, [visibleSlots]);
 
   return (
     <div
@@ -250,115 +449,103 @@ export default function IndexPage() {
       onTouchEnd={onTouchEnd}
     >
       <style>{`
-        @keyframes swipe-hint-left {
-          0%, 100% { transform: translateX(0); opacity: 1; }
-          50% { transform: translateX(-6px); opacity: .55; }
-        }
-        @keyframes swipe-hint-right {
-          0%, 100% { transform: translateX(0); opacity: 1; }
-          50% { transform: translateX(6px); opacity: .55; }
-        }
-        @keyframes pill-kick {
-          0%, 100% { box-shadow: 0 2px 10px -3px var(--pill-glow); }
-          50% { box-shadow: 0 2px 20px -3px var(--pill-glow); }
-        }
-        @keyframes bg-ripple {
-          0% { transform: translate(-50%, -50%) scale(.6); opacity: 0; }
-          20% { opacity: .55; }
-          100% { transform: translate(-50%, -50%) scale(2.2); opacity: 0; }
-        }
-        @keyframes bg-orbit {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
-        }
+                @keyframes swipe-hint-left {
+                    0%, 100% { transform: translateX(0); opacity: 1; }
+                    50% { transform: translateX(-6px); opacity: .55; }
+                }
+                @keyframes swipe-hint-right {
+                    0%, 100% { transform: translateX(0); opacity: 1; }
+                    50% { transform: translateX(6px); opacity: .55; }
+                }
+                @keyframes pill-kick {
+                    0%, 100% { box-shadow: 0 2px 10px -3px var(--pill-glow); }
+                    50% { box-shadow: 0 2px 20px -3px var(--pill-glow); }
+                }
+                @keyframes bg-ripple {
+                    0% { transform: translate(-50%, -50%) scale(.6); opacity: 0; }
+                    20% { opacity: .55; }
+                    100% { transform: translate(-50%, -50%) scale(2.2); opacity: 0; }
+                }
+                @keyframes bg-orbit {
+                    from { transform: rotate(0deg); }
+                    to { transform: rotate(360deg); }
+                }
 
-        /* ============================================================
-           1v1 — dual glow duel (30s loop, 2 meets + 1 obvious miss)
-           Both orbs are children of the viewport with top/left set to 0;
-           their transform is the full position. Both keyframes reach the
-           same (MEET_X, MEET_Y) at 26% and 93% — those are the collisions.
-           The miss lap peaks at 55% and both veer away.
-           ============================================================ */
+                @keyframes duel-orb-a {
+                    0%   { transform: translate(16vw, 24vh) scale(1);   opacity: 0; }
+                    4%   {                                              opacity: .85; }
+                    20%  { transform: translate(38vw, 30vh) scale(1);   }
+                    26%  { transform: translate(${MEET_X}vw, ${MEET_Y}vh) scale(1.15); }
+                    28%  { transform: translate(${MEET_X}vw, ${MEET_Y}vh) scale(1.35); opacity: .85; }
+                    32%  { transform: translate(${MEET_X}vw, ${MEET_Y}vh) scale(0);   opacity: 0; }
+                    36%  { transform: translate(14vw, 48vh) scale(0);   opacity: 0; }
+                    40%  { transform: translate(14vw, 48vh) scale(1);   opacity: .85; }
+                    48%  { transform: translate(34vw, 38vh) scale(1);   }
+                    55%  { transform: translate(44vw, 40vh) scale(.9);  }
+                    60%  { transform: translate(72vw, 54vh) scale(1);   }
+                    74%  { transform: translate(30vw, 22vh) scale(1);   }
+                    88%  { transform: translate(38vw, 28vh) scale(1);   }
+                    93%  { transform: translate(${MEET_X}vw, ${MEET_Y}vh) scale(1.15); }
+                    95%  { transform: translate(${MEET_X}vw, ${MEET_Y}vh) scale(1.35); opacity: .85; }
+                    100% { transform: translate(${MEET_X}vw, ${MEET_Y}vh) scale(0);   opacity: 0; }
+                }
 
-        /* Orb A */
-        @keyframes duel-orb-a {
-          0%   { transform: translate(16vw, 24vh) scale(1);   opacity: 0; }
-          4%   {                                              opacity: .85; }
-          20%  { transform: translate(38vw, 30vh) scale(1);   }             /* slow down approaching */
-          26%  { transform: translate(${MEET_X}vw, ${MEET_Y}vh) scale(1.15); }  /* MEET #1 */
-          28%  { transform: translate(${MEET_X}vw, ${MEET_Y}vh) scale(1.35); opacity: .85; } /* brief bloom */
-          32%  { transform: translate(${MEET_X}vw, ${MEET_Y}vh) scale(0);   opacity: 0; }     /* dissolve slow */
-          36%  { transform: translate(14vw, 48vh) scale(0);   opacity: 0; }
-          40%  { transform: translate(14vw, 48vh) scale(1);   opacity: .85; }  /* reappear */
-          48%  { transform: translate(34vw, 38vh) scale(1);   }              /* approach miss */
-          55%  { transform: translate(44vw, 40vh) scale(.9);  }              /* MISS — near miss point */
-          60%  { transform: translate(72vw, 54vh) scale(1);   }              /* burst past fast */
-          74%  { transform: translate(30vw, 22vh) scale(1);   }
-          88%  { transform: translate(38vw, 28vh) scale(1);   }              /* slow down */
-          93%  { transform: translate(${MEET_X}vw, ${MEET_Y}vh) scale(1.15); } /* MEET #2 */
-          95%  { transform: translate(${MEET_X}vw, ${MEET_Y}vh) scale(1.35); opacity: .85; }
-          100% { transform: translate(${MEET_X}vw, ${MEET_Y}vh) scale(0);   opacity: 0; }
-        }
+                @keyframes duel-orb-b {
+                    0%   { transform: translate(80vw, 26vh) scale(1);   opacity: 0; }
+                    4%   {                                              opacity: .85; }
+                    20%  { transform: translate(54vw, 30vh) scale(1);   }
+                    26%  { transform: translate(${MEET_X}vw, ${MEET_Y}vh) scale(1.15); }
+                    28%  { transform: translate(${MEET_X}vw, ${MEET_Y}vh) scale(1.35); opacity: .85; }
+                    32%  { transform: translate(${MEET_X}vw, ${MEET_Y}vh) scale(0);   opacity: 0; }
+                    36%  { transform: translate(78vw, 50vh) scale(0);   opacity: 0; }
+                    40%  { transform: translate(78vw, 50vh) scale(1);   opacity: .85; }
+                    48%  { transform: translate(56vw, 38vh) scale(1);   }
+                    55%  { transform: translate(50vw, 42vh) scale(.9);  }
+                    60%  { transform: translate(24vw, 58vh) scale(1);   }
+                    74%  { transform: translate(66vw, 24vh) scale(1);   }
+                    88%  { transform: translate(56vw, 28vh) scale(1);   }
+                    93%  { transform: translate(${MEET_X}vw, ${MEET_Y}vh) scale(1.15); }
+                    95%  { transform: translate(${MEET_X}vw, ${MEET_Y}vh) scale(1.35); opacity: .85; }
+                    100% { transform: translate(${MEET_X}vw, ${MEET_Y}vh) scale(0);   opacity: 0; }
+                }
 
-        /* Orb B */
-        @keyframes duel-orb-b {
-          0%   { transform: translate(80vw, 26vh) scale(1);   opacity: 0; }
-          4%   {                                              opacity: .85; }
-          20%  { transform: translate(54vw, 30vh) scale(1);   }
-          26%  { transform: translate(${MEET_X}vw, ${MEET_Y}vh) scale(1.15); } /* MEET #1 */
-          28%  { transform: translate(${MEET_X}vw, ${MEET_Y}vh) scale(1.35); opacity: .85; }
-          32%  { transform: translate(${MEET_X}vw, ${MEET_Y}vh) scale(0);   opacity: 0; }
-          36%  { transform: translate(78vw, 50vh) scale(0);   opacity: 0; }
-          40%  { transform: translate(78vw, 50vh) scale(1);   opacity: .85; }
-          48%  { transform: translate(56vw, 38vh) scale(1);   }
-          55%  { transform: translate(50vw, 42vh) scale(.9);  }              /* MISS — veers opposite side */
-          60%  { transform: translate(24vw, 58vh) scale(1);   }              /* whoosh past */
-          74%  { transform: translate(66vw, 24vh) scale(1);   }
-          88%  { transform: translate(56vw, 28vh) scale(1);   }
-          93%  { transform: translate(${MEET_X}vw, ${MEET_Y}vh) scale(1.15); } /* MEET #2 */
-          95%  { transform: translate(${MEET_X}vw, ${MEET_Y}vh) scale(1.35); opacity: .85; }
-          100% { transform: translate(${MEET_X}vw, ${MEET_Y}vh) scale(0);   opacity: 0; }
-        }
+                @keyframes duel-ring {
+                    0%   { transform: translate(-50%, -50%) scale(.15); opacity: 0;   border-width: 3px; }
+                    10%  { transform: translate(-50%, -50%) scale(.6);  opacity: .95; border-width: 3px; }
+                    55%  { transform: translate(-50%, -50%) scale(3.2); opacity: .35; border-width: 1.5px; }
+                    100% { transform: translate(-50%, -50%) scale(4.2); opacity: 0;   border-width: 1px; }
+                }
 
-        /* Ring — pinned to the meet point. Two separate rings share these keyframes
-           but are offset by a delay so each fires exactly when its collision happens. */
-        @keyframes duel-ring {
-          0%   { transform: translate(-50%, -50%) scale(.15); opacity: 0;   border-width: 3px; }
-          10%  { transform: translate(-50%, -50%) scale(.6);  opacity: .95; border-width: 3px; }   /* flash */
-          55%  { transform: translate(-50%, -50%) scale(3.2); opacity: .35; border-width: 1.5px; } /* slow expand */
-          100% { transform: translate(-50%, -50%) scale(4.2); opacity: 0;   border-width: 1px; }
-        }
+                @keyframes duel-undercurrent {
+                    0%, 100% { opacity: .3; }
+                    50%      { opacity: .55; }
+                }
 
-        @keyframes duel-undercurrent {
-          0%, 100% { opacity: .3; }
-          50%      { opacity: .55; }
-        }
-
-        @keyframes tide-a {
-          0%   { transform: translateX(-14%) scaleX(1);    opacity: .55; }
-          50%  { transform: translateX(14%)  scaleX(1.08); opacity: .8; }
-          100% { transform: translateX(-14%) scaleX(1);    opacity: .55; }
-        }
-        @keyframes tide-b {
-          0%   { transform: translateX(10%)  scaleX(1);    opacity: .5; }
-          50%  { transform: translateX(-12%) scaleX(1.12); opacity: .75; }
-          100% { transform: translateX(10%)  scaleX(1);    opacity: .5; }
-        }
-        @keyframes tide-c {
-          0%   { transform: translateX(-6%)  scaleX(1);    opacity: .4; }
-          50%  { transform: translateX(18%)  scaleX(1.1);  opacity: .7; }
-          100% { transform: translateX(-6%)  scaleX(1);    opacity: .4; }
-        }
-        @keyframes tide-container {
-          0%, 100% { transform: translateY(0); }
-          50%      { transform: translateY(-1.2%); }
-        }
-        @keyframes bg-fade-in {
-          from { opacity: 0; }
-          to { opacity: 1; }
-        }
-        .bg-scene { animation: bg-fade-in .8s ease-out both; }
-      `}</style>
+                @keyframes tide-a {
+                    0%   { transform: translateX(-14%) scaleX(1);    opacity: .55; }
+                    50%  { transform: translateX(14%)  scaleX(1.08); opacity: .8; }
+                    100% { transform: translateX(-14%) scaleX(1);    opacity: .55; }
+                }
+                @keyframes tide-b {
+                    0%   { transform: translateX(10%)  scaleX(1);    opacity: .5; }
+                    50%  { transform: translateX(-12%) scaleX(1.12); opacity: .75; }
+                    100% { transform: translateX(10%)  scaleX(1);    opacity: .5; }
+                }
+                @keyframes tide-c {
+                    0%   { transform: translateX(-6%)  scaleX(1);    opacity: .4; }
+                    50%  { transform: translateX(18%)  scaleX(1.1);  opacity: .7; }
+                    100% { transform: translateX(-6%)  scaleX(1);    opacity: .4; }
+                }
+                @keyframes tide-container {
+                    0%, 100% { transform: translateY(0); }
+                    50%      { transform: translateY(-1.2%); }
+                }
+                @keyframes bg-fade-in {
+                    from { opacity: 0; }
+                    to { opacity: 1; }
+                }
+                .bg-scene { animation: bg-fade-in .8s ease-out both; }
+            `}</style>
 
       <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
         <div
@@ -383,7 +570,6 @@ export default function IndexPage() {
         <div key={filter} className="bg-scene absolute inset-0">
           {filter === '1v1' && (
             <>
-              {/* faint undercurrent so page isn't empty between encounters */}
               <div
                 className="absolute left-1/2 top-1/3 h-[500px] w-[500px] -translate-x-1/2 -translate-y-1/2 rounded-full"
                 style={{
@@ -393,7 +579,6 @@ export default function IndexPage() {
                 }}
               />
 
-              {/* Orb A — its own 30s loop, uses a smooth in/out easing */}
               <div
                 className="absolute h-[220px] w-[220px] rounded-full"
                 style={{
@@ -406,7 +591,6 @@ export default function IndexPage() {
                 }}
               />
 
-              {/* Orb B — same 30s loop */}
               <div
                 className="absolute h-[220px] w-[220px] rounded-full"
                 style={{
@@ -419,7 +603,6 @@ export default function IndexPage() {
                 }}
               />
 
-              {/* Ring 1 — fires exactly at the first meet (26% of 30s ≈ 7.8s) */}
               <div
                 className="absolute rounded-full"
                 style={{
@@ -435,7 +618,6 @@ export default function IndexPage() {
                 }}
               />
 
-              {/* Ring 2 — fires exactly at the second meet (93% of 30s ≈ 27.9s) */}
               <div
                 className="absolute rounded-full"
                 style={{
@@ -559,7 +741,6 @@ export default function IndexPage() {
             </h1>
             <button
               onClick={handleRefresh}
-              data-tour="feed-refresh"
               disabled={loading || refreshing}
               title="Refresh"
               aria-label="Refresh matches"
@@ -571,10 +752,7 @@ export default function IndexPage() {
           </div>
 
           <div className="flex justify-center pb-3">
-            <div
-              data-tour="feed-filters"
-              className="relative flex items-center rounded-full border border-white/5 bg-[#101010] p-1"
-            >
+            <div className="relative flex items-center rounded-full border border-white/5 bg-[#101010] p-1">
               <div
                 className="pointer-events-none absolute inset-y-1 rounded-full transition-transform duration-300 [transition-timing-function:cubic-bezier(0.34,1.56,0.64,1)]"
                 style={{
@@ -621,10 +799,15 @@ export default function IndexPage() {
             <div className="flex items-center justify-center gap-1.5 pb-3 text-[11px] text-gray-500">
               <span
                 className="h-1.5 w-1.5 rounded-full transition-colors"
-                style={{ background: filteredMatches.length > 0 ? accent : '#4b5563' }}
+                style={{ background: (filteredMatches.length || dedupedVisibleSlots.length) > 0 ? accent : '#4b5563' }}
               />
               <span className="tabular-nums">
-                {filteredMatches.length} open · {timeAgoShort(lastFetched)}
+                {filteredMatches.length > 0
+                  ? `${filteredMatches.length} open · ${timeAgoShort(lastFetched)}`
+                  : dedupedVisibleSlots.length > 0
+                    ? `${dedupedVisibleSlots.length} open · just now`
+                    : `0 open · ${timeAgoShort(lastFetched)}`
+                }
               </span>
             </div>
           )}
@@ -639,8 +822,7 @@ export default function IndexPage() {
             <FeedCardSkeleton />
           </div>
         )}
-      
-        <div data-tour="feed-cards">
+
         {!loading && error && (
           <div className="rounded-3xl border border-red-500/15 bg-[#141414] p-8 text-center">
             <AlertTriangle className="mx-auto mb-3 h-7 w-7 text-red-400" />
@@ -654,34 +836,8 @@ export default function IndexPage() {
           </div>
         )}
 
-        {!loading && !error && matches.length === 0 && (
-          <div className="flex flex-col items-center justify-center py-20 text-center">
-            <div className="grid h-12 w-12 place-items-center rounded-full border border-white/5 bg-[#101010]">
-              <Radar className="h-5 w-5 text-gray-600" />
-            </div>
-            <p className="mt-4 text-base font-semibold text-white">No lobbies open</p>
-            <p className="mt-1 max-w-xs text-sm text-gray-500">
-              Be the first — hit <span className="text-gray-300">＋ New Room</span> in the nav to open one.
-            </p>
-          </div>
-        )}
-
-        {!loading && !error && matches.length > 0 && filteredMatches.length === 0 && (
-          <div className="flex flex-col items-center justify-center py-20 text-center">
-            <div className="grid h-12 w-12 place-items-center rounded-full border border-white/5 bg-[#101010]">
-              <Radar className="h-5 w-5 text-gray-600" />
-            </div>
-            <p className="mt-4 text-base font-semibold text-white">
-              No {filter === '1v1' ? '1v1' : filter === 'tournament' ? 'tournament' : 'co-op'} lobbies
-            </p>
-            <p className="mt-1 max-w-xs text-sm text-gray-500">
-              Try another tab, or check back in a moment.
-            </p>
-          </div>
-        )}
-
         {!loading && !error && filteredMatches.length > 0 && (
-          <div className="space-y-4" data-tour="feed-cards">
+          <div className="space-y-4">
             {filteredMatches.map((match, i) => (
               <div
                 key={match.id}
@@ -694,14 +850,51 @@ export default function IndexPage() {
                 <FeedCard
                   match={match}
                   currentUserId={user?.id}
-                  onClaimed={(roomNumber, password) => setClaimResult({ roomNumber, password })}
+                  onClaimed={(roomNumber, password) =>
+                    setClaimResult({ roomNumber, password })
+                  }
                 />
               </div>
             ))}
           </div>
         )}
-        </div>
+
+        {!loading && !error && filteredMatches.length === 0 && dedupedVisibleSlots.length > 0 && (
+          <div className="space-y-4">
+            {dedupedVisibleSlots.map((slot, i) => (
+              <div
+                key={slot.slotId}
+                className="animate-in fade-in slide-in-from-bottom-2 duration-300"
+                style={{
+                  animationDelay: `${Math.min(i, 8) * 45}ms`,
+                  animationFillMode: 'backwards',
+                }}
+              >
+                <MockFeedCard
+                  user={slot.user}
+                  initialCountdownMs={slot.initialCountdownMs}
+                  onClaimClick={() => handleMockClaim(slot)}
+                />
+              </div>
+            ))}
+          </div>
+        )}
+
+        {!loading && !error && filteredMatches.length === 0 && dedupedVisibleSlots.length === 0 && (
+          <div className="flex flex-col items-center justify-center py-20 text-center">
+            <div className="grid h-12 w-12 place-items-center rounded-full border border-white/5 bg-[#101010]">
+              <Radar className="h-5 w-5 text-gray-600" />
+            </div>
+            <p className="mt-4 text-base font-semibold text-white">
+              No {filter === '1v1' ? '1v1' : filter === 'tournament' ? 'tournament' : 'co-op'} lobbies
+            </p>
+            <p className="mt-1 max-w-xs text-sm text-gray-500">
+              Try another tab, or check back in a moment.
+            </p>
+          </div>
+        )}
       </div>
+
       {claimResult && (
         <ClaimModal
           roomNumber={claimResult.roomNumber}
@@ -710,6 +903,14 @@ export default function IndexPage() {
         />
       )}
 
+      {mockPrompt && (
+        <MockClaimPrompt
+          mode={mockPrompt}
+          onSignIn={handleMockSignIn}
+          onCreateRoom={handleMockCreateRoom}
+          onClose={handleMockPromptClose}
+        />
+      )}
     </div>
   );
 }

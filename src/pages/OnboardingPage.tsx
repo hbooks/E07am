@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useKindeAuth } from '@kinde-oss/kinde-auth-react';
 import { PromptTypes } from '@kinde/js-utils';
+import { trackOnboardingComplete } from '@/lib/analytics';
 import { toast } from 'sonner';
 import {
     Mail,
@@ -150,6 +151,8 @@ function OnboardingForm({ user }: { user: any }) {
                 toast.success('Profile created! Redirecting...');
                 // Option A: straight into the tour. The TourProvider will
                 // navigate the user to '/' (feed) if they aren't already there.
+                
+                trackOnboardingComplete(user.id); // Track onboarding completion event
                 setTimeout(() => {
                     startTour();
                 }, 1000);

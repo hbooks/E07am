@@ -11,11 +11,12 @@ import VersionCheck from '@/components/VersionCheck';
 import MaintenanceGate from "@/components/MaintenanceGate";
 import AdminGate from "@/components/AdminGate";
 import { MusicProvider } from "@/components/MusicProvider";
-import { trackPageView, trackError } from '@/lib/analytics';
+import { trackPageView, trackError, trackSignedIn } from '@/lib/analytics';
 import { useLocationCapture } from '@/hooks/useLocationCapture';
 import { TourProvider, TourOverlay } from '@/tour';
 import { subscribeToPush, unsubscribeFromPush } from '@/lib/push';
 import { PushSubscriber } from '@/components/PushSubscriber';
+
 
 import IndexPage from "@/pages/IndexPage";
 import CreateRoomPage from "@/pages/CreateRoomPage";
@@ -75,6 +76,15 @@ function AnalyticsTracker() {
       window.removeEventListener('error', handleError);
       window.removeEventListener('unhandledrejection', handleRejection);
     };
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    // Fire once per session — sessionStorage prevents duplicate fires on remount
+    const KEY = 'ctr_signed_in_logged';
+    if (sessionStorage.getItem(KEY) === '1') return;
+    sessionStorage.setItem(KEY, '1');
+    trackSignedIn(user.id);
   }, [user?.id]);
 
   return null;
