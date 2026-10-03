@@ -1189,6 +1189,9 @@ function NewsSection({
 // ============================================================
 // MUSIC SECTION
 // ============================================================
+// ============================================================
+// MUSIC SECTION
+// ============================================================
 function MusicSection({
     playlist,
     onRefresh,
@@ -1368,170 +1371,175 @@ function MusicSection({
         }
     };
 
+    const inactiveCount = playlist.length - activeCount;
+
     return (
         <div className="space-y-6">
             <div>
-                <h1 className="cr-display text-xl font-bold">Music</h1>
+                <h1 className="cr-display text-xl font-semibold tracking-tight">Music</h1>
                 <p className="mt-1 text-sm text-gray-500">
                     Background music playlist · {activeCount} active · {playlist.length} total
                 </p>
             </div>
 
-            <div className="rounded-2xl border border-white/5 bg-[#141414] p-5">
-                <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-400">
-                    Upload Track
-                </h2>
-                <div
-                    onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
-                    onDragLeave={() => setDragOver(false)}
-                    onDrop={onDrop}
-                    onClick={() => !uploading && fileInputRef.current?.click()}
-                    className={cn(
-                        'flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed py-10 text-center transition-colors',
-                        dragOver
-                            ? 'border-primary/50 bg-primary/5'
-                            : 'border-white/10 bg-[#0A0A0A] hover:border-white/20',
-                        uploading && 'pointer-events-none opacity-60',
-                    )}
+            <div className="grid items-start gap-6 lg:grid-cols-[360px_minmax(0,1fr)]">
+                {/* Left: add tracks */}
+                <div className="space-y-6">
+                    <Card title="Upload audio" subtitle="Files are stored in your R2 bucket and added to the playlist.">
+                        <div
+                            onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+                            onDragLeave={() => setDragOver(false)}
+                            onDrop={onDrop}
+                            onClick={() => !uploading && fileInputRef.current?.click()}
+                            className={cn(
+                                'flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-lg border border-dashed px-4 py-8 text-center transition-colors',
+                                dragOver
+                                    ? 'border-primary/60 bg-primary/5'
+                                    : 'border-white/10 bg-[#0A0A0A] hover:border-white/20',
+                                uploading && 'pointer-events-none opacity-60',
+                            )}
+                        >
+                            {uploading ? (
+                                <>
+                                    <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
+                                    <p className="text-sm text-gray-400">Uploading…</p>
+                                </>
+                            ) : (
+                                <>
+                                    <Music2 className="h-5 w-5 text-gray-500" />
+                                    <p className="text-sm text-gray-300">
+                                        Drop an MP3 here, or <span className="text-[#5CA8FF]">browse</span>
+                                    </p>
+                                    <p className="text-xs text-gray-500">Max 20 MB · audio/*</p>
+                                </>
+                            )}
+                        </div>
+                        <input
+                            ref={fileInputRef}
+                            type="file"
+                            accept="audio/*"
+                            onChange={onFileChange}
+                            className="hidden"
+                        />
+                    </Card>
+
+                    <Card title="Add by URL" subtitle="Link to a track that is already hosted.">
+                        <div className="space-y-4">
+                            <label className="block">
+                                <span className="mb-1.5 block text-xs font-medium text-gray-400">Title</span>
+                                <input
+                                    value={title}
+                                    onChange={(e) => setTitle(e.target.value.slice(0, 120))}
+                                    placeholder="Track title"
+                                    className="w-full rounded-lg border border-white/10 bg-[#0A0A0A] px-3 py-2 text-sm outline-none transition-colors placeholder:text-gray-600 focus:border-primary/60"
+                                />
+                            </label>
+                            <label className="block">
+                                <span className="mb-1.5 block text-xs font-medium text-gray-400">URL</span>
+                                <input
+                                    value={url}
+                                    onChange={(e) => setUrl(e.target.value)}
+                                    placeholder={`${R2_PUBLIC_BASE}/track.mp3`}
+                                    className="w-full rounded-lg border border-white/10 bg-[#0A0A0A] px-3 py-2 font-mono text-xs outline-none transition-colors placeholder:text-gray-600 focus:border-primary/60"
+                                />
+                            </label>
+                            <label className="block">
+                                <span className="mb-1.5 flex items-center justify-between text-xs font-medium text-gray-400">
+                                    Duration <span className="font-normal text-gray-600">Optional · seconds</span>
+                                </span>
+                                <input
+                                    value={duration}
+                                    onChange={(e) => setDuration(e.target.value.replace(/\D/g, '').slice(0, 5))}
+                                    placeholder="e.g. 214"
+                                    inputMode="numeric"
+                                    className="w-full rounded-lg border border-white/10 bg-[#0A0A0A] px-3 py-2 text-sm tabular-nums outline-none transition-colors placeholder:text-gray-600 focus:border-primary/60"
+                                />
+                            </label>
+                            <button
+                                onClick={addTrack}
+                                disabled={adding || !title.trim() || !url.trim()}
+                                className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-white transition hover:brightness-110 disabled:opacity-40"
+                            >
+                                {adding ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                                Add track
+                            </button>
+                        </div>
+                    </Card>
+                </div>
+
+                {/* Right: playlist */}
+                <Card
+                    title="Playlist"
+                    subtitle={`${playlist.length} track${playlist.length === 1 ? '' : 's'}`}
+                    action={
+                        <div className="flex items-center gap-3 text-xs text-gray-500">
+                            <span><span className="tabular-nums text-green-400">{activeCount}</span> active</span>
+                            <span><span className="tabular-nums text-gray-300">{inactiveCount}</span> inactive</span>
+                        </div>
+                    }
+                    flush
                 >
-                    {uploading ? (
-                        <>
-                            <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                            <p className="text-sm text-gray-400">Uploading…</p>
-                        </>
+                    {playlist.length === 0 ? (
+                        <div className="px-5 py-14 text-center">
+                            <Music2 className="mx-auto h-6 w-6 text-gray-600" />
+                            <p className="mt-3 text-sm text-gray-400">No tracks yet</p>
+                            <p className="mt-1 text-xs text-gray-600">Upload a file or add a URL to get started.</p>
+                        </div>
                     ) : (
                         <>
-                            <Music2 className="h-7 w-7 text-gray-500" />
-                            <p className="text-sm text-gray-300">
-                                Drop an MP3 here, or <span className="text-[#5CA8FF] underline">browse</span>
-                            </p>
-                            <p className="text-xs text-gray-500">Max 20 MB · audio/*</p>
+                            <div className="hidden grid-cols-[28px_minmax(0,1fr)_64px_92px_36px] items-center gap-4 border-b border-white/[0.06] px-5 py-2.5 text-xs font-medium text-gray-500 sm:grid">
+                                <span>#</span>
+                                <span>Track</span>
+                                <span className="text-right">Length</span>
+                                <span>Status</span>
+                                <span />
+                            </div>
+                            <div className="divide-y divide-white/[0.06]">
+                                {playlist.map((track, i) => (
+                                    <div
+                                        key={track.id}
+                                        className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-2 px-5 py-3 transition-colors hover:bg-white/[0.02] sm:grid-cols-[28px_minmax(0,1fr)_64px_92px_36px]"
+                                    >
+                                        <span className="hidden text-xs tabular-nums text-gray-600 sm:block">{i + 1}</span>
+                                        <div className="min-w-0">
+                                            <p className={cn("truncate text-sm font-medium", track.active ? "text-white" : "text-gray-500")}>
+                                                {track.title}
+                                            </p>
+                                            <p className="mt-0.5 truncate font-mono text-[11px] text-gray-600">{track.url}</p>
+                                        </div>
+                                        <span className="hidden text-right text-xs tabular-nums text-gray-400 sm:block">
+                                            {track.duration_seconds != null ? formatDuration(track.duration_seconds) : '—'}
+                                        </span>
+                                        <button
+                                            onClick={() => toggleTrack(track.id)}
+                                            disabled={busyId === track.id}
+                                            title={track.active ? 'Deactivate' : 'Activate'}
+                                            className={cn(
+                                                "inline-flex w-fit items-center gap-1.5 rounded-md border px-2 py-1 text-xs font-medium transition-colors disabled:opacity-50",
+                                                track.active
+                                                    ? "border-green-500/20 bg-green-500/10 text-green-400 hover:bg-green-500/15"
+                                                    : "border-white/10 text-gray-400 hover:bg-white/5 hover:text-white",
+                                            )}
+                                        >
+                                            {busyId === track.id
+                                                ? <Loader2 className="h-3 w-3 animate-spin" />
+                                                : <span className={cn("h-1.5 w-1.5 rounded-full", track.active ? "bg-green-400" : "bg-gray-500")} />}
+                                            {track.active ? 'Active' : 'Inactive'}
+                                        </button>
+                                        <button
+                                            onClick={() => deleteTrack(track.id, track.title)}
+                                            disabled={busyId === track.id}
+                                            className="justify-self-end rounded-lg p-2 text-gray-500 transition hover:bg-red-500/10 hover:text-red-400 disabled:opacity-40"
+                                            title="Delete"
+                                        >
+                                            <Trash2 className="h-4 w-4" />
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
                         </>
                     )}
-                </div>
-                <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="audio/*"
-                    onChange={onFileChange}
-                    className="hidden"
-                />
-            </div>
-
-            <div className="rounded-2xl border border-white/5 bg-[#141414] p-5">
-                <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-400">
-                    Add by URL
-                </h2>
-                <div className="space-y-3">
-                    <input
-                        value={title}
-                        onChange={(e) => setTitle(e.target.value.slice(0, 120))}
-                        placeholder="Track title"
-                        className="w-full rounded-xl border border-white/10 bg-[#0A0A0A] px-4 py-2.5 text-sm outline-none focus:border-primary"
-                    />
-                    <input
-                        value={url}
-                        onChange={(e) => setUrl(e.target.value)}
-                        placeholder={`${R2_PUBLIC_BASE}/track.mp3`}
-                        className="w-full rounded-xl border border-white/10 bg-[#0A0A0A] px-4 py-2.5 text-sm outline-none focus:border-primary"
-                    />
-                    <input
-                        value={duration}
-                        onChange={(e) => setDuration(e.target.value.replace(/\D/g, '').slice(0, 5))}
-                        placeholder="Duration in seconds (optional)"
-                        className="w-full rounded-xl border border-white/10 bg-[#0A0A0A] px-4 py-2.5 text-sm outline-none focus:border-primary"
-                    />
-                    <div className="flex justify-end">
-                        <button
-                            onClick={addTrack}
-                            disabled={adding || !title.trim() || !url.trim()}
-                            className="inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2 text-sm font-semibold text-white transition hover:brightness-110 disabled:opacity-40"
-                        >
-                            {adding ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                            Add track
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            <div className="rounded-2xl border border-white/5 bg-[#141414] p-5">
-                <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-gray-400">
-                    Playlist <span className="text-gray-600">· {playlist.length}</span>
-                </h2>
-                {playlist.length === 0 ? (
-                    <div className="py-10 text-center">
-                        <Music2 className="mx-auto h-8 w-8 text-gray-600" />
-                        <p className="mt-3 text-sm text-gray-500">No tracks yet.</p>
-                        <p className="mt-1 text-xs text-gray-600">Upload a file or add a URL above.</p>
-                    </div>
-                ) : (
-                    <div className="space-y-2">
-                        {playlist.map((track) => (
-                            <div
-                                key={track.id}
-                                className={cn(
-                                    'flex items-center gap-3 rounded-xl border bg-[#0A0A0A] p-3.5 transition',
-                                    track.active
-                                        ? 'border-white/5 hover:border-white/10'
-                                        : 'border-white/5 opacity-55',
-                                )}
-                            >
-                                <div className="grid h-10 w-10 flex-shrink-0 place-items-center rounded-lg bg-white/[0.04]">
-                                    <Music2 className="h-4 w-4 text-gray-500" />
-                                </div>
-                                <div className="min-w-0 flex-1">
-                                    <div className="flex flex-wrap items-center gap-2">
-                                        <p className="truncate text-sm font-semibold text-white">
-                                            {track.title}
-                                        </p>
-                                        {!track.active && (
-                                            <span className="rounded-full border border-yellow-500/20 bg-yellow-500/10 px-2 py-0.5 text-[10px] font-semibold text-yellow-400">
-                                                Inactive
-                                            </span>
-                                        )}
-                                        {track.duration_seconds != null && (
-                                            <span className="text-[11px] text-gray-500">
-                                                {formatDuration(track.duration_seconds)}
-                                            </span>
-                                        )}
-                                    </div>
-                                    <p className="mt-0.5 truncate font-mono text-[11px] text-gray-500">
-                                        {track.url}
-                                    </p>
-                                </div>
-                                <div className="flex flex-shrink-0 gap-1">
-                                    <button
-                                        onClick={() => toggleTrack(track.id)}
-                                        disabled={busyId === track.id}
-                                        className={cn(
-                                            'rounded-full p-2 transition disabled:opacity-40',
-                                            track.active
-                                                ? 'text-green-400 hover:bg-green-500/20'
-                                                : 'text-gray-500 hover:bg-white/5 hover:text-white',
-                                        )}
-                                        title={track.active ? 'Deactivate' : 'Activate'}
-                                    >
-                                        {busyId === track.id ? (
-                                            <Loader2 className="h-4 w-4 animate-spin" />
-                                        ) : track.active ? (
-                                            <CheckCircle className="h-4 w-4" />
-                                        ) : (
-                                            <XCircle className="h-4 w-4" />
-                                        )}
-                                    </button>
-                                    <button
-                                        onClick={() => deleteTrack(track.id, track.title)}
-                                        disabled={busyId === track.id}
-                                        className="rounded-full p-2 text-red-400 transition hover:bg-red-500/20 disabled:opacity-40"
-                                        title="Delete"
-                                    >
-                                        <Trash2 className="h-4 w-4" />
-                                    </button>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                )}
+                </Card>
             </div>
         </div>
     );
