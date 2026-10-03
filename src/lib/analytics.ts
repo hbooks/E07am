@@ -106,18 +106,22 @@ async function writeEvent(
         screen_width: window.screen.width,
         screen_height: window.screen.height,
         referrer: document.referrer || null,
-        country: loc.country,
-        country_code: loc.country_code,
-        city: loc.city,
-        region: loc.region,
-        latitude: loc.latitude,
-        longitude: loc.longitude,
+        // Use ?? null so undefined never reaches the DB. Supabase silently
+        // rejects payloads with undefined fields.
+        country: loc.country ?? null,
+        country_code: loc.country_code ?? null,
+        city: loc.city ?? null,
+        region: loc.region ?? null,
+        latitude: loc.latitude ?? null,
+        longitude: loc.longitude ?? null,
         ...extra,
     };
 
     supabase.from('analytics_events').insert(payload).then(
         () => { },
-        () => { },
+        (err) => {
+            console.error('[analytics] insert failed:', eventType, err);
+        },
     );
 }
 
