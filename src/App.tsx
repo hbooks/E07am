@@ -106,7 +106,6 @@ const App = () => (
         <BrowserRouter>
             <TourProvider>
           <AnalyticsTracker />
-              <AnalyticsTracker />
               <PushSubscriber />
           <Routes>
             {/* /admin: no nav rail, no notification bell, no maintenance gate

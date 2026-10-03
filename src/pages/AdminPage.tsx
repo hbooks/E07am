@@ -262,6 +262,21 @@ function categorizeError(message: string | null): string {
     return 'Uncaught exception';
 }
 
+function attributeAnonymousEvents(events: AnalyticsEvent[]): AnalyticsEvent[] {
+    const sessionUser = new Map<string, string>();
+    for (const e of events) {
+        if (e.user_id) {
+            sessionUser.set(e.session_id, e.user_id);
+        }
+    }
+    return events.map((e) => {
+        if (e.user_id) return e;
+        const uid = sessionUser.get(e.session_id);
+        if (uid) return { ...e, user_id: uid };
+        return e;
+    });
+}
+
 function buildSessions(events: AnalyticsEvent[]): SessionSummary[] {
     const map = new Map<string, SessionSummary>();
     const now = Date.now();
@@ -2020,6 +2035,15 @@ function FunnelCard({ events }: { events: AnalyticsEvent[] }) {
 // ============================================================
 function ReferrersCard({ events }: { events: AnalyticsEvent[] }) {
     const referrers = useMemo(() => {
+        // Hosts that are auth redirects or our own domain — not real traffic sources
+        const IGNORED_HOSTS = new Set([
+            'accounts.google.com',
+            'appleid.apple.com',
+            'login.microsoftonline.com',
+            'login.live.com',
+            'app.hpbooks.uk',
+        ]);
+
         const counts = new Map<string, number>();
         for (const e of events) {
             const r = e.referrer;
@@ -2029,6 +2053,9 @@ function ReferrersCard({ events }: { events: AnalyticsEvent[] }) {
             }
             try {
                 const host = new URL(r).hostname;
+                if (IGNORED_HOSTS.has(host)) continue;
+                // Also filter any *.kinde.com subdomain
+                if (host.endsWith('.kinde.com')) continue;
                 counts.set(host, (counts.get(host) || 0) + 1);
             } catch {
                 const fallback = r.slice(0, 40);
@@ -2131,6 +2158,11 @@ function AnalyticsSection() {
             ? events.filter((e) => !botSessionIds.has(e.session_id))
             : events,
         [events, botSessionIds, hideBots],
+    );
+
+    const attributedEvents = useMemo(
+        () => attributeAnonymousEvents(visibleEvents),
+        [visibleEvents],
     );
 
     const botCount = allSessions.length - sessions.length;
@@ -2425,7 +2457,7 @@ function AnalyticsSection() {
             </div>
 
             {!loading && visibleEvents.length > 0 && (
-                <GrowthKpisRow events={visibleEvents} />
+                <GrowthKpisRow events={attributedEvents} />
             )}
 
             {loading ? (
@@ -2596,7 +2628,7 @@ function AnalyticsSection() {
 
                     <div className="grid gap-4 lg:grid-cols-2">
                         <Card title="New vs Returning">
-                            <NewVsReturningCard events={visibleEvents} />
+                                <NewVsReturningCard events={attributedEvents} />
                         </Card>
 
                         <Card title="Referrers">
@@ -2605,7 +2637,7 @@ function AnalyticsSection() {
                     </div>
 
                     <Card title="Conversion funnel">
-                        <FunnelCard events={visibleEvents} />
+                            <FunnelCard events={attributedEvents} />
                     </Card>
 
                     <div className="rounded-2xl border border-white/5 bg-[#141414]">

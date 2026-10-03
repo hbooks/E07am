@@ -165,7 +165,6 @@ export default function IndexPage() {
 
   const [mockPrompt, setMockPrompt] = useState<'signin' | 'toolate' | null>(null);
 
-  // Track IDs of mocks already shown this session, per tab.
   const usedMockIdsRef = useRef<Record<FilterType, Set<string>>>({
     '1v1': new Set(),
     'tournament': new Set(),
@@ -180,14 +179,6 @@ export default function IndexPage() {
 
   const ttlTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
-  /**
-   * Pick N mocks for a tab, excluding:
-   *   1. Users already shown this session (usedMockIdsRef)
-   *   2. Users currently visible in any slot for this tab (excludeIds)
-   *
-   * If the pool is exhausted after those filters, reset the session-used
-   * set and try again with just the on-screen exclusion.
-   */
   const pickMocks = useCallback((
     forFilter: FilterType,
     count: number,
@@ -200,7 +191,6 @@ export default function IndexPage() {
     let available = pool.filter((m) => !used.has(m.id) && !excludeIds.has(m.id));
 
     if (available.length < count) {
-      // Wrap the session-used set, keep the on-screen exclusion
       usedMockIdsRef.current[forFilter] = new Set();
       available = pool.filter((m) => !excludeIds.has(m.id));
     }
@@ -246,7 +236,6 @@ export default function IndexPage() {
         const list = current[forFilter];
         if (!list.some((s) => s.slotId === slot.slotId)) return current;
 
-        // Exclude every user still visible in this tab
         const excludeIds = new Set(list.map((s) => s.user.id));
         const replacement = makeSlot(forFilter, excludeIds);
 
@@ -346,7 +335,6 @@ export default function IndexPage() {
       const list = current[filter];
       const without = list.filter((s) => s.slotId !== slot.slotId);
 
-      // Never re-use a user that's still visible in this tab
       const excludeIds = new Set(without.map((s) => s.user.id));
       const replacement = makeSlot(filter, excludeIds);
 
@@ -428,9 +416,6 @@ export default function IndexPage() {
   const accent = ACCENT[filter];
   const visibleSlots = slotsByTab[filter];
 
-  // Defensive UI-level dedupe. Even if the pick logic somehow allowed a
-  // duplicate through (race condition, hot reload, etc.), only the first
-  // instance of each user is ever rendered.
   const dedupedVisibleSlots = useMemo(() => {
     const seen = new Set<string>();
     return visibleSlots.filter((slot) => {
@@ -618,8 +603,7 @@ export default function IndexPage() {
                 }}
               />
 
-              <div
-                className="absolute rounded-full"
+              <div className="absolute rounded-full"
                 style={{
                   top: `${MEET_Y}vh`,
                   left: `${MEET_X}vw`,
@@ -741,6 +725,7 @@ export default function IndexPage() {
             </h1>
             <button
               onClick={handleRefresh}
+              data-tour="feed-refresh"
               disabled={loading || refreshing}
               title="Refresh"
               aria-label="Refresh matches"
@@ -752,7 +737,7 @@ export default function IndexPage() {
           </div>
 
           <div className="flex justify-center pb-3">
-            <div className="relative flex items-center rounded-full border border-white/5 bg-[#101010] p-1">
+            <div data-tour="feed-filters" className="relative flex items-center rounded-full border border-white/5 bg-[#101010] p-1">
               <div
                 className="pointer-events-none absolute inset-y-1 rounded-full transition-transform duration-300 [transition-timing-function:cubic-bezier(0.34,1.56,0.64,1)]"
                 style={{
@@ -815,84 +800,86 @@ export default function IndexPage() {
       </header>
 
       <div className="relative z-10 mx-auto w-full max-w-xl px-4 pt-4 pb-24">
-        {loading && (
-          <div className="space-y-4">
-            <FeedCardSkeleton />
-            <FeedCardSkeleton />
-            <FeedCardSkeleton />
-          </div>
-        )}
-
-        {!loading && error && (
-          <div className="rounded-3xl border border-red-500/15 bg-[#141414] p-8 text-center">
-            <AlertTriangle className="mx-auto mb-3 h-7 w-7 text-red-400" />
-            <p className="mb-4 text-sm text-red-400">Couldn't load lobbies.</p>
-            <button
-              onClick={() => fetchMatches()}
-              className="inline-flex items-center gap-2 rounded-full bg-red-600/20 px-5 py-2.5 text-sm text-red-400 transition hover:bg-red-600/30"
-            >
-              <RefreshCw className="h-4 w-4" /> Retry
-            </button>
-          </div>
-        )}
-
-        {!loading && !error && filteredMatches.length > 0 && (
-          <div className="space-y-4">
-            {filteredMatches.map((match, i) => (
-              <div
-                key={match.id}
-                className="animate-in fade-in slide-in-from-bottom-2 duration-300"
-                style={{
-                  animationDelay: `${Math.min(i, 8) * 45}ms`,
-                  animationFillMode: 'backwards',
-                }}
-              >
-                <FeedCard
-                  match={match}
-                  currentUserId={user?.id}
-                  onClaimed={(roomNumber, password) =>
-                    setClaimResult({ roomNumber, password })
-                  }
-                />
-              </div>
-            ))}
-          </div>
-        )}
-
-        {!loading && !error && filteredMatches.length === 0 && dedupedVisibleSlots.length > 0 && (
-          <div className="space-y-4">
-            {dedupedVisibleSlots.map((slot, i) => (
-              <div
-                key={slot.slotId}
-                className="animate-in fade-in slide-in-from-bottom-2 duration-300"
-                style={{
-                  animationDelay: `${Math.min(i, 8) * 45}ms`,
-                  animationFillMode: 'backwards',
-                }}
-              >
-                <MockFeedCard
-                  user={slot.user}
-                  initialCountdownMs={slot.initialCountdownMs}
-                  onClaimClick={() => handleMockClaim(slot)}
-                />
-              </div>
-            ))}
-          </div>
-        )}
-
-        {!loading && !error && filteredMatches.length === 0 && dedupedVisibleSlots.length === 0 && (
-          <div className="flex flex-col items-center justify-center py-20 text-center">
-            <div className="grid h-12 w-12 place-items-center rounded-full border border-white/5 bg-[#101010]">
-              <Radar className="h-5 w-5 text-gray-600" />
+        <div data-tour="feed-cards">
+          {loading && (
+            <div className="space-y-4">
+              <FeedCardSkeleton />
+              <FeedCardSkeleton />
+              <FeedCardSkeleton />
             </div>
-            <p className="mt-4 text-base font-semibold text-white">
-              No {filter === '1v1' ? '1v1' : filter === 'tournament' ? 'tournament' : 'co-op'} lobbies
-            </p>
-            <p className="mt-1 max-w-xs text-sm text-gray-500">
-              Try another tab, or check back in a moment.
-            </p>
-          </div>
-        )}
+          )}
+
+          {!loading && error && (
+            <div className="rounded-3xl border border-red-500/15 bg-[#141414] p-8 text-center">
+              <AlertTriangle className="mx-auto mb-3 h-7 w-7 text-red-400" />
+              <p className="mb-4 text-sm text-red-400">Couldn't load lobbies.</p>
+              <button
+                onClick={() => fetchMatches()}
+                className="inline-flex items-center gap-2 rounded-full bg-red-600/20 px-5 py-2.5 text-sm text-red-400 transition hover:bg-red-600/30"
+              >
+                <RefreshCw className="h-4 w-4" /> Retry
+              </button>
+            </div>
+          )}
+
+          {!loading && !error && filteredMatches.length > 0 && (
+            <div className="space-y-4">
+              {filteredMatches.map((match, i) => (
+                <div
+                  key={match.id}
+                  className="animate-in fade-in slide-in-from-bottom-2 duration-300"
+                  style={{
+                    animationDelay: `${Math.min(i, 8) * 45}ms`,
+                    animationFillMode: 'backwards',
+                  }}
+                >
+                  <FeedCard
+                    match={match}
+                    currentUserId={user?.id}
+                    onClaimed={(roomNumber, password) =>
+                      setClaimResult({ roomNumber, password })
+                    }
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+
+          {!loading && !error && filteredMatches.length === 0 && dedupedVisibleSlots.length > 0 && (
+            <div className="space-y-4">
+              {dedupedVisibleSlots.map((slot, i) => (
+                <div
+                  key={slot.slotId}
+                  className="animate-in fade-in slide-in-from-bottom-2 duration-300"
+                  style={{
+                    animationDelay: `${Math.min(i, 8) * 45}ms`,
+                    animationFillMode: 'backwards',
+                  }}
+                >
+                  <MockFeedCard
+                    user={slot.user}
+                    initialCountdownMs={slot.initialCountdownMs}
+                    onClaimClick={() => handleMockClaim(slot)}
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+
+          {!loading && !error && filteredMatches.length === 0 && dedupedVisibleSlots.length === 0 && (
+            <div className="flex flex-col items-center justify-center py-20 text-center">
+              <div className="grid h-12 w-12 place-items-center rounded-full border border-white/5 bg-[#101010]">
+                <Radar className="h-5 w-5 text-gray-600" />
+              </div>
+              <p className="mt-4 text-base font-semibold text-white">
+                No {filter === '1v1' ? '1v1' : filter === 'tournament' ? 'tournament' : 'co-op'} lobbies
+              </p>
+              <p className="mt-1 max-w-xs text-sm text-gray-500">
+                Try another tab, or check back in a moment.
+              </p>
+            </div>
+          )}
+        </div>
       </div>
 
       {claimResult && (
