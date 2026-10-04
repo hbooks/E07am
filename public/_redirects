@@ -1,5 +1,10 @@
+# APK download redirect
 /download/ctr.apk  https://kuujhnetnzugpfvicidt.supabase.co/storage/v1/object/public/app/ctr_v1.0.1.apk?download=Claim-The-Room.apk  302
-/install           /install / index.html   200
-    / install / /install/index.html   200
-        / install/*         /install/index.html   200
-/*                 /index.html           200
+
+# Install page routing — all /install variants serve the static install/index.html
+/install            /install/index.html   200
+/install/           /install/index.html   200
+/install/*          /install/index.html   200
+
+# SPA fallback — everything else serves index.html
+/*                  /index.html           200
