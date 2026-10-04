@@ -27,13 +27,28 @@ const COMMUNITY_HINTS = [
   "Report a bug with @bug",
 ];
 
-const MENTION_TAGS = ["admin", "issue", "bug", "moderator"];
+const MENTION_TAGS = ["admin", "issue", "bug", "support", "1v1", "tournament", "event", "Co-op", "Verified", "Staff"];
 const PAGE_SIZE = 20;
+// Community posting limits. Staff bypass everything.
+const MAX_LEN_REGULAR = 300;
+const MAX_LEN_STAFF = 10000;
+
+// Matches emails, full URLs, and bare domains. Does NOT match @mentions.
+const URL_DETECT =
+  /([\w.+-]+@[\w-]+\.[\w.-]+|https?:\/\/[^\s]+|(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}(?:\/[^\s]*)?)/i;
 
 // ============================================================
 // Global shimmer style
 // ============================================================
 const SHIMMER_STYLE = `
+
+@keyframes shake {
+    10%, 90% { transform: translateX(-1px); }
+    20%, 80% { transform: translateX(2px); }
+    30%, 50%, 70% { transform: translateX(-4px); }
+    40%, 60% { transform: translateX(4px); }
+}
+
   @keyframes np-shimmer {
     0%   { background-position: -200% 0; }
     100% { background-position: 200% 0; }
@@ -954,13 +969,19 @@ function GameUpdatesTab() {
 // COMMUNITY FEED
 // ============================================================
 function CommunityFeed() {
-  const { user, isLoading: authLoading, login } = useKindeAuth();
+  const { user, isLoading: authLoading, login, getToken } = useKindeAuth();
   const [posts, setPosts] = useState<CommunityPostItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [profile, setProfile] = useState<any | null>(null);
+  const isStaff = profile?.iss === true;
+  const maxLen = isStaff ? MAX_LEN_STAFF : MAX_LEN_REGULAR;
   const [draft, setDraft] = useState("");
+  const draftTooLong = !isStaff && draft.length > MAX_LEN_REGULAR;
+  const draftHasLink = !isStaff && URL_DETECT.test(draft);
+  const draftBlocked = draftTooLong || draftHasLink;
   const [posting, setPosting] = useState(false);
+  const [composerShake, setComposerShake] = useState(false);
   const [likedMap, setLikedMap] = useState<Record<number, boolean>>({});
   const [likeCountMap, setLikeCountMap] = useState<Record<number, number>>({});
   const [commentsOpen, setCommentsOpen] = useState<Record<number, boolean>>({});
@@ -1025,9 +1046,9 @@ function CommunityFeed() {
   }, [user?.id]);
 
   const handleComposerChange = (value: string) => {
-    const trimmed = value.slice(0, 280);
-    setDraft(trimmed);
-    const match = trimmed.match(/(?:^|\s)@(\w*)$/);
+    const limited = isStaff ? value.slice(0, MAX_LEN_STAFF) : value.slice(0, MAX_LEN_REGULAR);
+    setDraft(limited);
+    const match = limited.match(/(?:^|\s)@(\w*)$/);
     if (match) {
       const q = match[1].toLowerCase();
       const filtered = MENTION_TAGS.filter((t) => t.startsWith(q));
@@ -1053,6 +1074,21 @@ function CommunityFeed() {
       toast.error("Your profile is not ready yet.");
       return;
     }
+
+    if (!isStaff && URL_DETECT.test(draft)) {
+      setComposerShake(true);
+      setTimeout(() => setComposerShake(false), 600);
+      toast.error('Posting links is a Pro feature. Upgrade your account to unlock clickable URLs.');
+      return;
+    }
+
+    if (!isStaff && draft.length > MAX_LEN_REGULAR) {
+      setComposerShake(true);
+      setTimeout(() => setComposerShake(false), 600);
+      toast.error(`Posts are limited to ${MAX_LEN_REGULAR} characters. Upgrade to Pro for longer posts.`);
+      return;
+    }
+
     const text = sanitizePostText(draft);
     if (!text.trim()) return;
 
@@ -1075,9 +1111,14 @@ function CommunityFeed() {
     setPosts((prev) => [tempPost, ...prev]);
     setDraft("");
     try {
+      const token = await getToken();
+
       const res = await fetch(`${BASE_URL}/Crepo`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
         body: JSON.stringify({
           userId: user.id,
           username: profile.username,
@@ -1147,6 +1188,16 @@ function CommunityFeed() {
     const draftText = commentDrafts[postId];
     if (!draftText?.trim()) return;
 
+    if (!isStaff && URL_DETECT.test(draftText)) {
+      toast.error('Posting links is a Pro feature. Upgrade your account to unlock clickable URLs.');
+      return;
+    }
+
+    if (!isStaff && draftText.length > MAX_LEN_REGULAR) {
+      toast.error(`Comments are limited to ${MAX_LEN_REGULAR} characters. Upgrade to Pro for longer comments.`);
+      return;
+    }
+
     const safeContent = sanitizePostText(draftText);
     if (!safeContent) return;
 
@@ -1167,9 +1218,14 @@ function CommunityFeed() {
     setCommenting((prev) => ({ ...prev, [postId]: true }));
 
     try {
+      const token = await getToken();
+
       const res = await fetch(`${BASE_URL}/Comen`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
         body: JSON.stringify({
           postId,
           userId: user.id,
@@ -1333,7 +1389,12 @@ function CommunityFeed() {
             imageUrl={profile?.p_url || ""}
             size="sm"
           />
-          <div className="relative min-w-0 flex-1">
+          <div
+            className={cn(
+              "relative min-w-0 flex-1",
+              composerShake && "animate-[shake_0.5s_ease-in-out]",
+            )}
+          >
             <textarea
               ref={composerRef}
               value={draft}
@@ -1368,39 +1429,53 @@ function CommunityFeed() {
             )}
           </div>
         </div>
+
+        {!isStaff && draftHasLink && (
+          <p className="mt-1 text-[12px] font-medium text-red-400">
+            Posting links is a Pro feature. Upgrade your account to unlock clickable URLs.
+          </p>
+        )}
+
         <div className="mt-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            {draft.length > 0 && (
-              <svg viewBox="0 0 28 28" className="h-6 w-6 -rotate-90">
-                <circle
-                  cx="14"
-                  cy="14"
-                  r="12"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                  className="text-white/[0.06]"
-                />
-                <circle
-                  cx="14"
-                  cy="14"
-                  r="12"
-                  fill="none"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                  stroke={ringColor}
-                  strokeDasharray={ringCircumference}
-                  strokeDashoffset={ringCircumference * (1 - ringPct)}
-                  className="transition-[stroke-dashoffset,stroke] duration-200"
-                />
-              </svg>
+            {!isStaff && draft.length > 0 && (
+              <>
+                <svg viewBox="0 0 28 28" className="h-6 w-6 -rotate-90">
+                  <circle
+                    cx="14"
+                    cy="14"
+                    r="12"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                    className="text-white/[0.06]"
+                  />
+                  <circle
+                    cx="14"
+                    cy="14"
+                    r="12"
+                    fill="none"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    stroke={ringColor}
+                    strokeDasharray={ringCircumference}
+                    strokeDashoffset={ringCircumference * (1 - ringPct)}
+                    className="transition-[stroke-dashoffset,stroke] duration-200"
+                  />
+                </svg>
+                <span className="text-xs text-gray-600">{remaining} left</span>
+              </>
             )}
-            <span className="text-xs text-gray-600">{remaining} left</span>
+            {isStaff && (
+              <span className="text-[11px] text-gray-500">
+                Staff — no character limit
+              </span>
+            )}
           </div>
           <button
             type="button"
             onClick={publishPost}
-            disabled={!draft.trim() || posting}
+            disabled={!draft.trim() || posting || draftBlocked}
             className="inline-flex items-center gap-2 rounded-full bg-[#1E90FF] px-5 py-2 text-sm font-semibold text-white transition hover:brightness-110 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
           >
             {posting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
@@ -1435,12 +1510,14 @@ function CommunityFeed() {
                 tempComments={tempComments[post.id] || []}
                 commentDraft={commentDrafts[post.id] || ""}
                 isCommenting={!!commenting[post.id]}
+                isStaff={isStaff}
+                maxCommentLen={maxLen}
                 onToggleLike={() => toggleLike(post.id)}
                 onToggleComments={() => toggleComments(post.id)}
                 onCommentDraftChange={(v) =>
                   setCommentDrafts((prev) => ({
                     ...prev,
-                    [post.id]: v.slice(0, 280),
+                    [post.id]: v.slice(0, isStaff ? 10000 : 280),
                   }))
                 }
                 onAddComment={() => addComment(post.id)}
@@ -1498,6 +1575,8 @@ function CommunityPost({
   tempComments,
   commentDraft,
   isCommenting,
+  isStaff,
+  maxCommentLen,
   onToggleLike,
   onToggleComments,
   onCommentDraftChange,
@@ -1513,6 +1592,8 @@ function CommunityPost({
   tempComments: PostComment[];
   commentDraft: string;
   isCommenting: boolean;
+  isStaff: boolean;
+  maxCommentLen: number;
   onToggleLike: () => void;
   onToggleComments: () => void;
   onCommentDraftChange: (v: string) => void;
@@ -1530,6 +1611,12 @@ function CommunityPost({
   const hiddenComments = allComments.length - visibleComments.length;
 
   const handle = `@${post.author_name.toLowerCase().replace(/\s+/g, "")}`;
+
+  // Live check for the comment input. Mirrors the composer rules so the
+  // user gets an inline hint instead of a silent failure on submit.
+  const commentHasLink = !isStaff && URL_DETECT.test(commentDraft);
+  const commentTooLong = !isStaff && commentDraft.length > maxCommentLen;
+  const commentBlocked = commentHasLink || commentTooLong;
 
   return (
     <article
@@ -1697,6 +1784,12 @@ function CommunityPost({
                 );
               })}
 
+              {commentHasLink && (
+                <p className="mt-1 text-[12px] font-medium text-red-400">
+                  Posting links is a Pro feature. Upgrade your account to unlock clickable URLs.
+                </p>
+              )}
+
               <div className="flex items-start gap-2">
                 <textarea
                   value={commentDraft}
@@ -1707,7 +1800,7 @@ function CommunityPost({
                 />
                 <button
                   onClick={onAddComment}
-                  disabled={!commentDraft.trim() || isCommenting}
+                  disabled={!commentDraft.trim() || isCommenting || commentBlocked}
                   className="rounded-full bg-[#5CA8FF] p-2 text-white transition active:scale-90 disabled:opacity-40"
                 >
                   {isCommenting ? (
