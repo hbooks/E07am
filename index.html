@@ -4,21 +4,94 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- Favicons (unchanged) -->
   <link rel="icon" type="image/png" href="/assets/favicon/favicon-96x96.png?v=20260927" sizes="96x96" />
   <link rel="icon" type="image/svg+xml" href="/assets/favicon/favicon.svg?v=20260927" />
   <link rel="shortcut icon" href="/assets/favicon/favicon.ico?v=20260927" />
   <link rel="apple-touch-icon" sizes="180x180" href="/assets/favicon/apple-touch-icon.png?v=20260927" />
   <link rel="manifest" href="/manifest.json" />
 
+  <!-- PWA meta (unchanged) -->
   <meta name="apple-mobile-web-app-title" content="Claim The Room" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="theme-color" content="#08090b" />
-  <meta name="description" content="Competitive eFootball matchmaking. Create a room, claim it, play, repeat." />
+
+  <!-- SEO -->
+  <title>Claim The Room — eFootball Matchmaking</title>
+  <meta name="description"
+    content="Fan-made eFootball matchmaking. Browse open rooms, claim a match, get your squad verified and play. Free to join. Not affiliated with Konami." />
+  <meta name="author" content="Hazy Pixel Studios" />
+  <meta name="robots" content="index, follow, max-image-preview:large" />
+  <link rel="canonical" href="https://app.hpbooks.uk/" />
+
+  <!-- Open Graph (Facebook, WhatsApp, Discord, LinkedIn) -->
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://app.hpbooks.uk/" />
+  <meta property="og:title" content="Claim The Room — eFootball Matchmaking" />
+  <meta property="og:description"
+    content="Browse open eFootball rooms, claim a match, and get your squad verified. Free to join." />
+  <meta property="og:image" content="https://app.hpbooks.uk/assets/og/ctr-og.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="Claim The Room logo with the tagline Claim, Play, Repeat" />
+  <meta property="og:site_name" content="Claim The Room" />
+  <meta property="og:locale" content="en_GB" />
+
+  <!-- Twitter / X -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Claim The Room — eFootball Matchmaking" />
+  <meta name="twitter:description"
+    content="Browse open eFootball rooms, claim a match, and get your squad verified. Free to join." />
+  <meta name="twitter:image" content="https://app.hpbooks.uk/assets/og/ctr-og.png" />
+  <meta name="twitter:image:alt" content="Claim The Room logo with the tagline Claim, Play, Repeat" />
+
+  <!-- Structured data -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "Claim The Room",
+    "alternateName": "CTR",
+    "url": "https://app.hpbooks.uk/",
+    "description": "A fan-made matchmaking platform for eFootball players. Browse open rooms, claim a match, and get your squad verified.",
+    "image": "https://app.hpbooks.uk/assets/og/ctr-og.png",
+    "inLanguage": "en-GB",
+    "applicationCategory": "GameApplication",
+    "operatingSystem": "Web, Android",
+    "isAccessibleForFree": true,
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "GBP"
+    },
+    "publisher": {
+      "@type": "Organization",
+      "name": "Hazy Pixel Studios"
+    }
+  }
+  </script>
 </head>
 
 <body>
   <div id="root"></div>
+
+  <!-- Crawlers that don't run JavaScript only see this. Hidden for everyone else. -->
+  <noscript>
+    <h1>Claim The Room</h1>
+    <p>Claim The Room is a fan-made matchmaking platform for eFootball players. Hosts open rooms for 1v1, Co-op
+      and Tournament matches. Players browse the live feed, claim a room, and get the room number and password to
+      join in-game. Squads are verified from a screenshot before you can host. Not affiliated with Konami.</p>
+    <p>This app needs JavaScript to run.</p>
+    <p>
+      <a href="/news">News</a> ·
+      <a href="/install">Install the app</a> ·
+      <a href="/terms">Terms</a> ·
+      <a href="/privacy">Privacy</a>
+    </p>
+  </noscript>
+
   <script type="module" src="/src/main.tsx"></script>
 </body>
 
