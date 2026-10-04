@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ctr-cache-v3';
+const CACHE_NAME = 'ctr-cache-v4';
 const CACHE_PREFIX = 'ctr-cache-';   // used to identify our caches for cleanup
 
 const PRECACHE = [
@@ -56,6 +56,18 @@ self.addEventListener('fetch', (event) => {
 
     // Never touch API / edge functions
     if (url.pathname.startsWith('/functions/')) return;
+
+    // Never touch crawler files (sitemap, robots, manifest). These must always
+    // be served fresh from the network so Google Search Console can read them.
+    if (
+        url.pathname === '/sitemap.xml' ||
+        url.pathname === '/robots.txt' ||
+        url.pathname === '/manifest.json' ||
+        url.pathname.endsWith('.xml') ||
+        url.pathname.endsWith('.txt')
+    ) {
+        return;
+    }
 
     // Never touch downloads (the APK is large) or range requests
     if (req.headers.has('range')) return;
