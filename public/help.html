@@ -1,0 +1,732 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Help Center — Claim The Room</title>
+    <meta name="description"
+        content="Step-by-step help for Claim The Room: hosting and claiming rooms, squad verification, your account, notifications and troubleshooting.">
+    <meta name="theme-color" content="#08090b">
+    <link rel="icon" type="image/svg+xml" href="/assets/favicon/favicon.svg">
+    <link rel="icon" type="image/png" href="/assets/favicon/favicon-96x96.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Rajdhani:wght@600;700&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --bg: #08090b;
+            --card: #0f0f11;
+            --line: rgba(255, 255, 255, .08);
+            --line2: rgba(255, 255, 255, .16);
+            --tx: #f3f4f6;
+            --dim: #a1a7b3;
+            --faint: #6b7280;
+            --br: #1E90FF;
+            --br2: #5CA8FF
+        }
+
+        * {
+            box-sizing: border-box
+        }
+
+        html {
+            scroll-padding-top: 70px
+        }
+
+        body {
+            margin: 0;
+            background: var(--bg);
+            color: var(--tx);
+            font: 15px/1.65 Inter, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+            -webkit-font-smoothing: antialiased
+        }
+
+        a {
+            color: var(--br2);
+            text-decoration: none
+        }
+
+        a:hover {
+            text-decoration: underline
+        }
+
+        :focus-visible {
+            outline: 2px solid var(--br);
+            outline-offset: 2px
+        }
+
+        .top {
+            border-bottom: 1px solid var(--line);
+            position: sticky;
+            top: 0;
+            background: rgba(8, 9, 11, .96);
+            z-index: 5
+        }
+
+        .top div {
+            max-width: 1040px;
+            margin: 0 auto;
+            padding: 0 20px;
+            height: 56px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: var(--tx);
+            font: 700 17px Rajdhani, sans-serif;
+            letter-spacing: .04em;
+            text-transform: uppercase
+        }
+
+        .brand:hover {
+            text-decoration: none
+        }
+
+        .brand img {
+            width: 24px;
+            height: 24px
+        }
+
+        .brand span {
+            color: var(--faint);
+            font: 500 13px Inter, sans-serif;
+            text-transform: none;
+            letter-spacing: 0;
+            border-left: 1px solid var(--line2);
+            padding-left: 10px
+        }
+
+        .top nav {
+            display: flex;
+            gap: 20px;
+            font-size: 14px
+        }
+
+        .top nav a {
+            color: var(--dim)
+        }
+
+        .top nav a:hover {
+            color: var(--tx);
+            text-decoration: none
+        }
+
+        main {
+            max-width: 1040px;
+            margin: 0 auto;
+            padding: 0 20px 80px
+        }
+
+        .hero {
+            padding: 56px 0 28px
+        }
+
+        .hero h1 {
+            font: 700 40px/1.1 Rajdhani, sans-serif;
+            margin: 0 0 8px;
+            letter-spacing: .01em
+        }
+
+        .hero p {
+            margin: 0 0 22px;
+            color: var(--dim);
+            max-width: 560px
+        }
+
+        .sb {
+            position: relative;
+            max-width: 640px
+        }
+
+        .sb svg {
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--faint)
+        }
+
+        .sb input {
+            width: 100%;
+            height: 50px;
+            padding: 0 44px;
+            background: var(--card);
+            border: 1px solid var(--line2);
+            border-radius: 10px;
+            color: var(--tx);
+            font: inherit;
+            font-size: 16px
+        }
+
+        .sb input::placeholder {
+            color: var(--faint)
+        }
+
+        .sb input:focus {
+            border-color: var(--br);
+            outline: 0
+        }
+
+        .sb button {
+            position: absolute;
+            right: 8px;
+            top: 8px;
+            width: 34px;
+            height: 34px;
+            border: 0;
+            background: none;
+            color: var(--faint);
+            border-radius: 8px;
+            cursor: pointer;
+            display: none
+        }
+
+        .sb button:hover {
+            color: var(--tx);
+            background: rgba(255, 255, 255, .06)
+        }
+
+        .sb.has button {
+            display: block
+        }
+
+        .hint {
+            margin-top: 10px;
+            font-size: 13px;
+            color: var(--faint)
+        }
+
+        h2 {
+            font-size: 13px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: .08em;
+            color: var(--faint);
+            margin: 36px 0 12px
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 12px
+        }
+
+        .cat {
+            display: block;
+            padding: 18px 20px;
+            background: var(--card);
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            color: var(--tx)
+        }
+
+        .cat:hover {
+            border-color: var(--line2);
+            text-decoration: none
+        }
+
+        .cat b {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 2px
+        }
+
+        .cat span {
+            display: block;
+            color: var(--dim);
+            font-size: 14px;
+            line-height: 1.5
+        }
+
+        .cat small {
+            color: var(--faint);
+            font-size: 12.5px
+        }
+
+        .list {
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            background: var(--card);
+            overflow: hidden
+        }
+
+        .list a {
+            display: block;
+            padding: 14px 20px;
+            color: var(--tx);
+            border-top: 1px solid var(--line)
+        }
+
+        .list a:first-child {
+            border-top: 0
+        }
+
+        .list a:hover {
+            background: rgba(255, 255, 255, .03);
+            text-decoration: none
+        }
+
+        .list a small {
+            display: block;
+            color: var(--dim);
+            font-size: 13.5px;
+            margin-top: 2px;
+            line-height: 1.5
+        }
+
+        .list a em {
+            font-style: normal;
+            color: var(--faint);
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: .06em;
+            margin-right: 8px
+        }
+
+        .crumb {
+            padding: 28px 0 0;
+            font-size: 13.5px;
+            color: var(--faint)
+        }
+
+        .crumb a {
+            color: var(--dim)
+        }
+
+        .art {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 270px;
+            gap: 56px;
+            padding-top: 8px
+        }
+
+        .art h1 {
+            font: 700 34px/1.15 Rajdhani, sans-serif;
+            margin: 14px 0 18px
+        }
+
+        .body p {
+            margin: 0 0 14px;
+            color: #d1d5db
+        }
+
+        .body ol,
+        .body ul {
+            margin: 0 0 16px;
+            padding-left: 22px;
+            color: #d1d5db
+        }
+
+        .body li {
+            margin-bottom: 8px
+        }
+
+        .body h3 {
+            font-size: 16px;
+            margin: 26px 0 8px
+        }
+
+        .body strong {
+            color: var(--tx);
+            font-weight: 600
+        }
+
+        .note {
+            border-left: 2px solid var(--br);
+            background: var(--card);
+            padding: 12px 16px;
+            border-radius: 0 8px 8px 0;
+            margin: 18px 0;
+            color: var(--dim)
+        }
+
+        .side h3 {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: .08em;
+            color: var(--faint);
+            margin: 0 0 10px;
+            font-weight: 600
+        }
+
+        .side {
+            padding-top: 14px;
+            font-size: 14px
+        }
+
+        .side a {
+            display: block;
+            padding: 7px 0;
+            color: var(--dim);
+            border-top: 1px solid var(--line)
+        }
+
+        .side a:hover {
+            color: var(--tx);
+            text-decoration: none
+        }
+
+        .fb {
+            margin-top: 36px;
+            padding-top: 20px;
+            border-top: 1px solid var(--line);
+            color: var(--dim);
+            font-size: 14px
+        }
+
+        .fb button {
+            font: inherit;
+            font-size: 14px;
+            color: var(--tx);
+            background: none;
+            border: 1px solid var(--line2);
+            border-radius: 8px;
+            padding: 6px 16px;
+            margin-left: 8px;
+            cursor: pointer
+        }
+
+        .fb button:hover {
+            border-color: var(--br)
+        }
+
+        .cta {
+            margin-top: 48px;
+            padding: 22px 24px;
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            background: var(--card);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+            flex-wrap: wrap
+        }
+
+        .cta b {
+            display: block;
+            font-weight: 600
+        }
+
+        .cta span {
+            color: var(--dim);
+            font-size: 14px
+        }
+
+        .btn {
+            background: var(--br);
+            color: #fff;
+            border-radius: 8px;
+            padding: 10px 18px;
+            font-weight: 600;
+            font-size: 14px
+        }
+
+        .btn:hover {
+            text-decoration: none;
+            filter: brightness(1.1)
+        }
+
+        .msg {
+            padding: 14px 18px;
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            background: var(--card);
+            color: var(--dim);
+            margin-bottom: 14px;
+            font-size: 14.5px
+        }
+
+        .msg b {
+            color: var(--tx);
+            font-weight: 600
+        }
+
+        footer {
+            border-top: 1px solid var(--line);
+            color: var(--faint);
+            font-size: 13px
+        }
+
+        footer div {
+            max-width: 1040px;
+            margin: 0 auto;
+            padding: 22px 20px;
+            display: flex;
+            justify-content: space-between;
+            gap: 16px;
+            flex-wrap: wrap
+        }
+
+        footer a {
+            color: var(--dim);
+            margin-left: 16px
+        }
+
+        @media(max-width:820px) {
+            .art {
+                grid-template-columns: 1fr;
+                gap: 8px
+            }
+
+            .hero {
+                padding-top: 36px
+            }
+
+            .hero h1 {
+                font-size: 34px
+            }
+
+            .art h1 {
+                font-size: 28px
+            }
+
+            .top nav a:nth-child(2) {
+                display: none
+            }
+
+            .brand span {
+                display: none
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <header class="top">
+        <div>
+            <a class="brand" href="#/"><img src="/assets/favicon/favicon.svg" alt="">Claim The Room<span>Help
+                    Center</span></a>
+            <nav><a href="/">Back to app</a><a href="/settings">Contact support</a></nav>
+        </div>
+    </header>
+    <main>
+        <section class="hero" id="hero">
+            <h1>How can we help?</h1>
+            <p>Search in your own words, or browse by topic. We'll show you the closest answers even if the wording is
+                different.</p>
+            <div class="sb" id="sb" role="search">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round">
+                    <circle cx="11" cy="11" r="7" />
+                    <path d="m21 21-4.3-4.3" />
+                </svg>
+                <input id="q" type="search" placeholder="e.g. change my profile details, can't join a room"
+                    autocomplete="off" aria-label="Search the help center">
+                <button id="x" aria-label="Clear search"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                        <path d="M18 6 6 18M6 6l12 12" />
+                    </svg></button>
+            </div>
+            <div class="hint">Popular: <a href="#/a/cant-claim">can't claim a room</a> · <a href="#/a/verify">verify my
+                    squad</a> · <a href="#/a/profile">change username</a> · <a href="#/a/push">no notifications</a>
+            </div>
+        </section>
+        <div id="v" aria-live="polite"></div>
+    </main>
+    <footer>
+        <div><span>Claim The Room is an independent platform and is not affiliated with Konami.</span><span><a
+                    href="/terms">Terms</a><a href="/privacy">Privacy</a><a href="/install">Install</a></span></div>
+    </footer>
+
+    <script>
+        const CATS = [
+            { id: 'start', n: 'Getting started', d: 'Sign up, install the app and learn how matchmaking works.' },
+            { id: 'rooms', n: 'Rooms and matches', d: 'Host a room, claim one, and finish your match.' },
+            { id: 'squad', n: 'Squad verification', d: 'Get your squad approved so you can play.' },
+            { id: 'acct', n: 'Account and profile', d: 'Username, sign-in, ranks, badges and deleting your account.' },
+            { id: 'notif', n: 'Notifications and settings', d: 'Alerts, push, preferences, news and community.' },
+            { id: 'fix', n: 'Troubleshooting', d: 'Blank screens, wrong data, maintenance and contacting us.' }];
+
+        const A = [
+            {
+                id: 'what-is', c: 'start', t: 'What is Claim The Room and how does it work?', k: 'about intro overview how it works free cost price subscription premium ads getting started begin new', r: ['signup', 'verify', 'claim'],
+                b: `<p>Claim The Room (CTR) is a free matchmaking platform for eFootball players. Players post open rooms, you claim one, get the room number and password, and play the match in the game.</p><ol><li>Sign in and choose a username.</li><li>Verify your squad with a screenshot.</li><li>Host a room, or claim one from the feed.</li><li>Join the room in eFootball.</li><li>Submit the result afterwards so you can play again.</li></ol><p class="note">There is no subscription or paid tier. CTR is independent and not affiliated with Konami.</p>`
+            },
+            {
+                id: 'signup', c: 'start', t: 'Create an account and choose a username', k: 'sign up register join new account first time onboarding name pick tour welcome', r: ['profile', 'verify', 'signin'],
+                b: `<p>Tap <strong>Sign in</strong> anywhere in the app and pick a sign-in option. The first time, you'll choose a username. This is the name other players see.</p><ul><li>Use letters, numbers, underscores, hyphens and full stops, up to 30 characters.</li><li>Names must be unique. If yours is taken, pick another.</li><li>Use your real eFootball username so other players recognise you.</li></ul><p>A short guided tour starts afterwards. You can skip it at any time. Next time, sign in with the same method you used before.</p>`
+            },
+            {
+                id: 'install', c: 'start', t: 'Install the app on Android, iPhone or desktop', k: 'download apk pwa home screen add phone app store play protect unknown sources android ios iphone ipad chrome safari desktop update', r: ['push', 'blank', 'signup'],
+                b: `<p>Open the <a href="/install">install page</a>. It detects your device and shows the right steps.</p><h3>Android</h3><p>Tap <strong>Install App</strong>. Or use the APK: <a href="/download/ctr.apk">download it here</a>. Android may ask you to allow installs from your browser, and Play Protect may show a warning because the app isn't on the Play Store. The <strong>Is it safe?</strong> guide on the install page walks you through it. To update, download the latest APK and install over the old one.</p><h3>iPhone and iPad</h3><p>Open the page in <strong>Safari</strong>, tap <strong>Share</strong>, then <strong>Add to Home Screen</strong>.</p><h3>Desktop</h3><p>In Chrome or Edge, use the install icon in the address bar or the Install button on the page.</p><p class="note">Installed, the app opens fullscreen. On iPhone, notifications only work from the home-screen version.</p>`
+            },
+
+            {
+                id: 'create', c: 'rooms', t: 'Host a room (create a match)', k: 'create make post start new room match lobby host 1v1 co-op coop tournament room number password players needed length digits difference types', r: ['cant-create', 'expire', 'results'],
+                b: `<p>You need a verified squad to host. Then:</p><ol><li>Open <strong>Create</strong> in the navigation.</li><li>Choose the type: <strong>1v1</strong>, <strong>Co-op</strong> or <strong>Tournament</strong>.</li><li>Enter the room number from your in-game room screen: <strong>8 digits</strong> for 1v1 and Co-op, <strong>12 digits</strong> for Tournament. Spaces and dashes are removed for you.</li><li>Optionally add a password (4 to 32 characters).</li><li>Set how many players you need, then post.</li></ol><p>Your room appears in the feed with a <strong>5-minute countdown</strong>. If nobody claims it in time it is removed and you can post again. You can have one active room at a time.</p>`
+            },
+            {
+                id: 'cant-create', c: 'rooms', t: "I can't create a room", k: "cannot can't unable fails error not working blocked active match results needed room number wrong invalid host create button disabled", r: ['create', 'verify', 'results'],
+                b: `<p>Check which message you see:</p><ul><li><strong>Squad not verified.</strong> Hosting needs an approved squad. <a href="#/a/verify">Verify your squad</a>.</li><li><strong>Active match.</strong> You already have an open room. Wait until it's claimed or its countdown ends.</li><li><strong>Results needed.</strong> Submit the result of your last match first. <a href="#/a/results">How to submit a result</a>.</li><li><strong>Room number is the wrong length.</strong> It must be 8 digits (1v1, Co-op) or 12 digits (Tournament). Copy it again from the game.</li><li><strong>Profile not found.</strong> Finish choosing your username first.</li></ul>`
+            },
+            {
+                id: 'claim', c: 'rooms', t: 'Claim a room and join the match', k: 'join enter get room number password reveal copy find where modal popup 15 seconds missed closed play match', r: ['cant-claim', 'results', 'expire'],
+                b: `<ol><li>Open the feed and choose the tab you want: 1v1, Tournament or Co-op.</li><li>Tap <strong>Claim</strong> on a room.</li><li>The room number and password appear with copy buttons.</li><li>Open eFootball and enter the room.</li></ol><p class="note">For security, the details stay on screen for about <strong>15 seconds</strong>. Copy them right away. If it closes early, tap <strong>You're in</strong> on that room's card to open it again while the room is still active.</p><p>After claiming you can't claim or host another room until you submit your result.</p>`
+            },
+            {
+                id: 'cant-claim', c: 'rooms', t: "I can't claim a room", k: "cannot can't unable claim button greyed not working error full taken already your own room join blocked fail", r: ['claim', 'expire', 'results'],
+                b: `<p>The usual causes:</p><ul><li><strong>Squad not verified.</strong> <a href="#/a/verify">Verify your squad</a> first.</li><li><strong>It's your own room.</strong> Claim someone else's.</li><li><strong>You're in an unfinished match.</strong> Submit the result, or wait for your open room to finish or expire.</li><li><strong>The room is full or expired.</strong> Rooms are first come, first served. Pull down to refresh and try another.</li><li><strong>You're signed out.</strong> Sign in to claim.</li></ul>`
+            },
+            {
+                id: 'expire', c: 'rooms', t: 'Why did a room disappear or show as expired?', k: 'expired gone missing vanished disappeared timer countdown removed minutes deleted notification hosted nobody joined', r: ['claim', 'create', 'notifications'],
+                b: `<p>Rooms last <strong>5 minutes</strong> after they're posted. This keeps the feed fresh and stops people joining rooms the host has already left.</p><ul><li><strong>If you hosted:</strong> an unclaimed room is removed when time runs out. You get a notification and can post a new one straight away.</li><li><strong>If you claimed a room that didn't fill:</strong> you are notified and released, so you can claim another.</li><li><strong>If you're watching a room:</strong> another player may have taken the last slot. Pull down to refresh.</li></ul>`
+            },
+            {
+                id: 'results', c: 'rooms', t: 'Submit your match result', k: 'result results finish finished complete done after match unlock exp games played progress locked results needed can\'t host new match', r: ['progress', 'cant-create', 'cant-claim'],
+                b: `<p>After your match, open the results page and submit it. This:</p><ul><li>Unlocks your account so you can host or claim again.</li><li>Adds the game to your <strong>games played</strong> and your match-type counts.</li><li>Awards <strong>EXP</strong>. EXP rewards playing, not winning.</li></ul><p>If you see <em>Results needed</em> when hosting or claiming, this is the step you're missing.</p>`
+            },
+
+            {
+                id: 'verify', c: 'squad', t: 'Verify your squad', k: 'squad verification verify screenshot upload submit evaluation review approved pending how long strength update-squad evaluate team', r: ['rejected', 'size', 'cant-create'],
+                b: `<ol><li>Open <strong>Profile</strong> and tap <strong>Update squad for evaluation</strong>.</li><li>Upload a screenshot of your eFootball squad screen.</li><li>Wait for the review. Your status shows as <strong>Pending</strong>.</li></ol><p>The screenshot must show your <strong>full starting XI and substitutes</strong>, your club crest and the normal eFootball screen, unedited. Use JPEG, PNG or WebP under 700 KB. There's a reference image on the upload page.</p><p class="note">Reviews usually take 10 to 50 minutes, longer when many players submit at once. You'll get a notification when it's done. You can't host or claim until you're approved.</p>`
+            },
+            {
+                id: 'rejected', c: 'squad', t: 'My squad was rejected, or is stuck on Pending', k: 'rejected denied declined failed pending waiting stuck long slow not approved again resubmit wrong screenshot', r: ['verify', 'troll', 'size'],
+                b: `<h3>Rejected</h3><p>Common reasons:</p><ul><li>The image isn't from eFootball (no crest, pitch layout or game interface).</li><li>The full squad isn't visible.</li><li>The image is edited, blurry, cropped or too small to read.</li></ul><p>Take a fresh, uncropped screenshot and submit again from <strong>Profile → Update squad for evaluation</strong>. Please don't submit repeatedly with unsuitable images, because it raises your <a href="#/a/troll">Troll counter</a>.</p><h3>Pending</h3><p>Submissions are reviewed in a queue. If yours has been pending for several hours, send a support request with your username.</p>`
+            },
+            {
+                id: 'size', c: 'squad', t: 'My screenshot is too large or won\'t upload', k: 'too big large size 700 kb upload fails format heic file type compress photo camera error', r: ['verify', 'rejected'],
+                b: `<p>Screenshots must be <strong>JPEG, PNG or WebP</strong> and under <strong>700 KB</strong>.</p><ul><li>Use your phone's screenshot button, not a photo of the screen.</li><li>Compress or resize the image with your phone's editor or a free compressor.</li><li>HEIC and RAW files aren't supported. Export as JPEG or PNG.</li></ul>`
+            },
+            {
+                id: 'troll', c: 'squad', t: 'What is the Troll counter?', k: 'troll counter percent badge vibe rating fake screenshots penalty reputation trolls behaviour bad', r: ['rejected', 'progress'],
+                b: `<p>The Troll counter tracks fake, edited or irrelevant screenshot submissions. Submit genuine screenshots and it stays at zero.</p><p>A high Troll level shows a badge next to your name and lowers the vibe rating on your room cards, so other players may avoid your rooms.</p>`
+            },
+
+            {
+                id: 'profile', c: 'acct', t: 'Change your username and other profile info', k: 'change edit update modify profile details name username nickname gamertag avatar picture photo email info account information rename', r: ['progress', 'delete', 'support'],
+                b: `<ul><li><strong>Username:</strong> it can't be edited in the app at the moment. Send a request from <strong>Settings → Support</strong> with your current username and the one you want.</li><li><strong>Avatar:</strong> open <strong>Profile</strong> and tap your avatar to choose a new one from the available styles.</li><li><strong>Email:</strong> shown on your profile for reference. It's tied to how you sign in and can't be changed in the app.</li><li><strong>Squad and ranks:</strong> these update through <a href="#/a/verify">squad verification</a> and from playing matches.</li><li><strong>Stats:</strong> games played, EXP and counters update automatically.</li></ul>`
+            },
+            {
+                id: 'signin', c: 'acct', t: "I can't sign in", k: "login log in sign in cannot can't locked out password access google apple email wrong account different method session expired switch account log out guest without account", r: ['blank', 'support', 'signup'],
+                b: `<ul><li><strong>Use the same method as before.</strong> If you signed up with Google, sign in with Google, not email.</li><li><strong>Session expired.</strong> Close the tab or app, reopen it and try again.</li><li><strong>Clear your browser cache and cookies</strong>, then reload.</li><li><strong>Switch accounts:</strong> go to <strong>Settings → Log out</strong>, then sign in again.</li></ul><p>Still locked out? Send a support request and include the email you signed up with.</p><p class="note">Without an account you can still browse the feed and read news updates. Claiming, hosting, notifications, your profile and the Community tab need you to sign in.</p>`
+            },
+            {
+                id: 'progress', c: 'acct', t: 'EXP, levels, ranks and badges explained', k: 'xp exp level ranking rank tier badge verified staff star ring progress stats games played most played player rank squad rank profile bar', r: ['results', 'troll', 'profile'],
+                b: `<ul><li><strong>EXP and level:</strong> you earn EXP by <a href="#/a/results">submitting match results</a>. The ring around your avatar grows with your level, and top-level players get a gold star.</li><li><strong>Rank chips:</strong> your squad rank and player rank sit under your name. Tap one to see the tier ladder and where you are.</li><li><strong>Badges:</strong> Verified, Staff and Troll badges show next to usernames.</li><li><strong>Stats:</strong> Games, Troll % and Most Played appear on your profile.</li></ul>`
+            },
+            {
+                id: 'delete', c: 'acct', t: 'Delete your account and data', k: 'delete remove close erase account data privacy gdpr leave quit deactivate close my account', r: ['profile', 'support'],
+                b: `<ol><li>Go to <strong>Settings → Support</strong>.</li><li>Choose the type <strong>Delete Account</strong>.</li><li>Submit the request.</li></ol><p>We'll process it in line with our <a href="/privacy">Privacy Policy</a>, which explains what is deleted and what is kept.</p>`
+            },
+
+            {
+                id: 'notifications', c: 'notif', t: 'How notifications work', k: 'notification bell alerts inbox unread read mark all read messages claimed expired approved announcements deleted old', r: ['push', 'expire', 'verify'],
+                b: `<p>You're notified when your room is claimed, when a room expires, when your squad is approved or rejected, and when there's an admin announcement.</p><ul><li>The <strong>bell</strong> shows unread notifications. Tap it for recent ones or <strong>View all</strong>.</li><li>On the notifications page they're grouped as Today, Yesterday and Earlier. Tap one to read it in full.</li><li><strong>Mark all as read</strong> clears the badge.</li></ul><p class="note">Notifications are cleared automatically after about a day, so check them while they're fresh.</p>`
+            },
+            {
+                id: 'push', c: 'notif', t: "Turn on push notifications, or fix them not arriving", k: 'push notifications not working not receiving alerts phone permission blocked enable allow iphone ios android apk toggle off no sound ping', r: ['notifications', 'install', 'settings'],
+                b: `<ol><li>Open <strong>Settings → Notifications</strong> and switch <strong>Push</strong> on. It's off by default.</li><li>Allow notifications when your browser or device asks.</li></ol><p>If they still don't arrive:</p><ul><li><strong>Permission is blocked.</strong> Allow notifications for the site in your browser or phone settings, then toggle Push off and on again.</li><li><strong>iPhone and iPad.</strong> The app must be added to your Home Screen first (iOS 16.4 or later). Regular Safari tabs can't receive push. <a href="#/a/install">Install steps</a>.</li><li><strong>Android APK.</strong> Push isn't available in the APK yet. Use the installed web app, or check the bell.</li></ul>`
+            },
+            {
+                id: 'settings', c: 'notif', t: 'Settings explained: dark mode, music and privacy', k: 'settings preferences toggle dark mode theme music sound volume background privacy online status about contact legal log out logout reset device', r: ['push', 'support', 'signin'],
+                b: `<p>Find these under <strong>Settings</strong>: appearance, notifications, <strong>Show online status</strong>, background music (on/off and volume), support, contact options, legal pages and <strong>Log out</strong>.</p><p>Music changes track when you create or claim a room, and stops when switched off.</p><p class="note">Preferences are saved on the device and browser you're using. On a new phone or browser you may need to set them again.</p>`
+            },
+            {
+                id: 'community', c: 'notif', t: 'News and Community: posting, comments and @mentions', k: 'news community post comment like repost mention @admin @bug @issue @moderator updates patch notes game announcements feed tweet share', r: ['support', 'notifications'],
+                b: `<p>The <strong>News</strong> page has three tabs:</p><ul><li><strong>Admin Updates:</strong> official announcements from the team.</li><li><strong>Game Updates:</strong> eFootball patch notes.</li><li><strong>Community:</strong> posts from players. Sign in to read and join in.</li></ul><p>You can post (up to 500 characters), comment, like and repost. Use <strong>@bug</strong> or <strong>@issue</strong> to flag a problem, <strong>@admin</strong> to reach the team, and <strong>@moderator</strong> for community concerns. Links in posts open in a new tab.</p>`
+            },
+
+            {
+                id: 'blank', c: 'fix', t: 'The app is blank, stuck, or says an update is required', k: 'blank white screen stuck loading not loading frozen crash update required refresh cache reinstall error retry slow won\'t open', r: ['stale', 'install', 'maintenance'],
+                b: `<p>This is usually an outdated saved copy of the app. Try these in order:</p><ol><li>Close the app completely and reopen it.</li><li>In a browser, hard refresh with <strong>Ctrl + Shift + R</strong> (Windows) or <strong>Cmd + Shift + R</strong> (Mac), or clear the site's cache.</li><li>If it's installed, uninstall it and reinstall from the <a href="/install">install page</a>.</li></ol><p>If the feed shows an error, tap <strong>Retry</strong>. If nothing works, wait a few minutes: an update may be rolling out.</p>`
+            },
+            {
+                id: 'stale', c: 'fix', t: 'My stats, rank or feed look wrong or out of date', k: 'wrong stats incorrect missing profile data not updating old outdated feed refresh rank games exp counters stale', r: ['blank', 'support', 'progress'],
+                b: `<ul><li>Pull down to refresh the feed or profile, or reopen the page.</li><li>Some counters, like match-type splits, update after your next match event.</li><li>Squad status changes after a review finishes. See <a href="#/a/rejected">squad stuck on Pending</a>.</li></ul><p>Still wrong? <a href="#/a/support">Contact support</a> with your username and a description of what you see.</p>`
+            },
+            {
+                id: 'support', c: 'fix', t: 'Report a bug or contact support', k: 'contact support help report bug issue problem request form email instagram tiktok complain feedback team reach human status pending', r: ['stale', 'blank', 'delete'],
+                b: `<ol><li>Open <strong>Settings → Support</strong>.</li><li>Choose the type of request and describe what happened: what you did, what you expected, what you saw, and your device.</li><li>Submit it. A status card shows while your request is pending review.</li></ol><p>Requests need 5 to 1,000 characters, and you can send up to 5 per hour. Status updates can take up to an hour to appear on your screen.</p><p>You can also post in the <strong>Community</strong> tab with <strong>@bug</strong> to see if others have the same issue, or use the options under <strong>Settings → Contact</strong>.</p>`
+            },
+            {
+                id: 'maintenance', c: 'fix', t: 'The app says it is under maintenance', k: 'maintenance down offline unavailable outage back soon message holding page not working site', r: ['blank', 'support'],
+                b: `<p>We turn on maintenance mode while we make updates. The page shows a message from the team.</p><p>You don't need to do anything: the app returns on its own when maintenance ends, and your account and data aren't affected. Announcements are posted under <strong>News → Admin Updates</strong>.</p>`
+            }
+        ];
+        const P = ['cant-claim', 'verify', 'profile', 'cant-create', 'signin', 'push'];
+
+        const STOP = new Set('a an the to of in on at for from by with and or is are am be do does did how what why when where which who can could should would will i me my we our you your it its this that these those there please help need want about get got have has had not no any some into out up just also so then than'.split(' '));
+        const stem = w => { if (w.length > 3) w = w.replace(/(ing|ed|es|s|ly)$/, ''); if (w.length > 3) w = w.replace(/e$/, ''); return w.replace(/y$/, 'i') };
+        const tok = s => s.toLowerCase().replace(/[^a-z0-9\s']/g, ' ').replace(/'/g, '').split(/\s+/).filter(w => w && !STOP.has(w)).map(stem);
+        const GRP = [
+            'profile account username name nickname handle avatar picture photo detail info information identity gamertag display email',
+            'change edit update modify rename switch alter replace new different set',
+            'delete remove close erase deactivate cancel terminate leave',
+            'signin login log sign access locked authenticate session logout password',
+            'squad team lineup roster verify verification screenshot evaluate evaluation approve reject strength review',
+            'room lobby match game host fixture',
+            'claim join enter reserve take slot',
+            'create make post start open host list',
+            'notification notify alert push bell ping message remind',
+            'install download apk app pwa homescreen home android iphone ios phone desktop',
+            'bug error problem issue broken crash fail glitch wrong stuck freeze blank white loading load slow',
+            'support contact help report request ticket reach feedback complain',
+            'rank level xp exp tier progress progression badge stat game played',
+            'troll fake cheat toxic behaviour penalty',
+            'music sound audio song volume playlist mute',
+            'expire timeout disappear gone vanish missing timer countdown minute removed',
+            'result submit finish complete unlock active done',
+            'community comment like news mention patch announcement',
+            'maintenance down offline unavailable outage',
+            'setting preference toggle dark mode theme privacy online status',
+            'free cost price pay subscription premium'].map(g => new Set(tok(g)));
+        const REL = new Map(); GRP.forEach(g => g.forEach(w => { if (!REL.has(w)) REL.set(w, new Set()); g.forEach(x => REL.get(w).add(x)) }));
+        A.forEach(a => { a.T = new Set(tok(a.t)); a.K = new Set(tok(a.k)); a.B = new Set(tok(a.b.replace(/<[^>]+>/g, ' '))); a.txt = a.b.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim() });
+        const lev1 = (a, b) => { if (Math.abs(a.length - b.length) > 1) return false; let i = 0, j = 0, e = 0; while (i < a.length && j < b.length) { if (a[i] === b[j]) { i++; j++; continue } if (++e > 1) return false; if (a.length > b.length) i++; else if (a.length < b.length) j++; else { i++; j++ } } return e + (a.length - i) + (b.length - j) <= 1 };
+        const near = (set, t) => { if (set.has(t)) return true; if (t.length < 4) return false; for (const x of set) { if (x.length >= 4 && (x.startsWith(t) || t.startsWith(x))) return true; if (t.length > 4 && lev1(x, t)) return true } return false };
+        const fld = (set, t, w) => { if (near(set, t)) return w; const r = REL.get(t); if (r) for (const x of r) if (set.has(x)) return w * .4; return 0 };
+        function rank(q) {
+            const qt = [...new Set(tok(q))]; if (!qt.length) return [];
+            return A.map(a => { let s = 0, hit = 0; qt.forEach(t => { const m = Math.max(fld(a.T, t, 6), fld(a.K, t, 5), fld(a.B, t, 1.5)); if (m) { hit++; s += m } }); return { a, s: s * (1 + hit / qt.length) } }).filter(x => x.s > 0).sort((x, y) => y.s - x.s)
+        }
+
+        const $ = id => document.getElementById(id), V = $('v'), Q = $('q'), SB = $('sb');
+        const cat = id => CATS.find(c => c.id === id), art = id => A.find(a => a.id === id);
+        const esc = s => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+        const row = a => `<a href="#/a/${a.id}"><em>${cat(a.c).n}</em>${a.t}<small>${esc(a.txt.slice(0, 125))}…</small></a>`;
+        const cta = () => `<div class="cta"><div><b>Still stuck?</b><span>Send us a request from Settings and include your username.</span></div><a class="btn" href="/settings">Contact support</a></div>`;
+        const hero = $('hero');
+
+        function home() {
+            hero.style.display = ''; document.title = 'Help Center — Claim The Room';
+            V.innerHTML = `<h2>Browse by topic</h2><div class="grid">${CATS.map(c => `<a class="cat" href="#/c/${c.id}"><b>${c.n}</b><span>${c.d}</span><small>${A.filter(a => a.c === c.id).length} articles</small></a>`).join('')}</div><h2>Most read</h2><div class="list">${P.map(p => row(art(p))).join('')}</div>${cta()}`
+        }
+        function catPage(id) {
+            const c = cat(id); if (!c) return home(); hero.style.display = 'none'; document.title = c.n + ' — Help Center';
+            V.innerHTML = `<div class="crumb"><a href="#/">Help Center</a> / ${c.n}</div><div class="art" style="grid-template-columns:1fr"><div><h1>${c.n}</h1><p style="color:var(--dim);margin-top:-6px">${c.d}</p><div class="list">${A.filter(a => a.c === id).map(row).join('')}</div>${cta()}</div></div>`; scrollTo(0, 0)
+        }
+        function artPage(id) {
+            const a = art(id); if (!a) return home(); hero.style.display = 'none'; document.title = a.t + ' — Help Center'; const c = cat(a.c);
+            V.innerHTML = `<div class="crumb"><a href="#/">Help Center</a> / <a href="#/c/${c.id}">${c.n}</a></div><div class="art"><article><h1>${a.t}</h1><div class="body">${a.b}</div><div class="fb" id="fb">Was this article helpful? <button data-y>Yes</button><button data-n>No</button></div>${cta()}</article><aside class="side"><h3>Related</h3>${a.r.map(r => art(r)).map(r => `<a href="#/a/${r.id}">${r.t}</a>`).join('')}<a href="#/c/${c.id}" style="border-bottom:1px solid var(--line)">More in ${c.n}</a></aside></div>`;
+            const fb = $('fb'); fb.onclick = e => { if (e.target.dataset.y !== undefined) fb.textContent = 'Thanks for letting us know.'; if (e.target.dataset.n !== undefined) fb.innerHTML = 'Sorry about that. Try a related article on the right, or <a href="/settings">send us a request</a> and tell us what was missing.' }; scrollTo(0, 0)
+        }
+        function results(q) {
+            hero.style.display = ''; document.title = 'Search — Help Center'; const r = rank(q), top = r[0] ? r[0].s : 0; let h;
+            if (!r.length) { h = `<div class="msg"><b>We couldn't find a close match for “${esc(q)}”.</b> Try fewer or different words, or start from a topic below.</div><div class="grid">${CATS.map(c => `<a class="cat" href="#/c/${c.id}"><b>${c.n}</b><span>${c.d}</span></a>`).join('')}</div><h2>Most read</h2><div class="list">${P.map(p => row(art(p))).join('')}</div>` }
+            else {
+                const keep = r.filter(x => x.s >= Math.max(1.5, top * .3)).slice(0, 7); const weak = top < 4;
+                h = `<div class="msg">${weak ? `<b>No exact answer for “${esc(q)}”, but these are the closest topics.</b> Pick the one that sounds nearest.` : `<b>${keep.length} result${keep.length > 1 ? 's' : ''} for “${esc(q)}”</b>`}</div><div class="list">${keep.map(x => row(x.a)).join('')}</div>`
+            }
+            V.innerHTML = h + cta()
+        }
+        function route() { const q = Q.value.trim(); SB.classList.toggle('has', !!Q.value); if (q) return results(q); const m = location.hash.match(/^#\/(a|c)\/([\w-]+)/); if (!m) home(); else m[1] === 'a' ? artPage(m[2]) : catPage(m[2]) }
+        Q.addEventListener('input', route);
+        Q.addEventListener('keydown', e => { if (e.key === 'Enter') { const l = V.querySelector('.list a'); if (l) location.href = l.getAttribute('href') } });
+        $('x').onclick = () => { Q.value = ''; route(); Q.focus() };
+        addEventListener('hashchange', () => { Q.value = ''; route() });
+        route();
+    </script>
+</body>
+
+</html>

@@ -6,5 +6,10 @@
 /install/           /install/index.html   200
 /install/*          /install/index.html   200
 
+# Help Center routing — all /help variants serve the static help/index.html
+/help               /help/index.html      200
+/help/              /help/index.html      200
+/help/*             /help/index.html      200
+
 # SPA fallback — everything else serves index.html
 /*                  /index.html           200
