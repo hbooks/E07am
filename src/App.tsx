@@ -39,7 +39,7 @@ const queryClient = new QueryClient();
 // maintenance gate.
 function AppShell() {
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="min-h-screen bg-[#08090b] text-foreground">
       <NavRail />
       <main className="pb-20 md:pb-0 md:pl-20">
         <Outlet />

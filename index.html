@@ -3,9 +3,9 @@
 
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 
-  <!-- Favicons (unchanged) -->
+  <!-- Favicons -->
   <link rel="icon" type="image/png" href="/assets/favicon/favicon-96x96.png?v=20260927" sizes="96x96" />
   <link rel="icon" type="image/svg+xml" href="/assets/favicon/favicon.svg?v=20260927" />
   <link rel="shortcut icon" href="/assets/favicon/favicon.ico?v=20260927" />
@@ -13,11 +13,14 @@
   <link rel="apple-touch-icon" sizes="180x180" href="/assets/favicon/apple-touch-icon.png?v=20260927" />
   <link rel="manifest" href="/manifest.json" />
 
-  <!-- PWA meta (unchanged) -->
+  <!-- PWA meta -->
   <meta name="apple-mobile-web-app-title" content="Claim The Room" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="mobile-web-app-capable" content="yes" />
   <meta name="theme-color" content="#08090b" />
+  <meta name="theme-color" media="(prefers-color-scheme: light)" content="#08090b" />
+  <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#08090b" />
 
   <!-- SEO -->
   <title>Claim The Room — eFootball Matchmaking</title>
@@ -75,7 +78,7 @@
   </script>
 </head>
 
-<body>
+<body style="background-color: #08090b; color: #f5f5f5;">
   <div id="root"></div>
 
   <!-- Crawlers that don't run JavaScript only see this. Hidden for everyone else. -->
