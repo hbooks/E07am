@@ -47,7 +47,7 @@ interface WorkerStat {
 interface UserRequest {
     id: number;
     user_id: string;
-    type: 'report_abuse' | 'request_changes' | 'delete_account';
+    type: 'report_abuse' | 'request_changes' | 'report_bug' | 'delete_account';
     reason: string;
     status: 'pending' | 'processing' | 'resolved' | 'rejected';
     meta: any;
@@ -160,12 +160,14 @@ const REQUEST_TYPE_LABEL: Record<UserRequest['type'], string> = {
     report_abuse: 'Report abuse',
     request_changes: 'Request changes',
     delete_account: 'Delete account',
+    report_bug: 'Bug',
 };
 
 const REQUEST_TYPE_COLOR: Record<UserRequest['type'], string> = {
-    report_abuse: 'text-red-400 bg-red-500/10 border-red-500/20',
+    report_abuse: 'text-yellow-400 bg-yellow-500/10 border-yellow-500/20',
     request_changes: 'text-blue-400 bg-blue-500/10 border-blue-500/20',
     delete_account: 'text-orange-400 bg-orange-500/10 border-orange-500/20',
+    report_bug: 'text-red-400 bg-red-500/10 border-red-500/20',
 };
 
 const PIE_COLORS = ['#1E90FF', '#22c55e', '#f59e0b', '#ef4444', '#a855f7', '#06b6d4', '#ec4899', '#6b7280'];
@@ -1186,9 +1188,6 @@ function NewsSection({
     );
 }
 
-// ============================================================
-// MUSIC SECTION
-// ============================================================
 // ============================================================
 // MUSIC SECTION
 // ============================================================

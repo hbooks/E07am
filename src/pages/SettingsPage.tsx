@@ -5,6 +5,11 @@ import {
     ChevronLeft, ChevronRight, ChevronDown, Moon, Sun, Bell, Eye, Shield, FileText,
     Mail, Copy, X, AlertTriangle, Send, UserCog, Loader2, CheckCircle, LogOut,
     Camera, Music2,
+    BadgeHelpIcon,
+    CircleHelpIcon,
+    Bug,
+    FileWarning,
+    Trash2,
 } from 'lucide-react';
 import { useKindeAuth } from '@kinde-oss/kinde-auth-react';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -15,7 +20,7 @@ import {
 } from '@/lib/sanitizeRequest';
 import { subscribeToPush, unsubscribeFromPush } from '@/lib/push';
 
-const APP_VERSION = 'v1.0.2';
+const APP_VERSION = 'v1.0.3';
 
 const ACTIVE_REQUEST_CACHE_KEY = 'ctr_active_request_';
 const CACHE_EXPIRY_MS = 60 * 60 * 1000;
@@ -24,7 +29,7 @@ const FUNCTIONS_URL = import.meta.env.VITE_SUPABASE_FUNCTIONS_URL as string;
 
 const defaultSettings = {
     darkMode: false,
-    pushNotifications: false,  // new users opt in explicitly
+    pushNotifications: false,
     emailNotifications: false,
     showOnlineStatus: true,
 };
@@ -62,7 +67,39 @@ const CONTACT = {
 const FOCUS_RING =
     'focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1E90FF] focus-visible:ring-offset-2 focus-visible:ring-offset-[#08090b]';
 
-type RequestType = 'report_abuse' | 'request_changes' | 'delete_account';
+type RequestType = 'report_abuse' | 'report_bug' | 'request_changes' | 'delete_account';
+
+const REQUEST_TYPES: Array<{
+    value: RequestType;
+    label: string;
+    hint: string;
+    icon: typeof Bug;
+}> = [
+        {
+            value: 'report_abuse',
+            label: 'Report abuse',
+            hint: 'Report a player',
+            icon: AlertTriangle,
+        },
+        {
+            value: 'report_bug',
+            label: 'Report a bug',
+            hint: 'Something is broken',
+            icon: Bug,
+        },
+        {
+            value: 'request_changes',
+            label: 'Request changes',
+            hint: 'Update your profile',
+            icon: FileWarning,
+        },
+        {
+            value: 'delete_account',
+            label: 'Delete account',
+            hint: 'Permanent removal',
+            icon: Trash2,
+        },
+    ];
 
 export default function SettingsPage() {
     const navigate = useNavigate();
@@ -256,10 +293,8 @@ export default function SettingsPage() {
             }
         }
 
-        // Persist the setting first so the UI reflects the choice
         updateSetting('pushNotifications', checked);
 
-        // Subscribe / unsubscribe in the background
         if (user?.id) {
             try {
                 if (checked) {
@@ -549,6 +584,31 @@ export default function SettingsPage() {
                     <div>
                         <p className="sp-label">Support</p>
                         <div className="sp-group">
+
+                            <a
+                                href="/help"
+                                onClick={(e) => {
+                                    const isStandalone =
+                                        window.matchMedia('(display-mode: standalone)').matches ||
+                                        (window.navigator as any).standalone === true;
+
+                                    if (isStandalone) {
+                                        e.preventDefault();
+                                        window.location.href = '/help';
+                                    } else {
+                                        e.preventDefault();
+                                        window.open('/help', '_blank', 'noopener,noreferrer');
+                                    }
+                                }}
+                                className={`sp-row w-full text-left cursor-pointer ${FOCUS_RING}`}
+                            >
+                                <span className="flex items-center gap-3">
+                                    <CircleHelpIcon className="h-4 w-4 text-gray-500" />
+                                    <span className="text-sm font-medium">Need help?</span>
+                                </span>
+                                <ChevronDown className="h-4 w-4 text-gray-500 -rotate-90" />
+                            </a>
+
                             {loadingRequestStatus ? (
                                 <div className="flex items-center justify-center py-6">
                                     <Loader2 className="h-5 w-5 animate-spin text-gray-500" />
@@ -589,19 +649,50 @@ export default function SettingsPage() {
                                     {supportOpen && (
                                         <div className="space-y-4 border-t border-white/[0.05] px-4 py-4">
                                             <div>
-                                                <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wide text-gray-500">
+                                                <label className="mb-2 block text-[11px] font-semibold uppercase tracking-wide text-gray-500">
                                                     Request type
                                                 </label>
-                                                <select
-                                                    value={requestType}
-                                                    onChange={(e) => setRequestType(e.target.value as RequestType)}
-                                                    disabled={isFormDisabled}
-                                                    className={`w-full rounded-lg border border-white/[0.08] bg-[#0a0a0b] px-3.5 py-2.5 text-sm outline-none transition focus:border-[#1E90FF]/50 ${isFormDisabled ? 'cursor-not-allowed opacity-50' : ''}`}
-                                                >
-                                                    <option value="report_abuse">Report abuse</option>
-                                                    <option value="request_changes">Request changes</option>
-                                                    <option value="delete_account">Delete account</option>
-                                                </select>
+                                                <div className="grid grid-cols-2 gap-2">
+                                                    {REQUEST_TYPES.map((t) => {
+                                                        const Icon = t.icon;
+                                                        const active = requestType === t.value;
+                                                        return (
+                                                            <button
+                                                                key={t.value}
+                                                                type="button"
+                                                                disabled={isFormDisabled}
+                                                                onClick={() => setRequestType(t.value)}
+                                                                className={`group flex items-center gap-2.5 rounded-lg border px-3 py-2.5 text-left transition-all active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 ${active
+                                                                        ? 'border-[#1E90FF]/40 bg-[#1E90FF]/[0.08]'
+                                                                        : 'border-white/[0.06] bg-[#0a0a0b] hover:border-white/[0.12] hover:bg-white/[0.02]'
+                                                                    } ${FOCUS_RING}`}
+                                                            >
+                                                                <span
+                                                                    className={`grid h-7 w-7 shrink-0 place-items-center rounded-md transition-colors ${active
+                                                                            ? 'bg-[#1E90FF]/15'
+                                                                            : 'bg-white/[0.04] group-hover:bg-white/[0.06]'
+                                                                        }`}
+                                                                >
+                                                                    <Icon
+                                                                        className={`h-3.5 w-3.5 transition-colors ${active ? 'text-[#5CA8FF]' : 'text-gray-500 group-hover:text-gray-400'
+                                                                            }`}
+                                                                    />
+                                                                </span>
+                                                                <span className="flex min-w-0 flex-col">
+                                                                    <span
+                                                                        className={`text-[13px] font-medium transition-colors ${active ? 'text-white' : 'text-gray-300'
+                                                                            }`}
+                                                                    >
+                                                                        {t.label}
+                                                                    </span>
+                                                                    <span className="mt-0.5 text-[10.5px] leading-tight text-gray-500">
+                                                                        {t.hint}
+                                                                    </span>
+                                                                </span>
+                                                            </button>
+                                                        );
+                                                    })}
+                                                </div>
                                             </div>
 
                                             <div>
@@ -616,9 +707,11 @@ export default function SettingsPage() {
                                                     placeholder={
                                                         requestType === 'report_abuse'
                                                             ? 'Describe the abusive content or behaviour…'
-                                                            : requestType === 'request_changes'
-                                                                ? 'What changes do you need?'
-                                                                : 'Why do you want to delete your account?'
+                                                            : requestType === 'report_bug'
+                                                                ? 'What were you doing when the bug happened? Include any error messages…'
+                                                                : requestType === 'request_changes'
+                                                                    ? 'What changes do you need?'
+                                                                    : 'Why do you want to delete your account? Please provide details to help us improve…'
                                                     }
                                                     className={`w-full resize-none rounded-lg border border-white/[0.08] bg-[#0a0a0b] px-3.5 py-3 text-sm outline-none transition focus:border-[#1E90FF]/50 ${isFormDisabled ? 'cursor-not-allowed opacity-50' : ''}`}
                                                 />
