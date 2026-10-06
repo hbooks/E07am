@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ctr-cache-v4';
+const CACHE_NAME = 'ctr-cache-v5';
 const CACHE_PREFIX = 'ctr-cache-';   // used to identify our caches for cleanup
 
 const PRECACHE = [
@@ -73,8 +73,12 @@ self.addEventListener('fetch', (event) => {
     if (req.headers.has('range')) return;
     if (url.pathname.startsWith('/download/') || url.pathname.endsWith('.apk')) return;
 
-    // Never touch the install page. Otherwise it overwrites the cached app shell ('/') below
-    if (url.pathname === '/install' || url.pathname.startsWith('/install/')) return;
+    // Never touch the install page or help center. Otherwise the SW caches them
+    // as the app shell ('/'), and users see the React SPA instead of the static page.
+    if (
+        url.pathname === '/install' || url.pathname.startsWith('/install/') ||
+        url.pathname === '/help' || url.pathname.startsWith('/help/')
+    ) return;
 
     // ---- 1. Navigation (SPA routes) → NETWORK FIRST ----
     if (req.mode === 'navigate') {
