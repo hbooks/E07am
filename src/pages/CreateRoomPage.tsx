@@ -171,17 +171,17 @@ export default function CreateRoomPage() {
           });
         } else if (data.error === 'RESULTS_NEEDED') {
           setErrorModal({
-            title: 'Report Previous Result',
+            title: 'Report Previous Match Result',
             message: data.message || 'You must report the result of your last match before creating a new one.',
-            actionLabel: 'Record Results',
+            actionLabel: 'Record Previous Match Results',
             actionUrl: '/results',
           });
         } else if (data.error === 'SQUAD_NOT_VERIFIED') {
           setErrorModal({
             title: 'Squad Not Verified',
             message: data.message || 'Your squad strength must be verified before you can create a match. Please submit your squad screenshot on the profile page.',
-            actionLabel: 'Update Squad',
-            actionUrl: '/profile',
+            actionLabel: 'Update Your Squad',
+            actionUrl: '/update-squad',
           });
         } else if (data.error === 'PROFILE_NOT_FOUND') {
           setErrorModal({
