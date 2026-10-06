@@ -20,7 +20,7 @@ import {
 } from '@/lib/sanitizeRequest';
 import { subscribeToPush, unsubscribeFromPush } from '@/lib/push';
 
-const APP_VERSION = 'v1.0.3';
+const APP_VERSION = 'v1.0.2.1';
 
 const ACTIVE_REQUEST_CACHE_KEY = 'ctr_active_request_';
 const CACHE_EXPIRY_MS = 60 * 60 * 1000;
@@ -652,7 +652,7 @@ export default function SettingsPage() {
                                                 <label className="mb-2 block text-[11px] font-semibold uppercase tracking-wide text-gray-500">
                                                     Request type
                                                 </label>
-                                                <div className="grid grid-cols-2 gap-2">
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                                     {REQUEST_TYPES.map((t) => {
                                                         const Icon = t.icon;
                                                         const active = requestType === t.value;
@@ -662,30 +662,30 @@ export default function SettingsPage() {
                                                                 type="button"
                                                                 disabled={isFormDisabled}
                                                                 onClick={() => setRequestType(t.value)}
-                                                                className={`group flex items-center gap-2.5 rounded-lg border px-3 py-2.5 text-left transition-all active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 ${active
+                                                                className={`group flex items-center gap-3 rounded-lg border px-3.5 py-3 text-left transition-all active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50 ${active
                                                                         ? 'border-[#1E90FF]/40 bg-[#1E90FF]/[0.08]'
                                                                         : 'border-white/[0.06] bg-[#0a0a0b] hover:border-white/[0.12] hover:bg-white/[0.02]'
                                                                     } ${FOCUS_RING}`}
                                                             >
                                                                 <span
-                                                                    className={`grid h-7 w-7 shrink-0 place-items-center rounded-md transition-colors ${active
+                                                                    className={`grid h-8 w-8 shrink-0 place-items-center rounded-md transition-colors ${active
                                                                             ? 'bg-[#1E90FF]/15'
                                                                             : 'bg-white/[0.04] group-hover:bg-white/[0.06]'
                                                                         }`}
                                                                 >
                                                                     <Icon
-                                                                        className={`h-3.5 w-3.5 transition-colors ${active ? 'text-[#5CA8FF]' : 'text-gray-500 group-hover:text-gray-400'
+                                                                        className={`h-4 w-4 transition-colors ${active ? 'text-[#5CA8FF]' : 'text-gray-500 group-hover:text-gray-400'
                                                                             }`}
                                                                     />
                                                                 </span>
                                                                 <span className="flex min-w-0 flex-col">
                                                                     <span
-                                                                        className={`text-[13px] font-medium transition-colors ${active ? 'text-white' : 'text-gray-300'
+                                                                        className={`text-[13.5px] font-medium transition-colors ${active ? 'text-white' : 'text-gray-300'
                                                                             }`}
                                                                     >
                                                                         {t.label}
                                                                     </span>
-                                                                    <span className="mt-0.5 text-[10.5px] leading-tight text-gray-500">
+                                                                    <span className="mt-0.5 text-[11px] leading-tight text-gray-500">
                                                                         {t.hint}
                                                                     </span>
                                                                 </span>
@@ -711,7 +711,7 @@ export default function SettingsPage() {
                                                                 ? 'What were you doing when the bug happened? Include any error messages…'
                                                                 : requestType === 'request_changes'
                                                                     ? 'What changes do you need?'
-                                                                    : 'Why do you want to delete your account? Please provide details to help us improve…'
+                                                                    : 'Why do you want to delete your account? Please provide information to help us improve our service…'
                                                     }
                                                     className={`w-full resize-none rounded-lg border border-white/[0.08] bg-[#0a0a0b] px-3.5 py-3 text-sm outline-none transition focus:border-[#1E90FF]/50 ${isFormDisabled ? 'cursor-not-allowed opacity-50' : ''}`}
                                                 />
