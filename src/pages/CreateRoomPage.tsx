@@ -1,8 +1,8 @@
 import { useNavigate } from 'react-router-dom';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Eye, EyeOff, Swords, Users, X, Trophy, Bot, UserPlus, RefreshCw, ClipboardPaste,
-  ShieldAlert, ArrowRight, CheckCircle2, Ticket, Lock, Clock,
+  Eye, EyeOff, X, Trophy, Bot, UserPlus, RefreshCw, ClipboardPaste,
+  ShieldAlert, ArrowRight, Lock, Clock,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useKindeAuth } from '@kinde-oss/kinde-auth-react';
@@ -12,7 +12,7 @@ import { trackFirstAction } from '@/lib/analytics';
 
 // ---------- sanitizers ----------
 function sanitizeRoomNumber(value: string): string {
-  return value.replace(/\D/g, '').slice(0, 12); // allow up to 12 digits (tournament)
+  return value.replace(/\D/g, '').slice(0, 12);
 }
 function sanitizePassword(value: string): string {
   return value.replace(/[^a-zA-Z0-9!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~`]/g, '').slice(0, 32);
@@ -25,6 +25,23 @@ type TournamentSize = 4 | 8 | null;
 const PULL_THRESHOLD = 64;
 const PULL_RESISTANCE = 0.45;
 const PULL_MAX = 80;
+
+// ---------- shared styles ----------
+const surface = 'rounded-2xl border border-white/[0.06] bg-[#0f0f11]';
+const field = 'w-full rounded-[10px] border bg-[#08090b] px-4 py-3 outline-none transition-colors placeholder:text-gray-600';
+const fieldOk = 'border-white/10 focus:border-[#1E90FF] focus:ring-1 focus:ring-[#1E90FF]/40';
+const btnPrimary = 'flex w-full items-center justify-center gap-2 rounded-full bg-[#1E90FF] py-3 text-sm font-semibold text-white transition hover:brightness-110 active:scale-[0.98] disabled:opacity-60';
+const btnGhost = 'flex-1 rounded-full border border-white/10 py-3 text-sm font-semibold text-gray-200 transition hover:border-white/20 hover:bg-white/[0.03]';
+const option = (active: boolean) => cn(
+  'border transition-colors',
+  active ? 'border-[#1E90FF] bg-[#1E90FF]/[0.06]' : 'border-white/10 bg-[#08090b] hover:border-white/20',
+);
+
+const TAGLINE: Record<MatchType, string> = {
+  '1v1': 'Post a room and get a challenger. Your room stays live for 5 minutes.',
+  'Co-op': 'Build your lobby and run it together. Your room stays live for 5 minutes.',
+  'Tournament': 'Fill the bracket and let the games begin. Your room stays live for 5 minutes.',
+};
 
 const SEMAT_URL = `${import.meta.env.VITE_SUPABASE_FUNCTIONS_URL}/Semat`;
 
@@ -161,7 +178,6 @@ export default function CreateRoomPage() {
         fetchActiveMatch();
         navigate('/');
       } else {
-        // structured backend errors
         if (data.error === 'ACTIVE_MATCH_EXISTS') {
           setErrorModal({
             title: 'Active Match Already',
@@ -171,16 +187,16 @@ export default function CreateRoomPage() {
           });
         } else if (data.error === 'RESULTS_NEEDED') {
           setErrorModal({
-            title: 'Report Previous Match Result',
+            title: 'Record Previous Match Result',
             message: data.message || 'You must report the result of your last match before creating a new one.',
-            actionLabel: 'Record Previous Match Results',
+            actionLabel: 'Record Results',
             actionUrl: '/results',
           });
         } else if (data.error === 'SQUAD_NOT_VERIFIED') {
           setErrorModal({
             title: 'Squad Not Verified',
             message: data.message || 'Your squad strength must be verified before you can create a match. Please submit your squad screenshot on the profile page.',
-            actionLabel: 'Update Your Squad',
+            actionLabel: 'Update Squad',
             actionUrl: '/update-squad',
           });
         } else if (data.error === 'PROFILE_NOT_FOUND') {
@@ -191,7 +207,7 @@ export default function CreateRoomPage() {
             actionUrl: '/onboarding',
           });
         } else {
-          toast.error(data.message || 'Something went entirely wrong and the system does not know who to blame :| ');
+          toast.error(data.message || 'Something went wrong. Please try again.');
         }
       }
     } catch {
@@ -221,7 +237,6 @@ export default function CreateRoomPage() {
   // ---------- formatted display ----------
   const formattedRoomNumber = useMemo(() => {
     if (matchType === 'Tournament') {
-      // Format 12 digits as 0000-0000-0000
       if (roomNumber.length > 8) return `${roomNumber.slice(0, 4)}-${roomNumber.slice(4, 8)}-${roomNumber.slice(8)}`;
       if (roomNumber.length > 4) return `${roomNumber.slice(0, 4)}-${roomNumber.slice(4)}`;
       return roomNumber;
@@ -266,7 +281,7 @@ export default function CreateRoomPage() {
       if (coopSub === '3 vs 3') return 5;
     }
     if (matchType === 'Tournament') {
-      if (tournamentSize === 4) return 3;   // host included
+      if (tournamentSize === 4) return 3;
       if (tournamentSize === 8) return 7;
     }
     return 0;
@@ -285,47 +300,45 @@ export default function CreateRoomPage() {
     return '';
   };
 
-  // ---- Show skeleton while loading active match ----
   if (loadingActive) {
     return <CreateRoomSkeleton />;
   }
+
+  const roomLength = matchType === 'Tournament' ? 12 : 8;
 
   // ---------- render ----------
   return (
     <>
       {/* Error modal */}
       {errorModal && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-[#141414] rounded-3xl w-full max-w-sm p-6 border border-white/10 shadow-2xl text-center">
-            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-yellow-500/10 border border-yellow-500/20">
-              <ShieldAlert className="h-7 w-7 text-yellow-500" />
-            </div>
-            <h2 className="text-lg text-red-500 font-bold mb-2">{errorModal.title}</h2>
-            <p className="text-sm text-gray-300 mb-6">{errorModal.message}</p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setErrorModal(null)}
-                className="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-2.5 rounded-xl font-semibold transition"
-              >
-                Close
-              </button>
-              <button
-                onClick={() => {
-                  setErrorModal(null);
-                  navigate(errorModal.actionUrl);
-                }}
-                className="flex-1 bg-emerald-600 hover:brightness-110 text-white py-2.5 rounded-xl font-semibold flex items-center justify-center gap-1 transition"
-              >
-                {errorModal.actionLabel} <ArrowRight className="h-4 w-4" />
-              </button>
+        <Modal title={errorModal.title} onClose={() => setErrorModal(null)} backdropClose={false}>
+          <div className="rounded-xl border border-white/[0.06] bg-[#08090b] p-4">
+            <p className="cr-display mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#5CA8FF]">Action needed</p>
+            <div className="flex items-start gap-3">
+              <ShieldAlert className="mt-0.5 h-5 w-5 flex-shrink-0 text-gray-500" />
+              <p className="text-sm leading-relaxed text-gray-300">{errorModal.message}</p>
             </div>
           </div>
-        </div>
+          <div className="mt-5 flex gap-3">
+            <button onClick={() => setErrorModal(null)} className={btnGhost}>
+              Close
+            </button>
+            <button
+              onClick={() => {
+                setErrorModal(null);
+                navigate(errorModal.actionUrl);
+              }}
+              className={cn(btnPrimary, 'flex-[1.4]')}
+            >
+              {errorModal.actionLabel} <ArrowRight className="h-4 w-4" />
+            </button>
+          </div>
+        </Modal>
       )}
 
       {/* Main content */}
       <div
-        className="relative min-h-screen w-full max-w-[100vw] overflow-x-hidden bg-[#0A0A0A] text-white cr-body"
+        className="relative min-h-screen w-full max-w-[100vw] overflow-x-hidden bg-[#08090b] bg-[repeating-linear-gradient(90deg,transparent_0,transparent_64px,rgba(255,255,255,0.014)_64px,rgba(255,255,255,0.014)_128px)] text-white cr-body"
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
@@ -333,46 +346,56 @@ export default function CreateRoomPage() {
         {/* pull indicator */}
         {(pullDistance > 0 || refreshing) && (
           <div
-            className="absolute top-3 left-1/2 -translate-x-1/2 z-10 bg-[#141414] border border-white/10 rounded-full p-2.5 shadow-lg transition-opacity duration-150"
+            className="absolute left-1/2 top-3 z-10 -translate-x-1/2 rounded-full border border-white/10 bg-[#0f0f11] p-2.5"
             style={{ opacity: refreshing ? 1 : Math.min(pullDistance / PULL_THRESHOLD, 1) }}
           >
             <RefreshCw
-              className={`h-5 w-5 text-emerald-500 ${refreshing ? 'animate-spin' : ''}`}
+              className={`h-5 w-5 text-[#1E90FF] ${refreshing ? 'animate-spin' : ''}`}
               style={refreshing ? undefined : { transform: `rotate(${Math.min(pullDistance * 3, 360)}deg)` }}
             />
           </div>
         )}
 
-        <div className="mx-auto w-full max-w-xl px-4 pt-16 pb-6 animate-in fade-in slide-in-from-bottom-3 duration-300">
-          <header className="mb-6 flex items-center gap-4">
-            <div className="relative flex-shrink-0">
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-600/15 border border-emerald-500/30">
-                <Swords className="h-7 w-7 text-emerald-500" />
-              </div>
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold tracking-tight">Create Your Match Request</h1>
-            </div>
+        <div className="mx-auto w-full max-w-xl px-4 pb-24 pt-16 animate-in fade-in duration-300 md:pb-10">
+          <header className="relative mb-6 overflow-hidden">
+            <svg
+              aria-hidden="true"
+              viewBox="0 0 120 80"
+              className="pointer-events-none absolute -right-3 -top-4 h-24 w-36 fill-none stroke-white opacity-[0.08]"
+              strokeWidth="1.5"
+            >
+              <path d="M60 0v80" />
+              <circle cx="60" cy="40" r="26" />
+              <circle cx="60" cy="40" r="2" className="fill-white" />
+            </svg>
+            <p className="cr-display text-sm font-semibold uppercase tracking-[0.2em] text-[#5CA8FF]">New lobby</p>
+            <h1 className="cr-display text-4xl font-bold uppercase leading-none tracking-tight">Create a match</h1>
+            <p className="mt-2 max-w-[22rem] text-sm text-gray-400">{TAGLINE[matchType]}</p>
           </header>
 
-          {/* Active match section with empty state */}
+          {/* Active match section */}
           {activeMatch && activeMatch.mrs === 'NOR' ? (
-            <div className="mb-8 rounded-3xl border border-white/5 bg-[#141414] p-5 md:p-6">
-              <div className="flex items-center justify-between gap-4">
+            <div className={cn(surface, 'relative mb-4 overflow-hidden p-4 md:p-5')}>
+              {/* Charging-shot sweep bar */}
+              <div className="cr-sweep-track">
+                <div className="cr-sweep-anchor" />
+                <div className="cr-sweep-shot" />
+              </div>
+
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-w-0">
-                  <p className="text-xs uppercase tracking-wider text-gray-500">Your active match</p>
-                  <p className="mt-1 text-lg font-mono font-semibold text-emerald-400">
-                    CTR_lm{activeMatch.match_id}
-                  </p>
-                  <p className="mt-1 text-sm text-gray-400 flex items-center gap-1">
-                    <Clock className="h-4 w-4" /> Result not reported yet
+                  <p className="cr-display text-xs font-semibold uppercase tracking-[0.2em] text-[#5CA8FF]">Awaiting result</p>
+                  <p className="mt-1 truncate font-mono text-lg font-semibold text-white">CTR_lm{activeMatch.match_id}</p>
+                  <p className="mt-1 flex items-start gap-1.5 text-sm text-gray-400">
+                    <Clock className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" />
+                    Report this result to unlock new rooms.
                   </p>
                 </div>
                 <button
                   onClick={() => navigate('/results')}
-                  className="flex-shrink-0 rounded-full bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-emerald-600/20 transition-all hover:brightness-110 active:scale-95"
+                  className="w-full flex-shrink-0 rounded-full bg-[#1E90FF] px-5 py-2.5 text-sm font-semibold text-white transition hover:brightness-110 active:scale-[0.98] sm:w-auto"
                 >
-                  Record Results
+                  Record results
                 </button>
               </div>
               {loadingActive && (
@@ -381,27 +404,27 @@ export default function CreateRoomPage() {
                   Refreshing...
                 </div>
               )}
-              {activeError && (
-                <p className="mt-3 text-xs text-red-400">{activeError}</p>
-              )}
+              {activeError && <p className="mt-3 text-xs text-red-400">{activeError}</p>}
             </div>
           ) : (
-            <div className="mb-8 rounded-3xl border border-dashed border-white/10 bg-[#141414] p-5 md:p-6 text-center">
+            <div className="mb-4 rounded-2xl border border-dashed border-white/10 px-4 py-3.5 text-center">
               <p className="text-sm text-gray-400">No unrecorded matches</p>
-              <p className="mt-1 text-xs text-gray-500">Create a new match request below or claim one from the feed.</p>
+              <p className="mt-0.5 text-xs text-gray-500">Create a match below or claim one from the feed.</p>
             </div>
           )}
 
-          <div className="space-y-6 rounded-3xl border border-white/5 bg-[#141414] p-5 md:p-7">
+          <div className={cn(surface, 'relative space-y-6 p-5 md:p-6')}>
+            <div className="absolute left-5 top-0 h-[3px] w-14 rounded-b bg-[#1E90FF]" />
+
             {/* Match type */}
             <div>
-              <p className="mb-2 text-sm font-semibold">Match type</p>
-              <div className="space-y-2" role="radiogroup">
+              <StepLabel n="01">Match type</StepLabel>
+              <div className="grid gap-2 sm:grid-cols-3" role="radiogroup" aria-label="Match type">
                 {([
-                  { type: '1v1' as const, icon: Swords, desc: 'Head-to-head duel', accent: 'text-red-400' },
-                  { type: 'Co-op' as const, icon: Users, desc: 'Team up with the lobby', accent: 'text-sky-400' },
-                  { type: 'Tournament' as const, icon: Trophy, desc: '4 or 8 player brackets', accent: 'text-yellow-400' },
-                ]).map(({ type: t, icon: Icon, desc, accent }) => {
+                  { type: '1v1' as const, desc: 'Head-to-head' },
+                  { type: 'Co-op' as const, desc: 'Team play' },
+                  { type: 'Tournament' as const, desc: '4 or 8 players' },
+                ]).map(({ type: t, desc }) => {
                   const isActive = matchType === t;
                   return (
                     <button
@@ -415,25 +438,18 @@ export default function CreateRoomPage() {
                         if (t !== 'Tournament') setTournamentSize(null);
                       }}
                       className={cn(
-                        'flex w-full items-center gap-3 rounded-2xl border p-3.5 text-left transition-all',
-                        isActive
-                          ? 'border-emerald-500/50 bg-emerald-600/10 ring-1 ring-emerald-500/30'
-                          : 'border-white/10 bg-[#0A0A0A] hover:border-white/20',
+                        option(isActive),
+                        'relative flex items-center gap-3 rounded-xl px-4 py-3 text-left sm:flex-col sm:gap-1.5 sm:px-2 sm:pb-3 sm:pt-4 sm:text-center',
                       )}
                     >
-                      <div className={cn(
-                        'flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-white/5',
-                        isActive && 'bg-emerald-600/20',
-                      )}>
-                        <Icon className={cn('h-5 w-5', isActive ? 'text-emerald-500' : accent)} />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-semibold">{t}</p>
-                        <p className="text-xs text-gray-500 truncate">{desc}</p>
-                      </div>
-                      {isActive && (
-                        <CheckCircle2 className="h-5 w-5 flex-shrink-0 text-emerald-500" />
-                      )}
+                      <ModeGlyph type={t} className={cn('h-7 w-7 flex-shrink-0 sm:h-8 sm:w-8', isActive ? 'text-[#5CA8FF]' : 'text-gray-500')} />
+                      <span className="min-w-0 flex-1 sm:flex-none">
+                        <span className="cr-display block text-base font-bold uppercase leading-tight tracking-wide sm:text-[15px]">{t}</span>
+                        <span className="block text-xs leading-tight text-gray-500 sm:mt-1 sm:text-[11px]">{desc}</span>
+                      </span>
+                      <span className={cn('grid h-4 w-4 flex-shrink-0 place-items-center rounded-full border sm:hidden', isActive ? 'border-[#1E90FF]' : 'border-white/20')}>
+                        {isActive && <span className="h-2 w-2 rounded-full bg-[#1E90FF]" />}
+                      </span>
                     </button>
                   );
                 })}
@@ -442,9 +458,9 @@ export default function CreateRoomPage() {
 
             {/* Co‑op sub‑type */}
             {matchType === 'Co-op' && (
-              <div className="animate-in fade-in slide-in-from-top-1 duration-200">
-                <p className="mb-2 text-sm font-semibold">Co‑op mode</p>
-                <div className="grid grid-cols-2 gap-2" role="radiogroup">
+              <div className="animate-in fade-in duration-200">
+                <p className="mb-2.5 text-sm font-semibold">Co‑op mode</p>
+                <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Co-op mode">
                   {(['2 vs AI', '3 vs 3'] as CoopSubType[]).map((sub) => {
                     const isActive = coopSub === sub;
                     const Icon = sub === '2 vs AI' ? Bot : UserPlus;
@@ -456,29 +472,26 @@ export default function CreateRoomPage() {
                         aria-checked={isActive}
                         onClick={() => setCoopSub(sub)}
                         className={cn(
-                          'flex flex-col items-center gap-1.5 rounded-xl border py-3 text-sm font-semibold transition-all',
-                          isActive
-                            ? 'border-emerald-500/50 bg-emerald-600/10 text-white ring-1 ring-emerald-500/30'
-                            : 'border-white/10 bg-[#0A0A0A] text-gray-400 hover:border-white/20 hover:text-white',
+                          option(isActive),
+                          'flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold',
+                          isActive ? 'text-white' : 'text-gray-400 hover:text-white',
                         )}
                       >
-                        <Icon className={cn('h-4 w-4', isActive && 'text-emerald-500')} />
+                        <Icon className={cn('h-4 w-4', isActive && 'text-[#5CA8FF]')} />
                         {sub}
                       </button>
                     );
                   })}
                 </div>
-                {errors.coop && (
-                  <p className="mt-1.5 text-xs text-destructive">{errors.coop}</p>
-                )}
+                {errors.coop && <p className="mt-1.5 text-xs text-destructive">{errors.coop}</p>}
               </div>
             )}
 
             {/* Tournament size */}
             {matchType === 'Tournament' && (
-              <div className="animate-in fade-in slide-in-from-top-1 duration-200">
-                <p className="mb-2 text-sm font-semibold">Tournament size</p>
-                <div className="grid grid-cols-2 gap-2" role="radiogroup">
+              <div className="animate-in fade-in duration-200">
+                <p className="mb-2.5 text-sm font-semibold">Tournament size</p>
+                <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Tournament size">
                   {([4, 8] as const).map((size) => {
                     const isActive = tournamentSize === size;
                     return (
@@ -489,30 +502,31 @@ export default function CreateRoomPage() {
                         aria-checked={isActive}
                         onClick={() => setTournamentSize(size)}
                         className={cn(
-                          'flex flex-col items-center gap-1.5 rounded-xl border py-3 text-sm font-semibold transition-all',
-                          isActive
-                            ? 'border-emerald-500/50 bg-emerald-600/10 text-white ring-1 ring-emerald-500/30'
-                            : 'border-white/10 bg-[#0A0A0A] text-gray-400 hover:border-white/20 hover:text-white',
+                          option(isActive),
+                          'flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold',
+                          isActive ? 'text-white' : 'text-gray-400 hover:text-white',
                         )}
                       >
-                        <Trophy className={cn('h-4 w-4', isActive && 'text-emerald-500')} />
+                        <Trophy className={cn('h-4 w-4', isActive && 'text-[#5CA8FF]')} />
                         {size} players
                       </button>
                     );
                   })}
                 </div>
-                {errors.tournament && (
-                  <p className="mt-1.5 text-xs text-destructive">{errors.tournament}</p>
-                )}
+                {errors.tournament && <p className="mt-1.5 text-xs text-destructive">{errors.tournament}</p>}
               </div>
             )}
 
+            <div className="h-px bg-white/[0.06]" />
+
             {/* Room number */}
             <div>
-              <label htmlFor="room-number" className="mb-2 flex items-center gap-1.5 text-sm font-semibold">
-                <Ticket className="h-3.5 w-3.5 text-emerald-500" />
-                Room Code
-              </label>
+              <div className="mb-2.5 flex items-baseline justify-between">
+                <StepLabel n="02" htmlFor="room-number" flush>Room code</StepLabel>
+                <span className="font-mono text-xs text-gray-500">
+                  <span className={roomNumber.length === roomLength ? 'text-[#5CA8FF]' : undefined}>{roomNumber.length}</span>/{roomLength}
+                </span>
+              </div>
               <div className="relative">
                 <input
                   id="room-number"
@@ -527,55 +541,67 @@ export default function CreateRoomPage() {
                   autoComplete="off"
                   inputMode="numeric"
                   className={cn(
-                    'w-full rounded-xl border bg-[#0A0A0A] px-4 py-3 pr-12 font-mono text-lg tracking-[0.25em] outline-none transition-colors placeholder:tracking-normal placeholder:text-gray-600',
-                    errors.room ? 'border-destructive' : 'border-white/10 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/30',
+                    field,
+                    'pr-12 font-mono text-base tracking-[0.14em] placeholder:tracking-normal sm:pr-24 sm:text-xl sm:tracking-[0.22em]',
+                    errors.room ? 'border-destructive' : fieldOk,
                     shakeRoom && 'animate-[shake_0.5s_ease-in-out]',
                   )}
                 />
                 <button
                   type="button"
                   onClick={handlePaste}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-gray-400 hover:text-white transition"
+                  className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium text-gray-400 transition hover:bg-white/5 hover:text-white"
                   title="Paste from clipboard"
+                  aria-label="Paste from clipboard"
                 >
-                  <ClipboardPaste className="h-5 w-5" />
+                  <ClipboardPaste className="h-4 w-4" /> <span className="hidden sm:inline">Paste</span>
                 </button>
               </div>
-              {errors.room && <p className="mt-1.5 text-xs text-destructive">{errors.room}</p>}
+              <div className="mt-2 h-[3px] overflow-hidden rounded-full bg-white/[0.06]">
+                <div
+                  className="h-full rounded-full bg-[#1E90FF] transition-[width] duration-200"
+                  style={{ width: `${(roomNumber.length / roomLength) * 100}%` }}
+                />
+              </div>
+              {errors.room ? (
+                <p className="mt-1.5 text-xs text-destructive">{errors.room}</p>
+              ) : (
+                <p className="mt-1.5 text-xs text-gray-500">Copy it from your eFootball room screen.</p>
+              )}
             </div>
 
             {/* Password toggle */}
             <div>
-              <div className="flex items-center justify-between mb-2">
-                <label className="flex items-center gap-1.5 text-sm font-semibold">
-                  <Lock className="h-3.5 w-3.5 text-gray-500" />
-                  Password
-                </label>
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <StepLabel n="03" flush>
+                    Room password <Lock className="ml-1.5 h-3.5 w-3.5 text-gray-500" />
+                  </StepLabel>
+                  <p className="mt-0.5 text-xs text-gray-500">Turn on if your room is protected by a password.</p>
+                </div>
                 <button
                   type="button"
                   role="switch"
                   aria-checked={passwordEnabled}
+                  aria-label="Room has a password"
                   onClick={() => {
                     setPasswordEnabled((v) => !v);
                     if (!passwordEnabled) setPassword('');
                     setErrors((prev) => ({ ...prev, password: undefined }));
                   }}
                   className={cn(
-                    'relative inline-flex h-7 w-12 items-center rounded-full transition-colors',
-                    passwordEnabled ? 'bg-emerald-600' : 'bg-[#0A0A0A] border border-white/10',
+                    'relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full border transition-colors',
+                    passwordEnabled ? 'border-[#1E90FF] bg-[#1E90FF]' : 'border-white/10 bg-[#08090b]',
                   )}
                 >
                   <span
                     className={cn(
-                      'inline-block h-5 w-5 rounded-full bg-white shadow transition-transform',
+                      'inline-block h-4 w-4 rounded-full bg-white transition-transform',
                       passwordEnabled ? 'translate-x-6' : 'translate-x-1',
                     )}
                   />
                 </button>
               </div>
-              <p className="text-xs text-gray-500 mb-1">
-                Turn on if your room is protected by password.
-              </p>
 
               <div
                 className={cn(
@@ -584,7 +610,7 @@ export default function CreateRoomPage() {
                 )}
               >
                 <div className="overflow-hidden">
-                  <div className="relative mt-2">
+                  <div className="relative mt-3">
                     <input
                       id="room-password"
                       type={showPassword ? 'text' : 'password'}
@@ -593,11 +619,12 @@ export default function CreateRoomPage() {
                         setPassword(sanitizePassword(e.target.value));
                         if (errors.password) setErrors((prev) => ({ ...prev, password: undefined }));
                       }}
-                      placeholder="The efootball room's password"
+                      placeholder="The eFootball room's password"
                       autoComplete="new-password"
                       className={cn(
-                        'w-full rounded-xl border bg-[#0A0A0A] px-4 py-3 pr-12 outline-none transition-colors placeholder:text-gray-600',
-                        errors.password ? 'border-destructive' : 'border-white/10 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/30',
+                        field,
+                        'pr-12',
+                        errors.password ? 'border-destructive' : fieldOk,
                         shakePwd && 'animate-[shake_0.5s_ease-in-out]',
                       )}
                     />
@@ -610,107 +637,80 @@ export default function CreateRoomPage() {
                       {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                     </button>
                   </div>
-                  {errors.password && (
-                    <p className="mt-1.5 text-xs text-destructive">{errors.password}</p>
-                  )}
+                  {errors.password && <p className="mt-1.5 text-xs text-destructive">{errors.password}</p>}
                 </div>
               </div>
             </div>
 
-            <button
-              type="button"
-              onClick={openReview}
-              className="group relative flex w-full items-center justify-center gap-2 rounded-full bg-emerald-600 py-3.5 text-sm font-bold text-white shadow-lg shadow-emerald-600/20 transition-all hover:brightness-110 active:scale-[0.98]"
-            >
-              Review Match
-              <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+            <button type="button" onClick={openReview} className={btnPrimary}>
+              Review lobby
+              <ArrowRight className="h-4 w-4" />
             </button>
           </div>
 
           {/* Review modal */}
           {reviewOpen && (
-            <div
-              role="dialog"
-              aria-modal="true"
-              aria-label="Review match"
-              className="fixed inset-0 z-[60] grid place-items-center bg-black/70 p-4 backdrop-blur-sm animate-in fade-in duration-150"
-              onClick={() => setReviewOpen(false)}
-            >
-              <div
-                className="w-full max-w-sm overflow-hidden rounded-3xl border border-white/10 bg-[#141414] shadow-2xl animate-in zoom-in-95 duration-150"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <div className="relative bg-emerald-600 px-6 py-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-white">
-                      <Ticket className="h-5 w-5" />
-                      <h2 className="text-base font-bold tracking-wide">Match Ready</h2>
-                    </div>
-                    <button
-                      type="button"
-                      aria-label="Close review"
-                      onClick={() => setReviewOpen(false)}
-                      className="rounded-full p-1.5 text-white/80 hover:bg-black/10 hover:text-white"
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
-                  </div>
+            <Modal title="Ready to go live?" onClose={() => setReviewOpen(false)}>
+              <div className="mb-4 rounded-xl border border-white/[0.06] bg-[#08090b] p-4">
+                <p className="cr-display text-lg font-bold uppercase tracking-wide">{getMatchTypeLabel()}</p>
+                <div className="mt-3 flex flex-wrap items-center gap-2" aria-label={`You plus ${getNopr()} open slots`}>
+                  <span className="grid h-8 w-8 place-items-center rounded-full bg-[#1E90FF] text-[10px] font-bold uppercase text-white">You</span>
+                  {Array.from({ length: getNopr() }).map((_, i) => (
+                    <span key={i} className="h-8 w-8 rounded-full border border-dashed border-white/25" />
+                  ))}
                 </div>
-
-                <div className="relative h-0 border-t-2 border-dashed border-white/10">
-                  <div className="absolute -left-3 -top-3 h-6 w-6 rounded-full bg-[#0A0A0A]" />
-                  <div className="absolute -right-3 -top-3 h-6 w-6 rounded-full bg-[#0A0A0A]" />
-                </div>
-
-                <div className="p-6">
-                  <dl className="space-y-3 text-sm">
-                    <SummaryRow label="Match type" value={getMatchTypeLabel()} />
-                    <SummaryRow label="Players remaining" value={String(getNopr())} />
-                    <SummaryRow label="Room" value={roomNumber} mono />
-                    <div className="flex items-center justify-between rounded-xl bg-[#0A0A0A] px-4 py-3">
-                      <dt className="text-gray-400">Password</dt>
-                      <dd className="flex items-center gap-2 font-semibold">
-                        {passwordEnabled && password ? (
-                          <>
-                            <span className="font-mono">
-                              {reviewReveal ? password : '••••••••'}
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => setReviewReveal((v) => !v)}
-                              className="text-xs font-medium text-emerald-500 hover:underline"
-                            >
-                              {reviewReveal ? 'hide' : 'reveal'}
-                            </button>
-                          </>
-                        ) : (
-                          'No'
-                        )}
-                      </dd>
-                    </div>
-                  </dl>
-
-                  <button
-                    type="button"
-                    onClick={createMatch}
-                    disabled={submitting}
-                    className="mt-6 flex w-full items-center justify-center gap-2 rounded-full bg-emerald-600 py-3.5 text-sm font-bold text-white shadow-lg shadow-emerald-600/20 transition-all hover:brightness-110 active:scale-[0.98] disabled:opacity-60"
-                  >
-                    {submitting ? (
+                <p className="mt-2 text-xs text-gray-500">
+                  {getNopr()} open {getNopr() === 1 ? 'slot' : 'slots'} for players to claim
+                </p>
+              </div>
+              <dl className="divide-y divide-white/[0.06] border-y border-white/[0.06] text-sm">
+                <SummaryRow label="Room code" value={formattedRoomNumber} mono />
+                <div className="flex items-center justify-between py-3">
+                  <dt className="text-gray-400">Password</dt>
+                  <dd className="flex items-center gap-3 font-medium">
+                    {passwordEnabled && password ? (
                       <>
-                        <RefreshCw className="h-4 w-4 animate-spin" />
-                        Creating…
+                        <span className="font-mono">{reviewReveal ? password : '••••••••'}</span>
+                        <button
+                          type="button"
+                          onClick={() => setReviewReveal((v) => !v)}
+                          className="text-xs font-medium text-[#5CA8FF] hover:underline"
+                        >
+                          {reviewReveal ? 'Hide' : 'Reveal'}
+                        </button>
                       </>
                     ) : (
-                      <>
-                        <Swords className="h-4 w-4" />
-                        Create Match
-                      </>
+                      <span className="text-gray-300">None</span>
                     )}
-                  </button>
+                  </dd>
                 </div>
+              </dl>
+
+              <p className="mt-4 flex items-center gap-1.5 text-xs text-gray-500">
+                <Clock className="h-3.5 w-3.5" /> Your room stays live for 5 minutes once you go live.
+              </p>
+
+              <div className="mt-5 flex gap-3">
+                <button type="button" onClick={() => setReviewOpen(false)} disabled={submitting} className={btnGhost}>
+                  Back
+                </button>
+                <button
+                  type="button"
+                  onClick={createMatch}
+                  disabled={submitting}
+                  className={cn(btnPrimary, 'flex-[1.4]')}
+                >
+                  {submitting ? (
+                    <>
+                      <RefreshCw className="h-4 w-4 animate-spin" />
+                      Going live…
+                    </>
+                  ) : (
+                    'Go live'
+                  )}
+                </button>
               </div>
-            </div>
+            </Modal>
           )}
         </div>
       </div>
@@ -718,75 +718,99 @@ export default function CreateRoomPage() {
   );
 }
 
+// ---------- Small building blocks ----------
+function StepLabel({
+  n, children, htmlFor, flush,
+}: { n: string; children: React.ReactNode; htmlFor?: string; flush?: boolean }) {
+  return (
+    <label htmlFor={htmlFor} className={cn('flex items-center text-sm font-semibold', !flush && 'mb-2.5')}>
+      <span className="cr-display mr-2.5 text-sm font-bold tracking-wider text-[#5CA8FF]">{n}</span>
+      {children}
+    </label>
+  );
+}
+
+function ModeGlyph({ type, className }: { type: MatchType; className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      {type === '1v1' && (<><circle cx="5.5" cy="12" r="3" /><circle cx="18.5" cy="12" r="3" /><path d="M10.5 12h3" strokeDasharray="1 2.5" /></>)}
+      {type === 'Co-op' && (<><circle cx="12" cy="6.5" r="2.5" /><circle cx="6" cy="17" r="2.5" /><circle cx="18" cy="17" r="2.5" /><path d="M10.7 8.7 7.3 14.8M13.3 8.7l3.4 6.1M8.5 17h7" /></>)}
+      {type === 'Tournament' && (<><path d="M3 5.5h5v13H3M8 12h6M14 8v8M14 12h7" /><circle cx="21" cy="12" r="0.8" fill="currentColor" /></>)}
+    </svg>
+  );
+}
+
+function Modal({
+  title, onClose, backdropClose = true, children,
+}: { title: string; onClose?: () => void; backdropClose?: boolean; children: React.ReactNode }) {
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label={title}
+      className="fixed inset-0 z-[60] grid place-items-center bg-black/70 p-4 animate-in fade-in duration-150"
+      onClick={backdropClose ? onClose : undefined}
+    >
+      <div
+        className="relative max-h-[90vh] w-full max-w-sm overflow-y-auto rounded-2xl border border-white/10 bg-[#0f0f11] p-5 text-white animate-in zoom-in-95 duration-150 sm:p-6 cr-body"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="absolute left-5 top-0 h-[3px] w-14 rounded-b bg-[#1E90FF] sm:left-6" />
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <h2 className="cr-display text-xl font-bold uppercase tracking-wide text-white">{title}</h2>
+          {onClose && (
+            <button
+              type="button"
+              aria-label="Close"
+              onClick={onClose}
+              className="-mr-1.5 rounded-full p-1.5 text-gray-500 transition hover:bg-white/5 hover:text-white"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+        {children}
+      </div>
+    </div>
+  );
+}
+
 function SummaryRow({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
   return (
-    <div className="flex items-center justify-between rounded-xl bg-[#0A0A0A] px-4 py-3">
+    <div className="flex items-center justify-between py-3">
       <dt className="text-gray-400">{label}</dt>
-      <dd className={cn('font-semibold text-white', mono && 'font-mono tracking-[0.2em] text-emerald-400')}>
-        {value}
-      </dd>
+      <dd className={cn('font-medium text-white', mono && 'font-mono tracking-[0.15em]')}>{value}</dd>
     </div>
   );
 }
 
 // ---------- Skeleton Loader ----------
 function CreateRoomSkeleton() {
+  const bar = 'animate-pulse rounded bg-white/[0.06]';
   return (
-    <div className="min-h-screen bg-[#0A0A0A] text-white cr-body">
-      <div className="mx-auto w-full max-w-xl px-4 pt-16 pb-6">
-        {/* Header skeleton */}
-        <div className="mb-6 flex items-center gap-4">
-          <div className="h-14 w-14 rounded-2xl bg-[#1F1F1F] animate-pulse" />
-          <div className="flex-1">
-            <div className="h-7 w-48 bg-[#1F1F1F] rounded animate-pulse" />
-          </div>
+    <div className="min-h-screen bg-[#08090b] text-white cr-body">
+      <div className="mx-auto w-full max-w-xl px-4 pt-16">
+        <div className="mb-6 space-y-2">
+          <div className={cn(bar, 'h-8 w-48')} />
+          <div className={cn(bar, 'h-4 w-72 max-w-full')} />
         </div>
-
-        {/* Active match card skeleton */}
-        <div className="mb-8 rounded-3xl border border-white/5 bg-[#141414] p-5 md:p-6">
+        <div className="mb-4 h-16 animate-pulse rounded-2xl border border-dashed border-white/10" />
+        <div className={cn(surface, 'space-y-6 p-5 md:p-6')}>
+          <div className="space-y-2">
+            <div className={cn(bar, 'h-4 w-24')} />
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="h-[62px] animate-pulse rounded-xl border border-white/10 bg-[#08090b]" />
+            ))}
+          </div>
+          <div className="space-y-2">
+            <div className={cn(bar, 'h-4 w-24')} />
+            <div className="h-12 animate-pulse rounded-[10px] bg-white/[0.06]" />
+          </div>
           <div className="flex items-center justify-between">
-            <div className="space-y-2 flex-1">
-              <div className="h-4 w-24 bg-[#1F1F1F] rounded animate-pulse" />
-              <div className="h-6 w-32 bg-[#1F1F1F] rounded animate-pulse" />
-              <div className="h-4 w-40 bg-[#1F1F1F] rounded animate-pulse" />
-            </div>
-            <div className="h-10 w-32 bg-[#1F1F1F] rounded-full animate-pulse" />
+            <div className={cn(bar, 'h-4 w-40')} />
+            <div className="h-6 w-11 animate-pulse rounded-full bg-white/[0.06]" />
           </div>
-        </div>
-
-        {/* Form card skeleton */}
-        <div className="space-y-6 rounded-3xl border border-white/5 bg-[#141414] p-5 md:p-7">
-          {/* Match type label */}
-          <div className="h-5 w-24 bg-[#1F1F1F] rounded animate-pulse" />
-
-          {/* 3 match type buttons */}
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="flex w-full items-center gap-3 rounded-2xl border border-white/10 bg-[#0A0A0A] p-3.5">
-              <div className="h-10 w-10 rounded-xl bg-[#1F1F1F] animate-pulse" />
-              <div className="flex-1 space-y-1.5">
-                <div className="h-4 w-16 bg-[#1F1F1F] rounded animate-pulse" />
-                <div className="h-3 w-24 bg-[#1F1F1F] rounded animate-pulse" />
-              </div>
-            </div>
-          ))}
-
-          {/* Room number skeleton */}
-          <div>
-            <div className="mb-2 h-5 w-24 bg-[#1F1F1F] rounded animate-pulse" />
-            <div className="h-12 w-full rounded-xl bg-[#1F1F1F] animate-pulse" />
-          </div>
-
-          {/* Password toggle skeleton */}
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <div className="h-5 w-24 bg-[#1F1F1F] rounded animate-pulse" />
-              <div className="h-7 w-12 rounded-full bg-[#1F1F1F] animate-pulse" />
-            </div>
-            <div className="h-4 w-48 bg-[#1F1F1F] rounded animate-pulse" />
-          </div>
-
-          {/* Review button skeleton */}
-          <div className="h-12 w-full rounded-full bg-[#1F1F1F] animate-pulse" />
+          <div className="h-11 animate-pulse rounded-full bg-white/[0.06]" />
         </div>
       </div>
     </div>
