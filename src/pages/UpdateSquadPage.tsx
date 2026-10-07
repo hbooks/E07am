@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useKindeAuth } from '@kinde-oss/kinde-auth-react';
 import {
@@ -11,18 +11,33 @@ import {
     ChevronDown,
     ChevronUp,
     AlertTriangle,
+    Loader2,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import NotFoundPage from '@/pages/NotFoundPage';
 
 const BASE_URL = import.meta.env.VITE_SUPABASE_FUNCTIONS_URL;
 const CLO_PUSH_URL = `${BASE_URL}/Clo-push`;
+const CHUAD_URL = `${BASE_URL}/Chuad`;
 
 const REFERENCE_SCREENSHOT_URL =
     'https://res.cloudinary.com/ctr-cloud/image/upload/v1786289547/jl5lylxi6gqpc6daryf4.jpg';
 
+type GateState =
+    | { status: 'checking' }
+    | { status: 'allowed' }
+    | { status: 'not-found' }
+    | { status: 'already-verified' }
+    | { status: 'already-pending' }
+    | { status: 'error' };
+
 export default function UpdateSquadPage() {
-    const { user, isAuthenticated } = useKindeAuth();
+    const { user, isAuthenticated, getToken } = useKindeAuth();
     const navigate = useNavigate();
+
+    const [gate, setGate] = useState<GateState>({ status: 'checking' });
+    const [showSkeleton, setShowSkeleton] = useState(false);
+
     const [file, setFile] = useState<File | null>(null);
     const [preview, setPreview] = useState<string | null>(null);
     const [isUploading, setIsUploading] = useState(false);
@@ -30,26 +45,79 @@ export default function UpdateSquadPage() {
     const [showReference, setShowReference] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    // Collapsible state
     const [refOpen, setRefOpen] = useState(false);
     const [warnOpen, setWarnOpen] = useState(false);
-
-    // Drop zone error state
     const [dropError, setDropError] = useState<string | null>(null);
 
-    if (!isAuthenticated) {
-        navigate('/login');
-        return null;
+    // Pre-flight gate check
+    useEffect(() => {
+        // Not signed in, or no user id → 404, no fetch attempted
+        if (!isAuthenticated || !user?.id) {
+            setGate({ status: 'not-found' });
+            return;
+        }
+
+        let cancelled = false;
+        const skeletonTimer = setTimeout(() => {
+            if (!cancelled) setShowSkeleton(true);
+        }, 150);
+
+        (async () => {
+            try {
+                const res = await fetch(CHUAD_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ userId: user.id }),
+                });
+                if (!res.ok) throw new Error('gate failed');
+                const data = await res.json();
+                if (cancelled) return;
+
+                if (data.allowed) setGate({ status: 'allowed' });
+                else if (data.reason === 'NOT_FOUND') setGate({ status: 'not-found' });
+                else if (data.reason === 'PENDING') setGate({ status: 'already-pending' });
+                else if (data.reason === 'VERIFIED') setGate({ status: 'already-verified' });
+                else setGate({ status: 'not-found' });
+            } catch (err) {
+                console.warn('[UpdateSquad] Gate check failed:', err);
+                if (!cancelled) setGate({ status: 'error' });
+            } finally {
+                clearTimeout(skeletonTimer);
+            }
+        })();
+
+        return () => {
+            cancelled = true;
+            clearTimeout(skeletonTimer);
+        };
+    }, [isAuthenticated, user?.id]);
+
+    if (gate.status === 'checking') {
+        return showSkeleton ? <GateSkeleton /> : null;
     }
+
+    if (gate.status === 'error') {
+        return <GateError onRetry={() => navigate(0)} />;
+    }
+
+    if (gate.status === 'not-found') {
+        return <NotFoundPage />;
+    }
+
+    if (gate.status === 'already-verified') {
+        return <AlreadyVerifiedView onBack={() => navigate('/profile')} />;
+    }
+
+    if (gate.status === 'already-pending') {
+        return <AlreadyPendingView onBack={() => navigate('/profile')} />;
+    }
+
+    // ---- From here on, this is the normal UpdateSquadPage ----
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const selectedFile = e.target.files?.[0];
         if (!selectedFile) return;
-
-        // Reset error
         setDropError(null);
-
-        // Client-side validation
         if (selectedFile.size > 700 * 1024) {
             setDropError('File must be 700 KB or less.');
             return;
@@ -58,32 +126,38 @@ export default function UpdateSquadPage() {
             setDropError('Only JPEG, PNG, and WebP images are allowed.');
             return;
         }
-
-        // Valid file
         setFile(selectedFile);
         setPreview(URL.createObjectURL(selectedFile));
     };
 
     const handleSubmit = async () => {
         if (!file || !user) return;
-
         setIsUploading(true);
+
         const formData = new FormData();
         formData.append('file', file);
         formData.append('userId', user.id);
 
         try {
+            const token = await getToken();
+            if (!token) {
+                setDropError('Your session expired. Please sign in again.');
+                setIsUploading(false);
+                return;
+            }
+
             const res = await fetch(CLO_PUSH_URL, {
                 method: 'POST',
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                },
                 body: formData,
             });
             const data = await res.json();
-
             if (res.ok) {
                 setSuccessModal(true);
                 toast.success('Screenshot submitted!');
             } else {
-                // Show backend error inside drop zone
                 setDropError(data.error || 'Upload failed');
                 setFile(null);
                 setPreview(null);
@@ -97,20 +171,14 @@ export default function UpdateSquadPage() {
         }
     };
 
-    // Determine drop zone styling based on state
     const dropZoneClasses = () => {
-        if (dropError) {
-            return 'border-red-500 bg-red-500/10';
-        }
-        if (file) {
-            return 'border-green-500 bg-green-500/10';
-        }
+        if (dropError) return 'border-red-500 bg-red-500/10';
+        if (file) return 'border-green-500 bg-green-500/10';
         return 'border-gray-700 hover:border-[#1E90FF] bg-[#1A1A1A]';
     };
 
     return (
         <div className="min-h-screen bg-[#0A0A0A] text-white p-6 max-w-xl mx-auto animate-in fade-in slide-in-from-bottom-2 duration-300">
-            {/* Back arrow */}
             <button
                 onClick={() => navigate('/profile')}
                 className="mb-6 flex items-center gap-2 text-sm text-gray-400 hover:text-white transition"
@@ -125,7 +193,6 @@ export default function UpdateSquadPage() {
                 strength, rank, and player rank accordingly. Evaluation usually takes 10–50 minutes.
             </p>
 
-            {/* Collapsible: Tampered screenshots warning */}
             <div className="bg-red-500/10 border border-red-500/20 rounded-2xl mb-6 overflow-hidden">
                 <button
                     onClick={() => setWarnOpen(!warnOpen)}
@@ -135,16 +202,9 @@ export default function UpdateSquadPage() {
                         <Shield className="h-5 w-5 text-red-400" />
                         <span className="text-sm font-semibold text-red-300">Tampered screenshots are not allowed</span>
                     </div>
-                    {warnOpen ? (
-                        <ChevronUp className="h-5 w-5 text-red-400" />
-                    ) : (
-                        <ChevronDown className="h-5 w-5 text-red-400" />
-                    )}
+                    {warnOpen ? <ChevronUp className="h-5 w-5 text-red-400" /> : <ChevronDown className="h-5 w-5 text-red-400" />}
                 </button>
-                <div
-                    className={`transition-all duration-300 ${warnOpen ? 'max-h-96 opacity-100 pb-4' : 'max-h-0 opacity-0 overflow-hidden'
-                        }`}
-                >
+                <div className={`transition-all duration-300 ${warnOpen ? 'max-h-96 opacity-100 pb-4' : 'max-h-0 opacity-0 overflow-hidden'}`}>
                     <div className="px-4">
                         <p className="text-xs text-red-400/80">
                             Uploading edited, fake, or irrelevant images will increase your{' '}
@@ -154,7 +214,6 @@ export default function UpdateSquadPage() {
                 </div>
             </div>
 
-            {/* Collapsible: Reference Screenshot */}
             <div className="bg-[#1A1A1A] rounded-2xl border border-gray-800 mb-4 overflow-hidden">
                 <button
                     onClick={() => setRefOpen(!refOpen)}
@@ -164,16 +223,9 @@ export default function UpdateSquadPage() {
                         <Eye className="h-5 w-5 text-[#1E90FF]" />
                         <span className="text-sm font-semibold">Reference Screenshot</span>
                     </div>
-                    {refOpen ? (
-                        <ChevronUp className="h-5 w-5 text-gray-400" />
-                    ) : (
-                        <ChevronDown className="h-5 w-5 text-gray-400" />
-                    )}
+                    {refOpen ? <ChevronUp className="h-5 w-5 text-gray-400" /> : <ChevronDown className="h-5 w-5 text-gray-400" />}
                 </button>
-                <div
-                    className={`transition-all duration-300 ${refOpen ? 'max-h-96 opacity-100 pb-4' : 'max-h-0 opacity-0 overflow-hidden'
-                        }`}
-                >
+                <div className={`transition-all duration-300 ${refOpen ? 'max-h-96 opacity-100 pb-4' : 'max-h-0 opacity-0 overflow-hidden'}`}>
                     <div className="px-4">
                         <div className="flex items-start gap-4">
                             <div className="flex-1">
@@ -200,18 +252,13 @@ export default function UpdateSquadPage() {
                 </div>
             </div>
 
-
-            {/* Drop zone */}
             <div
                 onClick={() => {
-                    // Clear error when user clicks to select new file
                     setDropError(null);
                     fileInputRef.current?.click();
                 }}
                 className={`border-2 border-dashed rounded-3xl p-8 mb-6 text-center cursor-pointer transition-colors ${dropZoneClasses()}`}
-                style={{
-                    animation: dropError ? 'shake 0.5s ease-in-out' : 'none',
-                }}
+                style={{ animation: dropError ? 'shake 0.5s ease-in-out' : 'none' }}
             >
                 {dropError ? (
                     <div className="space-y-3">
@@ -248,7 +295,6 @@ export default function UpdateSquadPage() {
                 />
             </div>
 
-            {/* File info */}
             {file && !dropError && (
                 <div className="bg-[#1A1A1A] rounded-xl p-4 mb-6 flex items-center justify-between">
                     <div>
@@ -259,13 +305,12 @@ export default function UpdateSquadPage() {
                 </div>
             )}
 
-            {/* Submit button */}
             <button
                 onClick={handleSubmit}
                 disabled={!file || isUploading || !!dropError}
                 className={`w-full py-3 rounded-xl font-semibold transition ${file && !dropError
-                        ? 'bg-[#1E90FF] hover:bg-blue-600 text-white'
-                        : 'bg-[#1A1A1A] text-gray-500 cursor-not-allowed'
+                    ? 'bg-[#1E90FF] hover:bg-blue-600 text-white'
+                    : 'bg-[#1A1A1A] text-gray-500 cursor-not-allowed'
                     }`}
             >
                 {isUploading ? (
@@ -278,7 +323,6 @@ export default function UpdateSquadPage() {
                 )}
             </button>
 
-            {/* Reference image modal */}
             {showReference && (
                 <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
                     <div className="relative bg-[#1A1A1A] rounded-3xl overflow-hidden shadow-2xl max-w-lg w-full max-h-[90vh]">
@@ -296,7 +340,6 @@ export default function UpdateSquadPage() {
                 </div>
             )}
 
-            {/* Success Modal */}
             {successModal && (
                 <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
                     <div className="bg-[#1A1A1A] rounded-3xl p-6 max-w-sm w-full text-center shadow-2xl">
@@ -320,6 +363,86 @@ export default function UpdateSquadPage() {
                     </div>
                 </div>
             )}
+        </div>
+    );
+}
+
+// ---------- Gate screens ----------
+
+function GateSkeleton() {
+    return (
+        <div className="min-h-screen bg-[#0A0A0A] text-white p-6 max-w-xl mx-auto">
+            <div className="mb-6 h-5 w-20 animate-pulse rounded bg-white/[0.06]" />
+            <div className="mb-2 h-8 w-64 animate-pulse rounded bg-white/[0.06]" />
+            <div className="mb-6 h-4 w-full animate-pulse rounded bg-white/[0.06]" />
+            <div className="mb-6 h-16 animate-pulse rounded-2xl bg-white/[0.06]" />
+            <div className="mb-4 h-20 animate-pulse rounded-2xl bg-white/[0.06]" />
+            <div className="mb-6 h-48 animate-pulse rounded-3xl bg-white/[0.06]" />
+            <div className="h-12 animate-pulse rounded-xl bg-white/[0.06]" />
+        </div>
+    );
+}
+
+function GateError({ onRetry }: { onRetry: () => void }) {
+    return (
+        <div className="min-h-screen bg-[#0A0A0A] text-white flex items-center justify-center p-6">
+            <div className="text-center max-w-sm">
+                <AlertTriangle className="h-12 w-12 mx-auto text-red-400 mb-4" />
+                <h1 className="text-xl font-bold mb-2">Something went wrong</h1>
+                <p className="text-sm text-gray-400 mb-6">
+                    We couldn't verify your account. Please try again.
+                </p>
+                <button
+                    onClick={onRetry}
+                    className="px-5 py-2.5 rounded-xl bg-[#1E90FF] hover:bg-blue-600 text-white font-semibold transition"
+                >
+                    Retry
+                </button>
+            </div>
+        </div>
+    );
+}
+
+function AlreadyVerifiedView({ onBack }: { onBack: () => void }) {
+    return (
+        <div className="min-h-screen bg-[#0A0A0A] text-white flex items-center justify-center p-6">
+            <div className="text-center max-w-sm">
+                <div className="w-16 h-16 rounded-full bg-green-500/20 flex items-center justify-center mx-auto mb-4">
+                    <CheckCircle className="h-8 w-8 text-green-400" />
+                </div>
+                <h1 className="text-xl font-bold mb-2">You're already verified</h1>
+                <p className="text-sm text-gray-400 mb-6">
+                    Your squad is verified. There's nothing to update right now.
+                </p>
+                <button
+                    onClick={onBack}
+                    className="px-5 py-2.5 rounded-xl bg-[#1E90FF] hover:bg-blue-600 text-white font-semibold transition"
+                >
+                    Back to profile
+                </button>
+            </div>
+        </div>
+    );
+}
+
+function AlreadyPendingView({ onBack }: { onBack: () => void }) {
+    return (
+        <div className="min-h-screen bg-[#0A0A0A] text-white flex items-center justify-center p-6">
+            <div className="text-center max-w-sm">
+                <div className="w-16 h-16 rounded-full bg-[#1E90FF]/20 flex items-center justify-center mx-auto mb-4">
+                    <Loader2 className="h-8 w-8 text-[#5CA8FF] animate-spin" />
+                </div>
+                <h1 className="text-xl font-bold mb-2">Under review</h1>
+                <p className="text-sm text-gray-400 mb-6">
+                    Your squad is currently being evaluated. You'll be notified when it's done.
+                </p>
+                <button
+                    onClick={onBack}
+                    className="px-5 py-2.5 rounded-xl bg-[#1E90FF] hover:bg-blue-600 text-white font-semibold transition"
+                >
+                    Back to profile
+                </button>
+            </div>
         </div>
     );
 }
